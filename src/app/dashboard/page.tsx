@@ -95,7 +95,7 @@ export default function DashboardPage() {
               <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$1,250,000</div>
+              <div className="text-2xl font-bold">MWK 1,250,000</div>
               <p className="text-xs text-muted-foreground">
                 +5.2% from last month
               </p>
@@ -109,7 +109,7 @@ export default function DashboardPage() {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$450,231.89</div>
+              <div className="text-2xl font-bold">MWK 450,231.89</div>
               <p className="text-xs text-muted-foreground">
                 +10.1% from last month
               </p>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
                     tickLine={false}
                     axisLine={false}
                     tickMargin={10}
-                    tickFormatter={(value) => `$${'${value / 1000}'}K`}
+                    tickFormatter={(value) => `K${value / 1000}K`}
                   />
                   <ChartTooltip
                     cursor={false}

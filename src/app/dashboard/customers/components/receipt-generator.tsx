@@ -87,7 +87,7 @@ export default function ReceiptGenerator({
         <DialogHeader>
           <DialogTitle>Generate Payment Receipt</DialogTitle>
           <DialogDescription>
-            A receipt will be generated for the payment of ${paymentAmount.toFixed(2)}.
+            A receipt will be generated for the payment of MWK {paymentAmount.toFixed(2)}.
           </DialogDescription>
         </DialogHeader>
         {!receiptText && !isLoading && (
