@@ -19,6 +19,12 @@ const GenerateReceiptImageInputSchema = z.object({
   businessName: z.string().describe('The name of the business.'),
   businessAddress: z.string().describe('The address of the business.'),
   businessPhone: z.string().describe('The phone number of the business.'),
+  businessLogoDataUri: z
+    .string()
+    .describe(
+      "A photo of the business logo, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
+    )
+    .optional(),
 });
 export type GenerateReceiptImageInput = z.infer<typeof GenerateReceiptImageInputSchema>;
 
@@ -43,8 +49,8 @@ const generateReceiptImageFlow = ai.defineFlow(
     const { media } = await ai.generate({
         model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: `Generate a professional, clean, and modern-looking payment receipt image.
-
-        **Do not include any logos or icons.**
+        
+        ${input.businessLogoDataUri ? `**Incorporate this logo into the receipt design:** {{media url=${input.businessLogoDataUri}}}` : '**Do not include any logos or icons.**'}
 
         The receipt should contain the following information, clearly laid out:
         
