@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -79,6 +79,12 @@ export default function ReceiptGenerator({
       setIsGeneratingText(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen && !receiptText && !isGeneratingText) {
+      generateReceiptText();
+    }
+  }, [isOpen, receiptText, isGeneratingText]);
 
   const generateImage = async () => {
     if (!receiptText || !receiptId) {

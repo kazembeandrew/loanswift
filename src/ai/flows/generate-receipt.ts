@@ -89,7 +89,7 @@ const generateReceiptFlow = ai.defineFlow(
 
     const promptInput = {
       ...input,
-      balance: balance
+      balance: balance,
     };
 
     const {output} = await generateReceiptPrompt(promptInput);
