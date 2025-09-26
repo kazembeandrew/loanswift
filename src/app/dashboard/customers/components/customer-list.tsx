@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,7 +24,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, PlusCircle } from 'lucide-react';
-import { customers as initialCustomers, loans as initialLoans, payments as initialPayments } from '@/lib/data';
 import type { Customer, Loan, Payment } from '@/types';
 import {
   Dialog,
@@ -47,6 +46,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { addCustomer, getCustomers } from '@/services/customer-service';
+import { addLoan, getLoansByCustomerId, getLoans } from '@/services/loan-service';
+import { addPayment, getPayments, getPaymentsByLoanId } from '@/services/payment-service';
 
 const customerFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -74,9 +76,9 @@ type CustomerListProps = {
 };
 
 export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp, setAddCustomerOpen: setAddCustomerOpenProp }: CustomerListProps) {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [loans, setLoans] = useState<Loan[]>(initialLoans);
-  const [payments, setPayments] = useState<Payment[]>(initialPayments);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [internalIsAddCustomerOpen, setInternalIsAddCustomerOpen] = useState(false);
   
   const isAddCustomerOpen = isAddCustomerOpenProp !== undefined ? isAddCustomerOpenProp : internalIsAddCustomerOpen;
@@ -91,6 +93,22 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
   const [addCustomerStep, setAddCustomerStep] = useState(1);
+
+  const fetchData = useCallback(async () => {
+    const [customersData, loansData, paymentsData] = await Promise.all([
+      getCustomers(),
+      getLoans(),
+      getPayments(),
+    ]);
+    setCustomers(customersData);
+    setLoans(loansData);
+    setPayments(paymentsData);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const customerForm = useForm<z.infer<typeof customerFormSchema>>({
     resolver: zodResolver(customerFormSchema),
@@ -126,12 +144,11 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     setRecordPaymentOpen(true);
   };
   
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
      if (selectedCustomer && selectedLoan && paymentDetails.amount) {
       const newPaymentAmount = parseFloat(paymentDetails.amount);
-      const newPayment: Payment = {
-        id: `PAY-${Date.now()}`,
+      const newPaymentData: Omit<Payment, 'id'> = {
         loanId: selectedLoan.id,
         amount: newPaymentAmount,
         date: paymentDetails.date || new Date().toISOString().split('T')[0],
@@ -146,12 +163,13 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
           variant: 'destructive',
         });
       }
-
-      setPayments(prev => [...prev, newPayment]);
+      
+      await addPayment(newPaymentData);
+      await fetchData();
 
       toast({
         title: 'Payment Recorded',
-        description: `Payment of MWK ${newPayment.amount} for loan ${selectedLoan.id} has been recorded.`,
+        description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
       });
 
       setRecordPaymentOpen(false);
@@ -168,15 +186,10 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
   const handleEditCustomerSubmit = (values: z.infer<typeof customerFormSchema>) => {
     if (!selectedCustomer) return;
 
-    const updatedCustomer: Customer = {
-      ...selectedCustomer,
-      name: values.name,
-      email: values.email,
-      phone: values.phone,
-      address: values.address,
-    };
+    // In a real app, you'd call an updateCustomer service function here.
+    // For now, we'll just update the local state for demonstration.
     
-    setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? updatedCustomer : c));
+    setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {...c, ...values} : c));
     setEditCustomerOpen(false);
     customerForm.reset();
     toast({
@@ -185,33 +198,30 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     });
   };
   
-  const handleAddCustomerSubmit = (values: z.infer<typeof customerFormSchema>) => {
-    const newCustomerId = `CUST-${String(customers.length + 1).padStart(3, '0')}`;
+  const handleAddCustomerSubmit = async (values: z.infer<typeof customerFormSchema>) => {
     
-    const newCustomer: Customer = {
-      id: newCustomerId,
+    const newCustomerData: Omit<Customer, 'id' | 'joinDate'> = {
       name: values.name,
       email: values.email,
       phone: values.phone,
       address: values.address,
-      joinDate: new Date().toISOString().split('T')[0],
     };
+    
+    const newCustomerId = await addCustomer(newCustomerData);
 
     if (values.loanAmount && values.dateTaken && values.paymentPeriod) {
-        const newLoanId = `LOAN-${String(loans.length + 1).padStart(3, '0')}`;
-        const newLoan: Loan = {
-        id: newLoanId,
-        customerId: newCustomerId,
-        principal: values.loanAmount,
-        interestRate: values.interestRate || 0,
-        term: parseInt(values.paymentPeriod, 10),
-        startDate: values.dateTaken,
-        status: 'Pending',
+        const newLoanData: Omit<Loan, 'id'> = {
+          customerId: newCustomerId,
+          principal: values.loanAmount,
+          interestRate: values.interestRate || 0,
+          term: parseInt(values.paymentPeriod, 10),
+          startDate: values.dateTaken,
+          status: 'Pending',
         };
-        setLoans(prev => [...prev, newLoan]);
+        await addLoan(newLoanData);
     }
     
-    setCustomers(prev => [...prev, newCustomer]);
+    await fetchData();
     setAddCustomerOpen(false);
     customerForm.reset();
     setAddCustomerStep(1);
@@ -226,13 +236,10 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     setAddNewLoanOpen(true);
   };
   
-  const handleAddNewLoanSubmit = (values: z.infer<typeof newLoanFormSchema>) => {
+  const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>) => {
     if (!selectedCustomer) return;
-
-    const newLoanId = `LOAN-${String(loans.length + 1).padStart(3, '0')}`;
     
-    const newLoan: Loan = {
-      id: newLoanId,
+    const newLoanData: Omit<Loan, 'id'> = {
       customerId: selectedCustomer.id,
       principal: values.loanAmount,
       interestRate: values.interestRate,
@@ -241,7 +248,8 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
       status: 'Pending',
     };
     
-    setLoans(prev => [...prev, newLoan]);
+    await addLoan(newLoanData);
+    await fetchData();
     setAddNewLoanOpen(false);
     newLoanForm.reset();
     toast({

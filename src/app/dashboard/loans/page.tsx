@@ -1,8 +1,6 @@
-
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import {
@@ -33,15 +31,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { customers as initialCustomers, loans as initialLoans, payments as initialPayments } from '@/lib/data';
 import type { Customer, Loan, Payment } from '@/types';
 import ReceiptGenerator from '../customers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
+import { getCustomers } from '@/services/customer-service';
+import { getLoans } from '@/services/loan-service';
+import { getPayments, addPayment } from '@/services/payment-service';
+
 
 export default function LoansPage() {
-  const [loans, setLoans] = useState<Loan[]>(initialLoans);
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [payments, setPayments] = useState<Payment[]>(initialPayments);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -49,6 +50,21 @@ export default function LoansPage() {
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
   const router = useRouter();
+
+  const fetchData = useCallback(async () => {
+    const [loansData, customersData, paymentsData] = await Promise.all([
+      getLoans(),
+      getCustomers(),
+      getPayments(),
+    ]);
+    setLoans(loansData);
+    setCustomers(customersData);
+    setPayments(paymentsData);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getCustomerById = (id: string) => customers.find((c) => c.id === id);
 
@@ -81,7 +97,9 @@ export default function LoansPage() {
     const paidAmount = payments
       .filter((p) => p.loanId === loanId)
       .reduce((acc, p) => acc + p.amount, 0);
-    const totalOwed = principal * (1 + (loans.find(l => l.id === loanId)?.interestRate || 0) / 100);
+    const loan = loans.find(l => l.id === loanId);
+    if (!loan) return 0;
+    const totalOwed = principal * (1 + loan.interestRate / 100);
     if (totalOwed === 0) return 100;
     return (paidAmount / totalOwed) * 100;
   };
@@ -92,11 +110,11 @@ export default function LoansPage() {
     setRecordPaymentOpen(true);
   }
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedLoan && paymentDetails.amount) {
       const newPaymentAmount = parseFloat(paymentDetails.amount);
-      const newPayment: Payment = {
+      const newPaymentData: Omit<Payment, 'id'> = {
         id: `PAY-${Date.now()}`,
         loanId: selectedLoan.id,
         amount: newPaymentAmount,
@@ -113,11 +131,12 @@ export default function LoansPage() {
         });
       }
 
-      setPayments(prev => [...prev, newPayment]);
+      await addPayment(newPaymentData);
+      await fetchData();
       
       toast({
         title: 'Payment Recorded',
-        description: `Payment of MWK ${newPayment.amount} for loan ${newPayment.loanId} has been recorded.`,
+        description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
       });
 
       setRecordPaymentOpen(false);

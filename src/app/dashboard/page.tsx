@@ -1,4 +1,3 @@
-
 'use client';
 import {
   ArrowDown,
@@ -33,11 +32,13 @@ import {
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { loans as initialLoans, customers as initialCustomers, payments as initialPayments } from '@/lib/data';
 import type { Customer, Loan, Payment } from '@/types';
 import { format, subMonths, getMonth, isAfter, subDays } from 'date-fns';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import CustomerList from './customers/components/customer-list';
+import { getCustomers } from '@/services/customer-service';
+import { getLoans } from '@/services/loan-service';
+import { getPayments } from '@/services/payment-service';
 
 
 const monthlyCollectionsChartConfig = {
@@ -47,21 +48,41 @@ const monthlyCollectionsChartConfig = {
   },
 } satisfies ChartConfig;
 
-const getCustomerById = (id: string): Customer | undefined => {
-    return initialCustomers.find((customer) => customer.id === id);
-}
 
 export default function DashboardPage() {
   const [isAddCustomerOpen, setAddCustomerOpen] = useState(false);
-  const overdueLoans = initialLoans.filter(loan => loan.status === 'Overdue');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  
+  const fetchData = useCallback(async () => {
+    const [customersData, loansData, paymentsData] = await Promise.all([
+      getCustomers(),
+      getLoans(),
+      getPayments(),
+    ]);
+    setCustomers(customersData);
+    setLoans(loansData);
+    setPayments(paymentsData);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  const getCustomerById = (id: string): Customer | undefined => {
+    return customers.find((customer) => customer.id === id);
+  }
+
+  const overdueLoans = loans.filter(loan => loan.status === 'Overdue');
   const overdueLoansCount = overdueLoans.length;
   const overdueLoansValue = overdueLoans.reduce((sum, l) => sum + l.principal, 0);
-  const totalCollected = initialPayments.reduce((acc, payment) => acc + payment.amount, 0);
+  const totalCollected = payments.reduce((acc, payment) => acc + payment.amount, 0);
 
   const thirtyDaysAgo = subDays(new Date(), 30);
-  const newCustomersCount = initialCustomers.filter(c => isAfter(new Date(c.joinDate), thirtyDaysAgo)).length;
+  const newCustomersCount = customers.filter(c => isAfter(new Date(c.joinDate), thirtyDaysAgo)).length;
   
-  const recentPayments = initialPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  const recentPayments = payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
   const now = new Date();
   const monthlyCollectionsData = Array.from({ length: 6 }, (_, i) => {
@@ -73,7 +94,7 @@ export default function DashboardPage() {
     };
   });
 
-  initialPayments.forEach(payment => {
+  payments.forEach(payment => {
     const paymentMonthIndex = getMonth(new Date(payment.date));
     const collectionMonth = monthlyCollectionsData.find(m => m.monthIndex === paymentMonthIndex);
     if (collectionMonth) {
@@ -203,7 +224,7 @@ export default function DashboardPage() {
              <div className="space-y-8">
                {recentPayments.length > 0 ? (
                 recentPayments.map(payment => {
-                  const loan = initialLoans.find(l => l.id === payment.loanId);
+                  const loan = loans.find(l => l.id === payment.loanId);
                   if (!loan) return null;
                   const customer = getCustomerById(loan.customerId);
                   const avatarFallback = customer?.name.split(' ').map(n => n[0]).join('') || 'N/A';

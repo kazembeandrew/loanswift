@@ -1,17 +1,14 @@
-
-
 'use client';
 
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/header';
-import { customers, loans, payments } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign } from 'lucide-react';
+import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import type { Customer, Loan, Payment } from '@/types';
 import {
@@ -25,32 +22,54 @@ import {
 import { Label } from '@/components/ui/label';
 import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
+import { getCustomerById } from '@/services/customer-service';
+import { getLoansByCustomerId } from '@/services/loan-service';
+import { getPaymentsByLoanId, addPayment, getPayments } from '@/services/payment-service';
+import { uploadFile, getFiles, getDownloadURL } from '@/services/storage-service';
 
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const customer = customers.find((c) => c.id === id);
-  const [customerLoans, setCustomerLoans] = useState<Loan[]>(loans.filter((l) => l.customerId === id));
-  const [allPayments, setAllPayments] = useState<Payment[]>(payments);
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customerLoans, setCustomerLoans] = useState<Loan[]>([]);
+  const [allPayments, setAllPayments] = useState<Payment[]>([]);
+  const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  const [isUploading, setIsUploading] = useState(false);
+
   const { toast } = useToast();
+
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+    const [customerData, loansData, paymentsData, filesData] = await Promise.all([
+      getCustomerById(id),
+      getLoansByCustomerId(id),
+      getPayments(), // Fetch all payments to calculate balances correctly
+      getFiles(`customers/${id}/attachments`)
+    ]);
+    setCustomer(customerData);
+    setCustomerLoans(loansData);
+    setAllPayments(paymentsData);
+    setAttachments(filesData);
+  }, [id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   if (!customer) {
     return (
       <div className="flex min-h-screen w-full flex-col">
-        <Header title="Customer Not Found" />
-        <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-          <p>The requested customer could not be found.</p>
-          <Link href="/dashboard/customers">
-            <Button>Back to Customers</Button>
-          </Link>
+        <Header title="Loading Customer..." />
+        <main className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
       </div>
     );
@@ -70,12 +89,11 @@ export default function CustomerDetailPage() {
     setRecordPaymentOpen(true);
   }
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedLoan && paymentDetails.amount) {
        const newPaymentAmount = parseFloat(paymentDetails.amount);
-       const newPayment: Payment = {
-        id: `PAY-${Date.now()}`,
+       const newPaymentData: Omit<Payment, 'id'> = {
         loanId: selectedLoan.id,
         amount: newPaymentAmount,
         date: paymentDetails.date || new Date().toISOString().split('T')[0],
@@ -92,11 +110,12 @@ export default function CustomerDetailPage() {
         });
       }
 
-      setAllPayments(prev => [...prev, newPayment]);
+      await addPayment(newPaymentData);
+      await fetchData();
       
       toast({
         title: 'Payment Recorded',
-        description: `Payment of MWK ${newPayment.amount} for loan ${newPayment.loanId} has been recorded.`,
+        description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
       });
 
       setRecordPaymentOpen(false);
@@ -122,9 +141,29 @@ export default function CustomerDetailPage() {
 
   const avatarFallback = customer.name.split(' ').map(n => n[0]).join('');
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      setAttachments(prev => [...prev, ...Array.from(event.target.files!)]);
+      const filesToUpload = Array.from(event.target.files);
+      setIsUploading(true);
+      try {
+        await Promise.all(
+          filesToUpload.map(file => uploadFile(file, `customers/${id}/attachments/${file.name}`))
+        );
+        toast({
+          title: 'Upload Successful',
+          description: `${filesToUpload.length} file(s) have been uploaded.`,
+        });
+        await fetchData(); // Refresh attachments
+      } catch (error) {
+        console.error("File upload error:", error);
+        toast({
+          title: 'Upload Failed',
+          description: 'There was an error uploading your files. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -203,8 +242,8 @@ export default function CustomerDetailPage() {
                 <Paperclip className="h-5 w-5 text-muted-foreground" />
                 <CardTitle className="font-headline">Attachments</CardTitle>
               </div>
-              <Button variant="outline" size="sm" onClick={handleUploadClick}>
-                <Upload className="mr-2 h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={handleUploadClick} disabled={isUploading}>
+                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Upload File
               </Button>
               <Input 
@@ -220,8 +259,7 @@ export default function CustomerDetailPage() {
                 <ul className="space-y-2">
                   {attachments.map((file, index) => (
                     <li key={index} className="flex items-center justify-between text-sm p-2 bg-muted rounded-md">
-                      <span>{file.name}</span>
-                      <span className="text-muted-foreground">{(file.size / 1024).toFixed(2)} KB</span>
+                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
                     </li>
                   ))}
                 </ul>

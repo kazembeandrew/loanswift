@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,22 +27,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  customers as initialCustomers,
-  loans as initialLoans,
-  payments as initialPayments,
-} from '@/lib/data';
 import type { Customer, Loan, Payment } from '@/types';
 import ReceiptGenerator from '../customers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getCustomers } from '@/services/customer-service';
+import { getLoans } from '@/services/loan-service';
+import { getPayments, addPayment } from '@/services/payment-service';
 
 
 export default function PaymentsPage() {
-  const [customers] = useState<Customer[]>(initialCustomers);
-  const [loans] = useState<Loan[]>(initialLoans);
-  const [payments, setPayments] = useState<Payment[]>(initialPayments);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -53,25 +50,41 @@ export default function PaymentsPage() {
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
 
+  const fetchData = useCallback(async () => {
+    const [customersData, loansData, paymentsData] = await Promise.all([
+      getCustomers(),
+      getLoans(),
+      getPayments(),
+    ]);
+    setCustomers(customersData);
+    setLoans(loansData);
+    setPayments(paymentsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+
   const getCustomerById = (id: string | null) => id ? customers.find((c) => c.id === id) : null;
   const getLoanById = (id: string | null) => id ? loans.find((l) => l.id === id) : null;
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedLoan = getLoanById(selectedLoanId);
     if (selectedLoan && paymentDetails.amount) {
-       const newPayment: Payment = {
-        id: `PAY-${Date.now()}`,
+       const newPaymentData: Omit<Payment, 'id'> = {
         loanId: selectedLoan.id,
         amount: parseFloat(paymentDetails.amount),
         date: paymentDetails.date || new Date().toISOString().split('T')[0],
         recordedBy: 'Staff Admin',
       };
-      setPayments(prev => [newPayment, ...prev]); 
+      await addPayment(newPaymentData);
+      await fetchData();
       
       toast({
         title: 'Payment Recorded',
-        description: `Payment of MWK ${newPayment.amount} for loan ${newPayment.loanId} has been recorded.`,
+        description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
       });
 
       setRecordPaymentOpen(false);
@@ -95,7 +108,7 @@ export default function PaymentsPage() {
   const selectedCustomerForDialog = getCustomerById(selectedCustomerId);
   const selectedLoanForDialog = getLoanById(selectedLoanId);
   
-  const recentPayments = payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 7);
+  const recentPayments = payments.slice(0, 7);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
