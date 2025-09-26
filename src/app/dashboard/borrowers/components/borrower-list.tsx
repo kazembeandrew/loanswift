@@ -252,7 +252,6 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
           interestRate: values.interestRate || 0,
           repaymentPeriod: values.repaymentPeriod,
           startDate: values.startDate,
-          status: 'approved',
           outstandingBalance: values.loanAmount,
           collateral: values.collateral,
         };
@@ -284,7 +283,6 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       interestRate: values.interestRate,
       repaymentPeriod: values.repaymentPeriod,
       startDate: values.startDate,
-      status: 'approved',
       outstandingBalance: values.loanAmount,
       collateral: values.collateral,
     };
@@ -298,6 +296,16 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       description: `A new loan has been added for ${selectedBorrower.name}.`,
     });
   };
+
+  const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
+      const balance = getLoanBalance(loan);
+      if (balance <= 0) return 'closed';
+
+      const paymentsForLoan = payments.filter(p => p.loanId === loan.id);
+      if (paymentsForLoan.length > 0) return 'active';
+
+      return 'approved';
+  }
 
   const getLoanStatusVariant = (
     status: 'approved' | 'active' | 'closed'
@@ -427,14 +435,13 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {borrowerLoans.map((loan) => {
-                        const isPaid = getLoanBalance(loan) <= 0;
-                        const status = isPaid ? 'closed' : loan.status;
+                        const status = getLoanStatus(loan);
                         return (
                           <Badge
                             key={loan.id}
                             variant={getLoanStatusVariant(status)}
                             className="cursor-pointer"
-                            onClick={() => !isPaid && handleRecordPayment(borrower, loan)}
+                            onClick={() => status !== 'closed' && handleRecordPayment(borrower, loan)}
                           >
                             {loan.id} ({status})
                           </Badge>

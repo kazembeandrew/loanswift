@@ -75,6 +75,16 @@ export default function LoansPage() {
     const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     return totalOwed - totalPaid;
   };
+  
+  const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
+      const balance = getLoanBalance(loan);
+      if (balance <= 0) return 'closed';
+
+      const paymentsForLoan = payments.filter(p => p.loanId === loan.id);
+      if (paymentsForLoan.length > 0) return 'active';
+
+      return 'approved';
+  }
 
   const getLoanStatusVariant = (
     status: 'approved' | 'active' | 'closed'
@@ -92,13 +102,13 @@ export default function LoansPage() {
   };
   
   const getLoanProgress = (loan: Loan) => {
-    const paidAmount = payments
+    const totalPaid = payments
       .filter((p) => p.loanId === loan.id)
       .reduce((acc, p) => acc + p.amount, 0);
     
     const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     if (totalOwed === 0) return 100;
-    return (paidAmount / totalOwed) * 100;
+    return (totalPaid / totalOwed) * 100;
   };
   
   const handleRecordPaymentClick = (loan: Loan) => {
@@ -175,8 +185,7 @@ export default function LoansPage() {
               {loans.map((loan) => {
                 const borrower = getBorrowerById(loan.borrowerId);
                 const progress = getLoanProgress(loan);
-                const isPaid = getLoanBalance(loan) <= 0;
-                const status = isPaid ? 'closed' : loan.status;
+                const status = getLoanStatus(loan);
 
                 return (
                   <TableRow key={loan.id}>
@@ -197,13 +206,13 @@ export default function LoansPage() {
                     <TableCell className="text-right">
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={isPaid}>
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={status === 'closed'}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleRecordPaymentClick(loan)} disabled={isPaid}>
+                          <DropdownMenuItem onClick={() => handleRecordPaymentClick(loan)} disabled={status === 'closed'}>
                             Record Payment
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleViewDetails(loan)}>

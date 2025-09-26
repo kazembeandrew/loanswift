@@ -21,7 +21,6 @@ export type Loan = {
   interestRate: number;
   repaymentPeriod: number; // in months
   startDate: string;
-  status: 'approved' | 'active' | 'closed';
   outstandingBalance: number;
   collateral?: CollateralItem[];
 };

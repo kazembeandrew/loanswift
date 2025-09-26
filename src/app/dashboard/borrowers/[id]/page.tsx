@@ -127,6 +127,15 @@ export default function BorrowerDetailPage() {
     await fetchData();
   };
 
+  const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
+      const balance = getLoanBalance(loan);
+      if (balance <= 0) return 'closed';
+
+      const paymentsForLoan = allPayments.filter(p => p.loanId === loan.id);
+      if (paymentsForLoan.length > 0) return 'active';
+
+      return 'approved';
+  }
 
   const getLoanStatusVariant = (
     status: 'approved' | 'active' | 'closed'
@@ -211,19 +220,19 @@ export default function BorrowerDetailPage() {
               {borrowerLoans.length > 0 ? (
                 borrowerLoans.map(loan => {
                   const balance = getLoanBalance(loan);
-                  const isPaid = balance <= 0;
+                  const status = getLoanStatus(loan);
                   return (
                     <div key={loan.id} className="flex items-center justify-between p-2 rounded-md bg-muted gap-2">
                       <div>
                         <p className="font-semibold">{loan.id}</p>
                         <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
-                        <p className={`text-sm font-medium ${isPaid ? 'text-green-600' : ''}`}>
+                        <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : ''}`}>
                           Balance: MWK {balance.toLocaleString()}
                         </p>
                       </div>
                        <div className="flex items-center gap-2">
-                         <Badge variant={getLoanStatusVariant(isPaid ? 'closed' : loan.status)}>{isPaid ? 'closed' : loan.status}</Badge>
-                         {!isPaid && (
+                         <Badge variant={getLoanStatusVariant(status)}>{status}</Badge>
+                         {status !== 'closed' && (
                           <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
                             <CircleDollarSign className="mr-2 h-4 w-4" />
                             Record Payment
