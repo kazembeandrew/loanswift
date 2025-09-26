@@ -2,22 +2,40 @@
 'use client';
 
 import { Header } from '@/components/header';
-import { customers, loans } from '@/lib/data';
+import { customers, loans, payments } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload } from 'lucide-react';
-import Image from 'next/image';
+import { MapPin, Paperclip, Upload, CircleDollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import type { Customer, Loan, Payment } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import ReceiptGenerator from '../components/receipt-generator';
+import { useToast } from '@/hooks/use-toast';
+
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const customer = customers.find((c) => c.id === params.id);
-  const customerLoans = loans.filter((l) => l.customerId === params.id);
+  const [customerLoans, setCustomerLoans] = useState<Loan[]>(loans.filter((l) => l.customerId === params.id));
   const [attachments, setAttachments] = useState<File[]>([]);
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
+  
+  const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  const { toast } = useToast();
 
   if (!customer) {
     return (
@@ -33,6 +51,36 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     );
   }
   
+  const handleRecordPaymentClick = (loan: Loan) => {
+    setSelectedLoan(loan);
+    setPaymentDetails({ amount: '', date: '' });
+    setRecordPaymentOpen(true);
+  }
+
+  const handlePaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedLoan && paymentDetails.amount) {
+       const newPayment: Payment = {
+        id: `PAY-${Date.now()}`,
+        loanId: selectedLoan.id,
+        amount: parseFloat(paymentDetails.amount),
+        date: paymentDetails.date || new Date().toISOString().split('T')[0],
+        recordedBy: 'Staff Admin',
+      };
+      // Note: In a real app, this would be a state update that persists.
+      // payments.push(newPayment); 
+      
+      toast({
+        title: 'Payment Recorded',
+        description: `Payment of MWK ${newPayment.amount} for loan ${newPayment.loanId} has been recorded.`,
+      });
+
+      setRecordPaymentOpen(false);
+      setReceiptGeneratorOpen(true);
+    }
+  };
+
+
   const getLoanStatusVariant = (
     status: 'Active' | 'Overdue' | 'Paid' | 'Pending'
   ) => {
@@ -94,12 +142,18 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             <CardContent className="space-y-4">
               {customerLoans.length > 0 ? (
                 customerLoans.map(loan => (
-                  <div key={loan.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
+                  <div key={loan.id} className="flex items-center justify-between p-2 rounded-md bg-muted gap-2">
                     <div>
                       <p className="font-semibold">{loan.id}</p>
                       <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
                     </div>
-                    <Badge variant={getLoanStatusVariant(loan.status)}>{loan.status}</Badge>
+                     <div className="flex items-center gap-2">
+                       <Badge variant={getLoanStatusVariant(loan.status)}>{loan.status}</Badge>
+                        <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
+                          <CircleDollarSign className="mr-2 h-4 w-4" />
+                          Record Payment
+                        </Button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -163,6 +217,51 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
           </Card>
         </div>
       </main>
+      
+      <Dialog open={isRecordPaymentOpen} onOpenChange={setRecordPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+            {selectedLoan && <DialogDescription>
+              For loan {selectedLoan.id} of {customer?.name}.
+            </DialogDescription>}
+          </DialogHeader>
+          <form onSubmit={handlePaymentSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="amount" className="text-right">
+                  Amount
+                </Label>
+                <Input id="amount" type="number" className="col-span-3" value={paymentDetails.amount} onChange={(e) => setPaymentDetails(d => ({...d, amount: e.target.value}))}/>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="date" className="text-right">
+                  Date
+                </Label>
+                <Input id="date" type="date" className="col-span-3" value={paymentDetails.date} onChange={(e) => setPaymentDetails(d => ({...d, date: e.target.value}))}/>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Generate Receipt</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {customer && selectedLoan && (
+        <ReceiptGenerator 
+          isOpen={isReceiptGeneratorOpen}
+          setIsOpen={setReceiptGeneratorOpen}
+          customer={customer}
+          loan={selectedLoan}
+          paymentAmount={parseFloat(paymentDetails.amount) || 0}
+          paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
+        />
+      )}
+
     </div>
   );
 }
+
+
+    
