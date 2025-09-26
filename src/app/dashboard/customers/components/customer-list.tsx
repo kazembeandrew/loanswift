@@ -86,7 +86,7 @@ export default function CustomerList() {
             <DialogHeader>
               <DialogTitle>Add New Customer</DialogTitle>
               <DialogDescription>
-                Fill in the details to add a new customer.
+                Fill in the details to add a new customer and their initial loan.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -113,6 +113,30 @@ export default function CustomerList() {
                   Application Form
                 </Label>
                 <Input id="application-form" type="file" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="amount" className="text-right">
+                  Amount
+                </Label>
+                <Input id="amount" type="number" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="interest" className="text-right">
+                  Interest (%)
+                </Label>
+                <Input id="interest" type="number" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="date-taken" className="text-right">
+                  Date Taken
+                </Label>
+                <Input id="date-taken" type="date" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="payment-period" className="text-right">
+                  Payment Period
+                </Label>
+                <Input id="payment-period" type="text" className="col-span-3" placeholder="e.g., 12 months" />
               </div>
             </div>
             <DialogFooter>
