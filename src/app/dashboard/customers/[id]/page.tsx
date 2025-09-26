@@ -113,8 +113,7 @@ export default function CustomerDetailPage() {
     };
 
     await addPayment(newPaymentData);
-    await fetchData();
-
+    
     toast({
       title: 'Payment Recorded',
       description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
@@ -122,6 +121,9 @@ export default function CustomerDetailPage() {
 
     setRecordPaymentOpen(false);
     setReceiptGeneratorOpen(true);
+
+    // Fetch data again after a successful payment
+    await fetchData();
   };
 
 

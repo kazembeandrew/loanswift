@@ -134,7 +134,6 @@ export default function LoansPage() {
     };
 
     await addPayment(newPaymentData);
-    await fetchData();
     
     toast({
       title: 'Payment Recorded',
@@ -143,6 +142,8 @@ export default function LoansPage() {
 
     setRecordPaymentOpen(false);
     setReceiptGeneratorOpen(true);
+    
+    await fetchData();
   };
 
   const handleViewDetails = (loan: Loan) => {

@@ -196,7 +196,6 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     };
 
     await addPayment(newPaymentData);
-    await fetchData();
 
     toast({
       title: 'Payment Recorded',
@@ -205,6 +204,8 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
 
     setRecordPaymentOpen(false);
     setReceiptGeneratorOpen(true);
+    
+    await fetchData();
   }
 
   const handleEditCustomerClick = (customer: Customer) => {

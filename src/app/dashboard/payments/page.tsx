@@ -110,7 +110,6 @@ export default function PaymentsPage() {
     };
 
     await addPayment(newPaymentData);
-    await fetchData();
 
     toast({
       title: 'Payment Recorded',
@@ -119,6 +118,8 @@ export default function PaymentsPage() {
 
     setRecordPaymentOpen(false);
     setReceiptGeneratorOpen(true);
+
+    await fetchData();
   };
 
   const handleOpenRecordPayment = () => {
