@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Table,
   TableBody,
@@ -34,16 +37,49 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ReceiptGenerator from './receipt-generator';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
+
+const customerFormSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  idUpload: z.any().optional(),
+  applicationForm: z.any().optional(),
+  loanAmount: z.coerce.number().min(1, 'Loan amount is required'),
+  interestRate: z.coerce.number().min(0, 'Interest rate is required'),
+  dateTaken: z.string().min(1, 'Date is required'),
+  paymentPeriod: z.string().min(1, 'Payment period is required'),
+});
 
 export default function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [loans] = useState<Loan[]>(initialLoans);
+  const [loans, setLoans] = useState<Loan[]>(initialLoans);
   const [isAddCustomerOpen, setAddCustomerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  const { toast } = useToast();
+  
+  const form = useForm<z.infer<typeof customerFormSchema>>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      loanAmount: 0,
+      interestRate: 0,
+      dateTaken: '',
+      paymentPeriod: '',
+    },
+  });
 
   const handleRecordPayment = (customer: Customer, loan: Loan) => {
     setSelectedCustomer(customer);
@@ -56,6 +92,39 @@ export default function CustomerList() {
     setRecordPaymentOpen(false);
     setReceiptGeneratorOpen(true);
   }
+  
+  const handleAddCustomerSubmit = (values: z.infer<typeof customerFormSchema>) => {
+    const newCustomerId = `CUST-${String(customers.length + 1).padStart(3, '0')}`;
+    const newLoanId = `LOAN-${String(loans.length + 1).padStart(3, '0')}`;
+    
+    const newCustomer: Customer = {
+      id: newCustomerId,
+      name: values.name,
+      email: values.email,
+      phone: '', // Not in form, can be added
+      address: '', // Not in form, can be added
+      joinDate: new Date().toISOString().split('T')[0],
+    };
+    
+    const newLoan: Loan = {
+      id: newLoanId,
+      customerId: newCustomerId,
+      principal: values.loanAmount,
+      interestRate: values.interestRate,
+      term: parseInt(values.paymentPeriod, 10),
+      startDate: values.dateTaken,
+      status: 'Pending',
+    };
+    
+    setCustomers(prev => [...prev, newCustomer]);
+    setLoans(prev => [...prev, newLoan]);
+    setAddCustomerOpen(false);
+    form.reset();
+    toast({
+      title: 'Customer Added',
+      description: `${values.name} has been successfully added.`,
+    });
+  };
 
   const getLoanStatusVariant = (
     status: 'Active' | 'Overdue' | 'Paid' | 'Pending'
@@ -89,59 +158,117 @@ export default function CustomerList() {
                 Fill in the details to add a new customer and their initial loan.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input id="name" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
-                </Label>
-                <Input id="email" type="email" className="col-span-3" />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="customer-id" className="text-right">
-                  ID Upload
-                </Label>
-                <Input id="customer-id" type="file" className="col-span-3" />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="application-form" className="text-right">
-                  Application Form
-                </Label>
-                <Input id="application-form" type="file" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="amount" className="text-right">
-                  Amount
-                </Label>
-                <Input id="amount" type="number" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="interest" className="text-right">
-                  Interest (%)
-                </Label>
-                <Input id="interest" type="number" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="date-taken" className="text-right">
-                  Date Taken
-                </Label>
-                <Input id="date-taken" type="date" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="payment-period" className="text-right">
-                  Payment Period
-                </Label>
-                <Input id="payment-period" type="text" className="col-span-3" placeholder="e.g., 12 months" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={() => setAddCustomerOpen(false)}>Save customer</Button>
-            </DialogFooter>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleAddCustomerSubmit)} className="grid gap-4 py-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} className="col-span-3" />
+                      </FormControl>
+                      <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" {...field} className="col-span-3" />
+                      </FormControl>
+                      <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="idUpload"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">ID Upload</FormLabel>
+                      <FormControl>
+                        <Input type="file" {...form.register('idUpload')} className="col-span-3" />
+                      </FormControl>
+                      <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="applicationForm"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Application Form</FormLabel>
+                      <FormControl>
+                        <Input type="file" {...form.register('applicationForm')} className="col-span-3" />
+                      </FormControl>
+                       <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="loanAmount"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Amount</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} className="col-span-3" />
+                      </FormControl>
+                       <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="interestRate"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Interest (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} className="col-span-3" />
+                      </FormControl>
+                       <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dateTaken"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Date Taken</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} className="col-span-3" />
+                      </FormControl>
+                       <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="paymentPeriod"
+                  render={({ field }) => (
+                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                      <FormLabel className="text-right">Payment Period</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 12 months" {...field} className="col-span-3" />
+                      </FormControl>
+                       <FormMessage className="col-span-4 col-start-2" />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">Save customer</Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -249,3 +376,5 @@ export default function CustomerList() {
     </>
   );
 }
+
+    
