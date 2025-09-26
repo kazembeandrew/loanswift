@@ -35,6 +35,8 @@ import {
 import type { ChartConfig } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { loans as initialLoans, customers as initialCustomers } from '@/lib/data';
+import type { Customer } from '@/types';
 
 const loanStatusData = [
   { status: 'Active', count: 150, fill: 'var(--color-active)' },
@@ -81,7 +83,14 @@ const monthlyCollectionsChartConfig = {
   },
 } satisfies ChartConfig;
 
+const getCustomerById = (id: string): Customer | undefined => {
+    return initialCustomers.find((customer) => customer.id === id);
+}
+
 export default function DashboardPage() {
+
+  const overdueLoans = initialLoans.filter(loan => loan.status === 'Overdue');
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header title="Dashboard" />
@@ -221,36 +230,33 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              <div className="space-y-8">
-                <div className="flex items-center">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src="https://picsum.photos/seed/avatar1/100/100" alt="Avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">John Doe</p>
-                    <p className="text-sm text-muted-foreground">
-                      john.doe@email.com
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    <Badge variant="destructive">Overdue by 15 days</Badge>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src="https://picsum.photos/seed/avatar2/100/100" alt="Avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>PS</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">Peter Smith</p>
-                    <p className="text-sm text-muted-foreground">
-                      peter.smith@email.com
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    <Badge variant="destructive">Overdue by 5 days</Badge>
-                  </div>
-                </div>
+               {overdueLoans.length > 0 ? (
+                overdueLoans.map(loan => {
+                  const customer = getCustomerById(loan.customerId);
+                  const avatarFallback = customer?.name.split(' ').map(n => n[0]).join('') || 'N/A';
+                  if (!customer) return null;
+                  
+                  return (
+                    <div className="flex items-center" key={loan.id}>
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
+                        <AvatarFallback>{avatarFallback}</AvatarFallback>
+                      </Avatar>
+                      <div className="ml-4 space-y-1">
+                        <p className="text-sm font-medium leading-none">{customer.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {customer.email}
+                        </p>
+                      </div>
+                      <div className="ml-auto font-medium">
+                         <Badge variant="destructive">Loan {loan.id}</Badge>
+                      </div>
+                    </div>
+                  )
+                })
+               ) : (
+                <p className="text-sm text-muted-foreground">No overdue loans at the moment.</p>
+               )}
               </div>
           </CardContent>
         </Card>
