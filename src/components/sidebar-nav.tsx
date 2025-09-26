@@ -10,6 +10,7 @@ import {
   Settings,
   Receipt,
   ArrowLeftRight,
+  Banknote,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ const menuItems = [
   { href: '/dashboard/customers', label: 'Customers', icon: Users },
   { href: '/dashboard/payments', label: 'Payments', icon: Landmark },
   { href: '/dashboard/receipts', label: 'Receipts', icon: Receipt },
+  { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
   { href: '/dashboard/reports', label: 'Reports', icon: FileText },
 ];
 
