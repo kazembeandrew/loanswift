@@ -6,13 +6,51 @@ import { Download } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { payments as initialPayments, loans as initialLoans, customers as initialCustomers } from '@/lib/data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { Customer, Loan, Payment } from '@/types';
+
 
 const ExportButton = () => {
   const { toast } = useToast();
+
+  const getCustomerByLoanId = (loanId: string): Customer | null => {
+    const loan = initialLoans.find(l => l.id === loanId);
+    if (!loan) return null;
+    return initialCustomers.find(c => c.id === loan.customerId) || null;
+  };
+
+  const handleExport = () => {
+    const headers = ["Receipt ID", "Customer Name", "Loan ID", "Amount", "Date", "Recorded By"];
+    const rows = initialPayments.map(payment => {
+      const customer = getCustomerByLoanId(payment.loanId);
+      return [
+        payment.id,
+        customer?.name || 'N/A',
+        payment.loanId,
+        payment.amount,
+        payment.date,
+        payment.recordedBy
+      ].join(',');
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "receipts_export.csv");
+    document.body.appendChild(link); 
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: 'Export Successful',
+      description: 'The receipts data has been downloaded as a CSV file.',
+    });
+  };
+
   return (
-      <Button onClick={() => toast({ title: 'Coming Soon!', description: 'Excel export will be available soon.'})}>
+    <Button onClick={handleExport}>
       <Download className="mr-2 h-4 w-4" />
-      Export to Excel
+      Export to CSV
     </Button>
   )
 }

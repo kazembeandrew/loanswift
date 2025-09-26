@@ -206,7 +206,7 @@ export default function DashboardPage() {
                   return (
                     <div className="flex items-center" key={payment.id}>
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
+                        <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="person face" />
                         <AvatarFallback>{avatarFallback}</AvatarFallback>
                       </Avatar>
                       <div className="ml-4 space-y-1">
