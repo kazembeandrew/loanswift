@@ -51,12 +51,12 @@ export default function CustomerDetailPage() {
       getCustomerById(id),
       getLoansByCustomerId(id),
       getPayments(), // Fetch all payments to calculate balances correctly
-      getFiles(`customers/${id}/attachments`)
+      // getFiles(`customers/${id}/attachments`) // Temporarily disabled
     ]);
     setCustomer(customerData);
     setCustomerLoans(loansData);
     setAllPayments(paymentsData);
-    setAttachments(filesData);
+    // setAttachments(filesData); // Temporarily disabled
   }, [id]);
 
   useEffect(() => {
@@ -242,6 +242,7 @@ export default function CustomerDetailPage() {
                 <Paperclip className="h-5 w-5 text-muted-foreground" />
                 <CardTitle className="font-headline">Attachments</CardTitle>
               </div>
+              {/*
               <Button variant="outline" size="sm" onClick={handleUploadClick} disabled={isUploading}>
                  {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Upload File
@@ -253,6 +254,7 @@ export default function CustomerDetailPage() {
                 onChange={handleFileChange}
                 multiple
               />
+              */}
             </CardHeader>
             <CardContent>
               {attachments.length > 0 ? (
@@ -265,7 +267,8 @@ export default function CustomerDetailPage() {
                 </ul>
               ) : (
                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
-                      <p className="text-muted-foreground">No attachments yet. Upload documents like ID scans or application forms.</p>
+                      <p className="text-muted-foreground">File uploads are temporarily disabled.</p>
+                      <p className="text-xs text-muted-foreground mt-2">To enable, upgrade your Firebase project to the Blaze plan.</p>
                   </div>
               )}
             </CardContent>
