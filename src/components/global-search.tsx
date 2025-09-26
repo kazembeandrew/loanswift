@@ -7,6 +7,9 @@ import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { customers, loans } from '@/lib/data';
@@ -86,6 +89,10 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="p-0 gap-0 top-1/4">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Global Search</DialogTitle>
+          <DialogDescription>Search for customers or loans by name, email, or ID.</DialogDescription>
+        </DialogHeader>
         <div className="flex items-center border-b px-3">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Input
