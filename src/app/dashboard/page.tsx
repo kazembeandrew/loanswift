@@ -6,6 +6,7 @@ import {
   Landmark,
   Users,
   Wallet,
+  FileX2,
 } from 'lucide-react';
 import {
   Card,
@@ -62,6 +63,7 @@ const getCustomerById = (id: string): Customer | undefined => {
 export default function DashboardPage() {
 
   const overdueLoans = initialLoans.filter(loan => loan.status === 'Overdue');
+  const overdueLoansCount = overdueLoans.length;
   const totalPrincipal = initialLoans.reduce((acc, loan) => acc + loan.principal, 0);
   const totalCollected = initialPayments.reduce((acc, payment) => acc + payment.amount, 0);
   const activeLoansCount = initialLoans.filter(loan => loan.status === 'Active').length;
@@ -109,14 +111,14 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Principal
+                Total Active Loans
               </CardTitle>
-              <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+              <Landmark className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK {totalPrincipal.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{activeLoansCount}</div>
               <p className="text-xs text-muted-foreground">
-                +5.2% from last month
+                Total value: MWK {initialLoans.filter(l => l.status === 'Active').reduce((sum, l) => sum + l.principal, 0).toLocaleString()}
               </p>
             </CardContent>
           </Card>
@@ -136,23 +138,23 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
-              <Landmark className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Overdue Loans</CardTitle>
+              <FileX2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+{activeLoansCount}</div>
-              <p className="text-xs text-muted-foreground">
-                +2 since last hour
+              <div className="text-2xl font-bold text-destructive">{overdueLoansCount}</div>
+               <p className="text-xs text-muted-foreground">
+                Total value: MWK {overdueLoans.reduce((sum, l) => sum + l.principal, 0).toLocaleString()}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+{initialCustomers.length}</div>
+              <div className="text-2xl font-bold">{initialCustomers.length}</div>
               <p className="text-xs text-muted-foreground">
                 +5 this month
               </p>
