@@ -70,6 +70,24 @@ const newLoanFormSchema = z.object({
   paymentPeriod: z.string().min(1, 'Payment period is required'),
 });
 
+const customerFormDefaultValues = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  loanAmount: 0,
+  interestRate: 0,
+  dateTaken: '',
+  paymentPeriod: '',
+};
+
+const newLoanFormDefaultValues = {
+  loanAmount: 0,
+  interestRate: 0,
+  dateTaken: '',
+  paymentPeriod: '',
+};
+
 type CustomerListProps = {
   isAddCustomerOpen?: boolean;
   setAddCustomerOpen?: (isOpen: boolean) => void;
@@ -112,22 +130,12 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
 
   const customerForm = useForm<z.infer<typeof customerFormSchema>>({
     resolver: zodResolver(customerFormSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      phone: '',
-      address: ''
-    },
+    defaultValues: customerFormDefaultValues,
   });
 
   const newLoanForm = useForm<z.infer<typeof newLoanFormSchema>>({
     resolver: zodResolver(newLoanFormSchema),
-    defaultValues: {
-      loanAmount: 0,
-      interestRate: 0,
-      dateTaken: '',
-      paymentPeriod: '',
-    },
+    defaultValues: newLoanFormDefaultValues,
   });
 
   const getLoanBalance = (loan: Loan) => {
@@ -223,7 +231,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     
     await fetchData();
     setAddCustomerOpen(false);
-    customerForm.reset();
+    customerForm.reset(customerFormDefaultValues);
     setAddCustomerStep(1);
     toast({
       title: 'Customer Added',
@@ -251,7 +259,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     await addLoan(newLoanData);
     await fetchData();
     setAddNewLoanOpen(false);
-    newLoanForm.reset();
+    newLoanForm.reset(newLoanFormDefaultValues);
     toast({
       title: 'New Loan Added',
       description: `A new loan has been added for ${selectedCustomer.name}.`,
@@ -275,24 +283,14 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
 
   useEffect(() => {
     if (!isAddCustomerOpen) {
-      customerForm.reset({
-        name: '',
-        email: '',
-        phone: '',
-        address: ''
-      });
+      customerForm.reset(customerFormDefaultValues);
       setAddCustomerStep(1);
     }
   }, [isAddCustomerOpen, customerForm]);
 
   useEffect(() => {
     if (!isEditCustomerOpen) {
-       customerForm.reset({
-        name: '',
-        email: '',
-        phone: '',
-        address: ''
-      });
+       customerForm.reset(customerFormDefaultValues);
     }
   }, [isEditCustomerOpen, customerForm]);
 
