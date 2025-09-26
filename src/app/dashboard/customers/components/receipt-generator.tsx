@@ -64,7 +64,6 @@ export default function ReceiptGenerator({
         receiptId: newReceiptId,
         businessName: businessDetails.name,
         businessAddress: businessDetails.address,
-        balance: (loan.principal * (1 + loan.interestRate / 100)) - paymentAmount, // Simplified balance calculation
         businessLogoDataUri: placeholderLogoDataUri,
       };
       const result = await handleGenerateReceipt(input);

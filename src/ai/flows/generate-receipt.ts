@@ -10,6 +10,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { getLoanById } from '@/services/loan-service';
+import { getPaymentsByLoanId } from '@/services/payment-service';
 
 const GenerateReceiptInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
@@ -20,7 +22,7 @@ const GenerateReceiptInputSchema = z.object({
   receiptId: z.string().describe('The unique ID of the receipt.'),
   businessName: z.string().describe('The name of the business.'),
   businessAddress: z.string().describe('The address of the business.'),
-  balance: z.number().describe('The outstanding balance, if any.'),
+  balance: z.number().describe('The outstanding balance, if any.').optional(),
   businessLogoDataUri: z
     .string()
     .describe(
@@ -69,7 +71,23 @@ const generateReceiptFlow = ai.defineFlow(
     outputSchema: GenerateReceiptOutputSchema,
   },
   async input => {
-    const {output} = await generateReceiptPrompt(input);
+
+    const loan = await getLoanById(input.loanId);
+    if (!loan) {
+        throw new Error(`Loan with ID ${input.loanId} not found.`);
+    }
+
+    const payments = await getPaymentsByLoanId(input.loanId);
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    const balance = totalOwed - totalPaid;
+
+    const promptInput = {
+      ...input,
+      balance: balance
+    };
+
+    const {output} = await generateReceiptPrompt(promptInput);
     return output!;
   }
 );
