@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -704,5 +702,3 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     </>
   );
 }
-
-    
