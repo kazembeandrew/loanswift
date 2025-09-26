@@ -38,16 +38,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { loans as initialLoans, customers as initialCustomers, payments as initialPayments } from '@/lib/data';
 import type { Customer, Loan } from '@/types';
+import { format, subMonths, getMonth } from 'date-fns';
 
-
-const monthlyCollectionsData = [
-  { month: 'Jan', collected: 18600 },
-  { month: 'Feb', collected: 30500 },
-  { month: 'Mar', collected: 23700 },
-  { month: 'Apr', collected: 17300 },
-  { month: 'May', collected: 20900 },
-  { month: 'Jun', collected: 21400 },
-];
 
 const monthlyCollectionsChartConfig = {
   collected: {
@@ -101,6 +93,24 @@ export default function DashboardPage() {
       color: 'hsl(var(--chart-4))',
     },
   } satisfies ChartConfig;
+  
+  const now = new Date();
+  const monthlyCollectionsData = Array.from({ length: 6 }, (_, i) => {
+    const monthDate = subMonths(now, 5 - i);
+    return {
+      month: format(monthDate, 'MMM'),
+      collected: 0,
+      monthIndex: getMonth(monthDate),
+    };
+  });
+
+  initialPayments.forEach(payment => {
+    const paymentMonthIndex = getMonth(new Date(payment.date));
+    const collectionMonth = monthlyCollectionsData.find(m => m.monthIndex === paymentMonthIndex);
+    if (collectionMonth) {
+      collectionMonth.collected += payment.amount;
+    }
+  });
 
 
   return (
@@ -276,3 +286,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
