@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
-import { uploadFile, getFiles, getDownloadURL } from '@/services/storage-service';
+import { uploadFile, getFiles } from '@/services/storage-service';
 
 
 export default function BorrowerDetailPage() {
@@ -138,6 +138,8 @@ export default function BorrowerDetailPage() {
         return 'secondary';
       case 'approved':
         return 'outline';
+      default:
+          return 'default';
     }
   };
 

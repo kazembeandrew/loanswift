@@ -93,9 +93,9 @@ const borrowerFormDefaultValues = {
 };
 
 const newLoanFormDefaultValues = {
-    loanAmount: 0,
-    interestRate: 0,
-    repaymentPeriod: 0,
+    loanAmount: undefined,
+    interestRate: undefined,
+    repaymentPeriod: undefined,
     startDate: '',
     collateral: [],
 };
@@ -309,6 +309,8 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
         return 'secondary';
       case 'approved':
         return 'outline';
+      default:
+        return 'default';
     }
   };
 
@@ -457,14 +459,11 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
-                         {borrowerLoans.map((loan) => {
-                           const isPaid = getLoanBalance(loan) <= 0;
-                           return (
-                            <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(borrower, loan)} disabled={isPaid}>
-                              For Loan {loan.id} {isPaid ? '(Paid)' : ''}
+                         {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
+                            <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(borrower, loan)}>
+                              For Loan {loan.id}
                             </DropdownMenuItem>
-                           )
-                         })}
+                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -540,10 +539,10 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                 </DialogHeader>
                 <Form {...newLoanForm}>
                     <form onSubmit={newLoanForm.handleSubmit(handleAddNewLoanSubmit)} className="grid gap-4 py-4">
-                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                          <div>
                           <Label>Collateral</Label>
                           {newLoanCollateralFields.map((field, index) => (

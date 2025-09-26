@@ -74,13 +74,6 @@ export default function DashboardPage() {
     return borrowers.find((borrower) => borrower.id === id);
   }
 
-  const activeLoans = loans.filter(loan => {
-    const totalPaid = payments.filter(p => p.loanId === loan.id).reduce((sum, p) => sum + p.amount, 0);
-    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-    return totalOwed - totalPaid > 0;
-  });
-  const activeLoansCount = activeLoans.length;
-  
   const getLoanBalance = (loan: Loan) => {
     const totalPaid = payments
       .filter(p => p.loanId === loan.id)
@@ -89,10 +82,12 @@ export default function DashboardPage() {
     return totalOwed - totalPaid;
   };
   
+  const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
+  const activeLoansCount = activeLoans.length;
+
   const overdueLoans = loans.filter(loan => {
       const balance = getLoanBalance(loan);
-      // Assuming 'approved' also means active before first payment
-      return balance > 0 && (loan.status === 'active' || loan.status === 'approved');
+      return balance > 0;
   });
 
   const overdueLoansValue = overdueLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);

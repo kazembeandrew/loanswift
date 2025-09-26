@@ -5,6 +5,12 @@ import type { Payment } from '@/types';
 // Note: Payments are now a subcollection of a loan.
 // These functions will need to be updated to reflect that, taking loanId as a parameter.
 
+export async function getPayments(loanId: string): Promise<Payment[]> {
+    const paymentsCollection = collection(db, `loans/${loanId}/payments`);
+    const snapshot = await getDocs(paymentsCollection);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+}
+
 export async function getPaymentsByLoanId(loanId: string): Promise<Payment[]> {
     const paymentsCollection = collection(db, `loans/${loanId}/payments`);
     const snapshot = await getDocs(paymentsCollection);
