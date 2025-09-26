@@ -36,36 +36,8 @@ import type { ChartConfig } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { loans as initialLoans, customers as initialCustomers, payments as initialPayments } from '@/lib/data';
-import type { Customer } from '@/types';
+import type { Customer, Loan } from '@/types';
 
-const loanStatusData = [
-  { status: 'Active', count: 150, fill: 'var(--color-active)' },
-  { status: 'Overdue', count: 35, fill: 'var(--color-overdue)' },
-  { status: 'Paid', count: 250, fill: 'var(--color-paid)' },
-  { status: 'Pending', count: 25, fill: 'var(--color-pending)' },
-];
-
-const loanStatusChartConfig = {
-  count: {
-    label: 'Count',
-  },
-  active: {
-    label: 'Active',
-    color: 'hsl(var(--chart-1))',
-  },
-  overdue: {
-    label: 'Overdue',
-    color: 'hsl(var(--destructive))',
-  },
-  paid: {
-    label: 'Paid',
-    color: 'hsl(var(--chart-2))',
-  },
-  pending: {
-    label: 'Pending',
-    color: 'hsl(var(--chart-4))',
-  },
-} satisfies ChartConfig;
 
 const monthlyCollectionsData = [
   { month: 'Jan', collected: 18600 },
@@ -93,6 +65,40 @@ export default function DashboardPage() {
   const totalPrincipal = initialLoans.reduce((acc, loan) => acc + loan.principal, 0);
   const totalCollected = initialPayments.reduce((acc, payment) => acc + payment.amount, 0);
   const activeLoansCount = initialLoans.filter(loan => loan.status === 'Active').length;
+
+  const loanStatusCounts = initialLoans.reduce((acc, loan) => {
+    acc[loan.status] = (acc[loan.status] || 0) + 1;
+    return acc;
+  }, {} as Record<Loan['status'], number>);
+
+  const loanStatusData = [
+    { status: 'Active', count: loanStatusCounts.Active || 0, fill: 'var(--color-active)' },
+    { status: 'Overdue', count: loanStatusCounts.Overdue || 0, fill: 'var(--color-overdue)' },
+    { status: 'Paid', count: loanStatusCounts.Paid || 0, fill: 'var(--color-paid)' },
+    { status: 'Pending', count: loanStatusCounts.Pending || 0, fill: 'var(--color-pending)' },
+  ];
+
+  const loanStatusChartConfig = {
+    count: {
+      label: 'Count',
+    },
+    Active: {
+      label: 'Active',
+      color: 'hsl(var(--chart-1))',
+    },
+    Overdue: {
+      label: 'Overdue',
+      color: 'hsl(var(--destructive))',
+    },
+    Paid: {
+      label: 'Paid',
+      color: 'hsl(var(--chart-2))',
+    },
+    Pending: {
+      label: 'Pending',
+      color: 'hsl(var(--chart-4))',
+    },
+  } satisfies ChartConfig;
 
 
   return (
@@ -215,7 +221,7 @@ export default function DashboardPage() {
                     strokeWidth={5}
                   >
                     {loanStatusData.map((entry) => (
-                      <Cell key={entry.status} fill={entry.fill} />
+                      <Cell key={entry.status} fill={`var(--color-${entry.status.toLowerCase()})`} />
                     ))}
                   </Pie>
                   <ChartLegend
