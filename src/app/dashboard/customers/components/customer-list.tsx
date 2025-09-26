@@ -53,8 +53,8 @@ const customerFormSchema = z.object({
   email: z.string().email('Invalid email address'),
   idUpload: z.any().optional(),
   applicationForm: z.any().optional(),
-  loanAmount: z.coerce.number().min(1, 'Loan amount is required'),
-  interestRate: z.coerce.number().min(0, 'Interest rate is required'),
+  loanAmount: z.coerce.number().positive('Loan amount must be a positive number'),
+  interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative'),
   dateTaken: z.string().min(1, 'Date is required'),
   paymentPeriod: z.string().min(1, 'Payment period is required'),
 });
