@@ -84,8 +84,7 @@ const generateReceiptFlow = ai.defineFlow(
     const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     
     // The balance *after* the current payment is made.
-    const newTotalPaid = totalPaidPreviously + input.paymentAmount;
-    const balance = totalOwed - newTotalPaid;
+    const balance = totalOwed - totalPaidPreviously - input.paymentAmount;
 
     const promptInput = {
       ...input,
