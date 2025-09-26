@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, PlusCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,9 +17,11 @@ import { useState } from 'react';
 
 type HeaderProps = {
   title: string;
+  showAddCustomerButton?: boolean;
+  onAddCustomerClick?: () => void;
 };
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, showAddCustomerButton = false, onAddCustomerClick }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
 
   return (
@@ -32,6 +34,12 @@ export function Header({ title }: HeaderProps) {
         {title}
       </h1>
       <div className="ml-auto flex items-center gap-4">
+        {showAddCustomerButton && (
+          <Button onClick={onAddCustomerClick}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Customer
+          </Button>
+        )}
         <Button variant="outline" className="hidden md:flex gap-2 items-center text-muted-foreground pr-8" onClick={() => setSearchOpen(true)}>
             <Search className="h-4 w-4" />
             <span>Search...</span>

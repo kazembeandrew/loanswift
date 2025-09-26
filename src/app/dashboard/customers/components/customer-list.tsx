@@ -69,10 +69,19 @@ const newLoanFormSchema = z.object({
   paymentPeriod: z.string().min(1, 'Payment period is required'),
 });
 
-export default function CustomerList() {
+type CustomerListProps = {
+  isAddCustomerOpen?: boolean;
+  setAddCustomerOpen?: (isOpen: boolean) => void;
+};
+
+export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp, setAddCustomerOpen: setAddCustomerOpenProp }: CustomerListProps) {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [loans, setLoans] = useState<Loan[]>(initialLoans);
-  const [isAddCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [internalIsAddCustomerOpen, setInternalIsAddCustomerOpen] = useState(false);
+  
+  const isAddCustomerOpen = isAddCustomerOpenProp !== undefined ? isAddCustomerOpenProp : internalIsAddCustomerOpen;
+  const setAddCustomerOpen = setAddCustomerOpenProp !== undefined ? setAddCustomerOpenProp : setInternalIsAddCustomerOpen;
+
   const [isEditCustomerOpen, setEditCustomerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -250,9 +259,12 @@ export default function CustomerList() {
         <h1 className="font-headline text-2xl font-semibold">Customers</h1>
         <Dialog open={isAddCustomerOpen} onOpenChange={setAddCustomerOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
-            </Button>
+             { setAddCustomerOpenProp === undefined && (
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
+                </Button>
+              )
+            }
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -648,5 +660,3 @@ export default function CustomerList() {
     </>
   );
 }
-
-    

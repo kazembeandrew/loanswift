@@ -36,6 +36,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { loans as initialLoans, customers as initialCustomers, payments as initialPayments } from '@/lib/data';
 import type { Customer, Loan, Payment } from '@/types';
 import { format, subMonths, getMonth, isAfter, subDays } from 'date-fns';
+import { useState } from 'react';
+import CustomerList from './customers/components/customer-list';
 
 
 const monthlyCollectionsChartConfig = {
@@ -50,7 +52,7 @@ const getCustomerById = (id: string): Customer | undefined => {
 }
 
 export default function DashboardPage() {
-
+  const [isAddCustomerOpen, setAddCustomerOpen] = useState(false);
   const overdueLoans = initialLoans.filter(loan => loan.status === 'Overdue');
   const overdueLoansCount = overdueLoans.length;
   const overdueLoansValue = overdueLoans.reduce((sum, l) => sum + l.principal, 0);
@@ -82,7 +84,11 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header title="Dashboard" />
+      <Header 
+        title="Dashboard" 
+        showAddCustomerButton 
+        onAddCustomerClick={() => setAddCustomerOpen(true)}
+      />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -206,7 +212,7 @@ export default function DashboardPage() {
                   return (
                     <div className="flex items-center" key={payment.id}>
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="person face" />
+                        <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
                         <AvatarFallback>{avatarFallback}</AvatarFallback>
                       </Avatar>
                       <div className="ml-4 space-y-1">
@@ -227,6 +233,9 @@ export default function DashboardPage() {
               </div>
           </CardContent>
         </Card>
+        <div className="hidden">
+           <CustomerList isAddCustomerOpen={isAddCustomerOpen} setAddCustomerOpen={setAddCustomerOpen} />
+        </div>
       </main>
     </div>
   );
