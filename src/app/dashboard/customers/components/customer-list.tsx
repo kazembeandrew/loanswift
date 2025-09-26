@@ -59,22 +59,40 @@ const customerFormSchema = z.object({
   paymentPeriod: z.string().min(1, 'Payment period is required'),
 });
 
+const newLoanFormSchema = z.object({
+  loanAmount: z.coerce.number().positive('Loan amount must be a positive number'),
+  interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative'),
+  dateTaken: z.string().min(1, 'Date is required'),
+  paymentPeriod: z.string().min(1, 'Payment period is required'),
+});
+
 export default function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [loans, setLoans] = useState<Loan[]>(initialLoans);
   const [isAddCustomerOpen, setAddCustomerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [isAddNewLoanOpen, setAddNewLoanOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
   
-  const form = useForm<z.infer<typeof customerFormSchema>>({
+  const customerForm = useForm<z.infer<typeof customerFormSchema>>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
       name: '',
       email: '',
+      loanAmount: 0,
+      interestRate: 0,
+      dateTaken: '',
+      paymentPeriod: '',
+    },
+  });
+
+  const newLoanForm = useForm<z.infer<typeof newLoanFormSchema>>({
+    resolver: zodResolver(newLoanFormSchema),
+    defaultValues: {
       loanAmount: 0,
       interestRate: 0,
       dateTaken: '',
@@ -120,10 +138,39 @@ export default function CustomerList() {
     setCustomers(prev => [...prev, newCustomer]);
     setLoans(prev => [...prev, newLoan]);
     setAddCustomerOpen(false);
-    form.reset();
+    customerForm.reset();
     toast({
       title: 'Customer Added',
       description: `${values.name} has been successfully added.`,
+    });
+  };
+
+  const handleAddNewLoanClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setAddNewLoanOpen(true);
+  };
+  
+  const handleAddNewLoanSubmit = (values: z.infer<typeof newLoanFormSchema>) => {
+    if (!selectedCustomer) return;
+
+    const newLoanId = `LOAN-${String(loans.length + 1).padStart(3, '0')}`;
+    
+    const newLoan: Loan = {
+      id: newLoanId,
+      customerId: selectedCustomer.id,
+      principal: values.loanAmount,
+      interestRate: values.interestRate,
+      term: parseInt(values.paymentPeriod, 10),
+      startDate: values.dateTaken,
+      status: 'Pending',
+    };
+    
+    setLoans(prev => [...prev, newLoan]);
+    setAddNewLoanOpen(false);
+    newLoanForm.reset();
+    toast({
+      title: 'New Loan Added',
+      description: `A new loan has been added for ${selectedCustomer.name}.`,
     });
   };
 
@@ -159,10 +206,10 @@ export default function CustomerList() {
                 Fill in the details to add a new customer and their initial loan.
               </DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleAddCustomerSubmit)} className="grid gap-4 py-4">
+            <Form {...customerForm}>
+              <form onSubmit={customerForm.handleSubmit(handleAddCustomerSubmit)} className="grid gap-4 py-4">
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
@@ -175,7 +222,7 @@ export default function CustomerList() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
@@ -188,33 +235,33 @@ export default function CustomerList() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="idUpload"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
                       <FormLabel className="text-right">ID Upload</FormLabel>
                       <FormControl>
-                        <Input type="file" {...form.register('idUpload')} className="col-span-3" />
+                        <Input type="file" {...customerForm.register('idUpload')} className="col-span-3" />
                       </FormControl>
                       <FormMessage className="col-span-4 col-start-2" />
                     </FormItem>
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="applicationForm"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
                       <FormLabel className="text-right">Application Form</FormLabel>
                       <FormControl>
-                        <Input type="file" {...form.register('applicationForm')} className="col-span-3" />
+                        <Input type="file" {...customerForm.register('applicationForm')} className="col-span-3" />
                       </FormControl>
                        <FormMessage className="col-span-4 col-start-2" />
                     </FormItem>
                   )}
                 />
                  <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="loanAmount"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
@@ -227,7 +274,7 @@ export default function CustomerList() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="interestRate"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
@@ -240,7 +287,7 @@ export default function CustomerList() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="dateTaken"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
@@ -253,7 +300,7 @@ export default function CustomerList() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={customerForm.control}
                   name="paymentPeriod"
                   render={({ field }) => (
                     <FormItem className="grid grid-cols-4 items-center gap-4">
@@ -320,7 +367,7 @@ export default function CustomerList() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Add New Loan</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAddNewLoanClick(customer)}>Add New Loan</DropdownMenuItem>
                         <DropdownMenuItem>Edit Customer</DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link href={`/dashboard/customers/${customer.id}`}>View Dashboard</Link>
@@ -372,6 +419,78 @@ export default function CustomerList() {
         </DialogContent>
       </Dialog>
       
+      {selectedCustomer && (
+        <Dialog open={isAddNewLoanOpen} onOpenChange={setAddNewLoanOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add New Loan</DialogTitle>
+                    <DialogDescription>
+                        For customer {selectedCustomer.name}.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...newLoanForm}>
+                    <form onSubmit={newLoanForm.handleSubmit(handleAddNewLoanSubmit)} className="grid gap-4 py-4">
+                        <FormField
+                            control={newLoanForm.control}
+                            name="loanAmount"
+                            render={({ field }) => (
+                                <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Amount</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} className="col-span-3" />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 col-start-2" />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={newLoanForm.control}
+                            name="interestRate"
+                            render={({ field }) => (
+                                <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Interest (%)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} className="col-span-3" />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 col-start-2" />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={newLoanForm.control}
+                            name="dateTaken"
+                            render={({ field }) => (
+                                <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Date Taken</FormLabel>
+                                    <FormControl>
+                                        <Input type="date" {...field} className="col-span-3" />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 col-start-2" />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={newLoanForm.control}
+                            name="paymentPeriod"
+                            render={({ field }) => (
+                                <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Payment Period</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., 12 months" {...field} className="col-span-3" />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 col-start-2" />
+                                </FormItem>
+                            )}
+                        />
+                        <DialogFooter>
+                            <Button type="submit">Save loan</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+      )}
+
       {selectedCustomer && selectedLoan && (
         <ReceiptGenerator 
           isOpen={isReceiptGeneratorOpen}

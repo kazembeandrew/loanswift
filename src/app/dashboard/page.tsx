@@ -7,6 +7,7 @@ import {
   Users,
   Wallet,
   FileX2,
+  Briefcase,
 } from 'lucide-react';
 import {
   Card,
@@ -37,8 +38,8 @@ import type { ChartConfig } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { loans as initialLoans, customers as initialCustomers, payments as initialPayments } from '@/lib/data';
-import type { Customer, Loan } from '@/types';
-import { format, subMonths, getMonth } from 'date-fns';
+import type { Customer, Loan, Payment } from '@/types';
+import { format, subMonths, getMonth, isAfter, subDays } from 'date-fns';
 
 
 const monthlyCollectionsChartConfig = {
@@ -56,9 +57,13 @@ export default function DashboardPage() {
 
   const overdueLoans = initialLoans.filter(loan => loan.status === 'Overdue');
   const overdueLoansCount = overdueLoans.length;
-  const totalPrincipal = initialLoans.reduce((acc, loan) => acc + loan.principal, 0);
   const totalCollected = initialPayments.reduce((acc, payment) => acc + payment.amount, 0);
-  const activeLoansCount = initialLoans.filter(loan => loan.status === 'Active').length;
+
+  const thirtyDaysAgo = subDays(new Date(), 30);
+  const newCustomersCount = initialCustomers.filter(c => isAfter(new Date(c.joinDate), thirtyDaysAgo)).length;
+  
+  const recentPayments = initialPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+
 
   const loanStatusCounts = initialLoans.reduce((acc, loan) => {
     acc[loan.status] = (acc[loan.status] || 0) + 1;
@@ -121,20 +126,6 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Active Loans
-              </CardTitle>
-              <Landmark className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeLoansCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Total value: MWK {initialLoans.filter(l => l.status === 'Active').reduce((sum, l) => sum + l.principal, 0).toLocaleString()}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
                 Total Collected
               </CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -160,13 +151,25 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Projections</CardTitle>
-              <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">+{newCustomersCount}</div>
+              <p className="text-xs text-muted-foreground">
+                in the last 30 days
+              </p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Staff Advances</CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">MWK 0</div>
               <p className="text-xs text-muted-foreground">
-                Monthly collection target
+                Total outstanding advances
               </p>
             </CardContent>
           </Card>
@@ -248,18 +251,20 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Overdue Loans</CardTitle>
+            <CardTitle>Recent Payments</CardTitle>
           </CardHeader>
           <CardContent>
              <div className="space-y-8">
-               {overdueLoans.length > 0 ? (
-                overdueLoans.map(loan => {
+               {recentPayments.length > 0 ? (
+                recentPayments.map(payment => {
+                  const loan = initialLoans.find(l => l.id === payment.loanId);
+                  if (!loan) return null;
                   const customer = getCustomerById(loan.customerId);
                   const avatarFallback = customer?.name.split(' ').map(n => n[0]).join('') || 'N/A';
                   if (!customer) return null;
                   
                   return (
-                    <div className="flex items-center" key={loan.id}>
+                    <div className="flex items-center" key={payment.id}>
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
                         <AvatarFallback>{avatarFallback}</AvatarFallback>
@@ -267,17 +272,17 @@ export default function DashboardPage() {
                       <div className="ml-4 space-y-1">
                         <p className="text-sm font-medium leading-none">{customer.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {customer.email}
+                          Paid for Loan {payment.loanId}
                         </p>
                       </div>
                       <div className="ml-auto font-medium">
-                         <Badge variant="destructive">Loan {loan.id}</Badge>
+                         +MWK {payment.amount.toLocaleString()}
                       </div>
                     </div>
                   )
                 })
                ) : (
-                <p className="text-sm text-muted-foreground">No overdue loans at the moment.</p>
+                <p className="text-sm text-muted-foreground">No recent payments.</p>
                )}
               </div>
           </CardContent>
@@ -286,5 +291,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
