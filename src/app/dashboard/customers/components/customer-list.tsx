@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -25,8 +26,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, PlusCircle } from 'lucide-react';
-import { customers as initialCustomers, loans as initialLoans } from '@/lib/data';
-import type { Customer, Loan } from '@/types';
+import { customers as initialCustomers, loans as initialLoans, payments as initialPayments } from '@/lib/data';
+import type { Customer, Loan, Payment } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,7 @@ type CustomerListProps = {
 export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp, setAddCustomerOpen: setAddCustomerOpenProp }: CustomerListProps) {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [loans, setLoans] = useState<Loan[]>(initialLoans);
+  const [payments, setPayments] = useState<Payment[]>(initialPayments);
   const [internalIsAddCustomerOpen, setInternalIsAddCustomerOpen] = useState(false);
   
   const isAddCustomerOpen = isAddCustomerOpenProp !== undefined ? isAddCustomerOpenProp : internalIsAddCustomerOpen;
@@ -112,6 +114,14 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     },
   });
 
+  const getLoanBalance = (loan: Loan) => {
+    const totalPaid = payments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  };
+
   const handleRecordPayment = (customer: Customer, loan: Loan) => {
     setSelectedCustomer(customer);
     setSelectedLoan(loan);
@@ -120,8 +130,35 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
   
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setRecordPaymentOpen(false);
-    setReceiptGeneratorOpen(true);
+     if (selectedCustomer && selectedLoan && paymentDetails.amount) {
+      const newPaymentAmount = parseFloat(paymentDetails.amount);
+      const newPayment: Payment = {
+        id: `PAY-${Date.now()}`,
+        loanId: selectedLoan.id,
+        amount: newPaymentAmount,
+        date: paymentDetails.date || new Date().toISOString().split('T')[0],
+        recordedBy: 'Staff Admin',
+      };
+
+      const balance = getLoanBalance(selectedLoan);
+      if (newPaymentAmount > balance) {
+        toast({
+          title: 'Overpayment Warning',
+          description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
+          variant: 'destructive',
+        });
+      }
+
+      setPayments(prev => [...prev, newPayment]);
+
+      toast({
+        title: 'Payment Recorded',
+        description: `Payment of MWK ${newPayment.amount} for loan ${selectedLoan.id} has been recorded.`,
+      });
+
+      setRecordPaymentOpen(false);
+      setReceiptGeneratorOpen(true);
+    }
   }
 
   const handleEditCustomerClick = (customer: Customer) => {
@@ -431,16 +468,20 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                   <TableCell>{customer.email}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {customerLoans.map((loan) => (
-                        <Badge
-                          key={loan.id}
-                          variant={getLoanStatusVariant(loan.status)}
-                          className="cursor-pointer"
-                           onClick={() => handleRecordPayment(customer, loan)}
-                        >
-                          {loan.id} ({loan.status})
-                        </Badge>
-                      ))}
+                      {customerLoans.map((loan) => {
+                        const isPaid = getLoanBalance(loan) <= 0;
+                        const status = isPaid ? 'Paid' : loan.status;
+                        return (
+                          <Badge
+                            key={loan.id}
+                            variant={getLoanStatusVariant(status)}
+                            className="cursor-pointer"
+                            onClick={() => !isPaid && handleRecordPayment(customer, loan)}
+                          >
+                            {loan.id} ({status})
+                          </Badge>
+                        )
+                      })}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -460,11 +501,14 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
-                         {customerLoans.map((loan) => (
-                          <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(customer, loan)}>
-                            For Loan {loan.id}
-                          </DropdownMenuItem>
-                        ))}
+                         {customerLoans.map((loan) => {
+                           const isPaid = getLoanBalance(loan) <= 0;
+                           return (
+                            <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(customer, loan)} disabled={isPaid}>
+                              For Loan {loan.id} {isPaid ? '(Paid)' : ''}
+                            </DropdownMenuItem>
+                           )
+                         })}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -660,3 +704,5 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     </>
   );
 }
+
+    

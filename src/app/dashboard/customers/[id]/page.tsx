@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Header } from '@/components/header';
@@ -28,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const customer = customers.find((c) => c.id === params.id);
   const [customerLoans, setCustomerLoans] = useState<Loan[]>(loans.filter((l) => l.customerId === params.id));
+  const [allPayments, setAllPayments] = useState<Payment[]>(payments);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
   
@@ -50,6 +52,14 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       </div>
     );
   }
+
+  const getLoanBalance = (loan: Loan) => {
+    const totalPaid = allPayments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  };
   
   const handleRecordPaymentClick = (loan: Loan) => {
     setSelectedLoan(loan);
@@ -60,15 +70,26 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedLoan && paymentDetails.amount) {
+       const newPaymentAmount = parseFloat(paymentDetails.amount);
        const newPayment: Payment = {
         id: `PAY-${Date.now()}`,
         loanId: selectedLoan.id,
-        amount: parseFloat(paymentDetails.amount),
+        amount: newPaymentAmount,
         date: paymentDetails.date || new Date().toISOString().split('T')[0],
         recordedBy: 'Staff Admin',
       };
-      // Note: In a real app, this would be a state update that persists.
-      // payments.push(newPayment); 
+      
+      const balance = getLoanBalance(selectedLoan);
+      
+      if (newPaymentAmount > balance) {
+        toast({
+          title: 'Overpayment Warning',
+          description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
+          variant: 'destructive',
+        });
+      }
+
+      setAllPayments(prev => [...prev, newPayment]);
       
       toast({
         title: 'Payment Recorded',
@@ -141,21 +162,30 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             </CardHeader>
             <CardContent className="space-y-4">
               {customerLoans.length > 0 ? (
-                customerLoans.map(loan => (
-                  <div key={loan.id} className="flex items-center justify-between p-2 rounded-md bg-muted gap-2">
-                    <div>
-                      <p className="font-semibold">{loan.id}</p>
-                      <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
+                customerLoans.map(loan => {
+                  const balance = getLoanBalance(loan);
+                  const isPaid = balance <= 0;
+                  return (
+                    <div key={loan.id} className="flex items-center justify-between p-2 rounded-md bg-muted gap-2">
+                      <div>
+                        <p className="font-semibold">{loan.id}</p>
+                        <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
+                        <p className={`text-sm font-medium ${isPaid ? 'text-green-600' : ''}`}>
+                          Balance: MWK {balance.toLocaleString()}
+                        </p>
+                      </div>
+                       <div className="flex items-center gap-2">
+                         <Badge variant={getLoanStatusVariant(loan.status)}>{isPaid ? 'Paid' : loan.status}</Badge>
+                         {!isPaid && (
+                          <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
+                            <CircleDollarSign className="mr-2 h-4 w-4" />
+                            Record Payment
+                          </Button>
+                         )}
+                      </div>
                     </div>
-                     <div className="flex items-center gap-2">
-                       <Badge variant={getLoanStatusVariant(loan.status)}>{loan.status}</Badge>
-                        <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
-                          <CircleDollarSign className="mr-2 h-4 w-4" />
-                          Record Payment
-                        </Button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-muted-foreground">No loans found for this customer.</p>
               )}
@@ -263,5 +293,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   );
 }
 
+
+    
 
     

@@ -52,6 +52,14 @@ export default function LoansPage() {
 
   const getCustomerById = (id: string) => customers.find((c) => c.id === id);
 
+  const getLoanBalance = (loan: Loan) => {
+    const totalPaid = payments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  };
+
   const getLoanStatusVariant = (
     status: 'Active' | 'Overdue' | 'Paid' | 'Pending'
   ) => {
@@ -74,6 +82,7 @@ export default function LoansPage() {
       .filter((p) => p.loanId === loanId)
       .reduce((acc, p) => acc + p.amount, 0);
     const totalOwed = principal * (1 + (loans.find(l => l.id === loanId)?.interestRate || 0) / 100);
+    if (totalOwed === 0) return 100;
     return (paidAmount / totalOwed) * 100;
   };
   
@@ -86,13 +95,24 @@ export default function LoansPage() {
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedLoan && paymentDetails.amount) {
+      const newPaymentAmount = parseFloat(paymentDetails.amount);
       const newPayment: Payment = {
         id: `PAY-${Date.now()}`,
         loanId: selectedLoan.id,
-        amount: parseFloat(paymentDetails.amount),
+        amount: newPaymentAmount,
         date: paymentDetails.date || new Date().toISOString().split('T')[0],
         recordedBy: 'Staff Admin',
       };
+      
+      const balance = getLoanBalance(selectedLoan);
+      if (newPaymentAmount > balance) {
+        toast({
+            title: 'Overpayment Warning',
+            description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
+            variant: 'destructive',
+        });
+      }
+
       setPayments(prev => [...prev, newPayment]);
       
       toast({
@@ -136,6 +156,9 @@ export default function LoansPage() {
               {loans.map((loan) => {
                 const customer = getCustomerById(loan.customerId);
                 const progress = getLoanProgress(loan.id, loan.principal);
+                const isPaid = getLoanBalance(loan) <= 0;
+                const status = isPaid ? 'Paid' : loan.status;
+
                 return (
                   <TableRow key={loan.id}>
                     <TableCell className="font-medium">{loan.id}</TableCell>
@@ -148,20 +171,20 @@ export default function LoansPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getLoanStatusVariant(loan.status)}>
-                        {loan.status}
+                      <Badge variant={getLoanStatusVariant(status)}>
+                        {status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={isPaid}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleRecordPaymentClick(loan)}>
+                          <DropdownMenuItem onClick={() => handleRecordPaymentClick(loan)} disabled={isPaid}>
                             Record Payment
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleViewDetails(loan)}>
@@ -222,3 +245,5 @@ export default function LoansPage() {
     </div>
   );
 }
+
+    
