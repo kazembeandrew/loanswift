@@ -34,6 +34,7 @@ import {
 import { customers as initialCustomers, loans as initialLoans, payments as initialPayments } from '@/lib/data';
 import type { Customer, Loan, Payment } from '@/types';
 import ReceiptGenerator from '../customers/components/receipt-generator';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>(initialLoans);
@@ -44,6 +45,7 @@ export default function LoansPage() {
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  const { toast } = useToast();
 
   const getCustomerById = (id: string) => customers.find((c) => c.id === id);
 
@@ -68,11 +70,13 @@ export default function LoansPage() {
     const paidAmount = payments
       .filter((p) => p.loanId === loanId)
       .reduce((acc, p) => acc + p.amount, 0);
-    return (paidAmount / principal) * 100;
+    const totalOwed = principal * (1 + (loans.find(l => l.id === loanId)?.interestRate || 0) / 100);
+    return (paidAmount / totalOwed) * 100;
   };
   
   const handleRecordPaymentClick = (loan: Loan) => {
     setSelectedLoan(loan);
+    setPaymentDetails({ amount: '', date: '' });
     setRecordPaymentOpen(true);
   }
 
@@ -87,6 +91,12 @@ export default function LoansPage() {
         recordedBy: 'Staff Admin',
       };
       setPayments(prev => [...prev, newPayment]);
+      
+      toast({
+        title: 'Payment Recorded',
+        description: `Payment of MWK ${newPayment.amount} for loan ${newPayment.loanId} has been recorded.`,
+      });
+
       setRecordPaymentOpen(false);
       setReceiptGeneratorOpen(true);
     }
@@ -100,7 +110,7 @@ export default function LoansPage() {
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <div className="flex items-center">
           <h1 className="font-headline text-lg font-semibold md:text-2xl">
-            Loan Payment Dashboard
+            Loan Portfolio
           </h1>
         </div>
         <div className="rounded-lg border shadow-sm">
