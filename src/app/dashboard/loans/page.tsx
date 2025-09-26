@@ -31,17 +31,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Customer, Loan, Payment } from '@/types';
-import ReceiptGenerator from '../customers/components/receipt-generator';
+import type { Borrower, Loan, Payment } from '@/types';
+import ReceiptGenerator from '../borrowers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
-import { getCustomers } from '@/services/customer-service';
+import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
-import { getPayments, addPayment } from '@/services/payment-service';
+import { getAllPayments, addPayment } from '@/services/payment-service';
 
 
 export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
@@ -52,13 +52,13 @@ export default function LoansPage() {
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
-    const [loansData, customersData, paymentsData] = await Promise.all([
+    const [loansData, borrowersData, paymentsData] = await Promise.all([
       getLoans(),
-      getCustomers(),
-      getPayments(),
+      getBorrowers(),
+      getAllPayments(),
     ]);
     setLoans(loansData);
-    setCustomers(customersData);
+    setBorrowers(borrowersData);
     setPayments(paymentsData);
   }, []);
 
@@ -66,7 +66,7 @@ export default function LoansPage() {
     fetchData();
   }, [fetchData]);
 
-  const getCustomerById = (id: string) => customers.find((c) => c.id === id);
+  const getBorrowerById = (id: string) => borrowers.find((c) => c.id === id);
 
   const getLoanBalance = (loan: Loan) => {
     const totalPaid = payments
@@ -77,36 +77,33 @@ export default function LoansPage() {
   };
 
   const getLoanStatusVariant = (
-    status: 'Active' | 'Overdue' | 'Paid' | 'Pending'
-  ) => {
+    status: 'approved' | 'active' | 'closed'
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
-      case 'Active':
+      case 'active':
         return 'default';
-      case 'Overdue':
-        return 'destructive';
-      case 'Paid':
+      case 'closed':
         return 'secondary';
-      case 'Pending':
+      case 'approved':
         return 'outline';
       default:
         return 'default';
     }
   };
   
-  const getLoanProgress = (loanId: string, principal: number) => {
+  const getLoanProgress = (loan: Loan) => {
     const paidAmount = payments
-      .filter((p) => p.loanId === loanId)
+      .filter((p) => p.loanId === loan.id)
       .reduce((acc, p) => acc + p.amount, 0);
-    const loan = loans.find(l => l.id === loanId);
-    if (!loan) return 0;
-    const totalOwed = principal * (1 + loan.interestRate / 100);
+    
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     if (totalOwed === 0) return 100;
     return (paidAmount / totalOwed) * 100;
   };
   
   const handleRecordPaymentClick = (loan: Loan) => {
     setSelectedLoan(loan);
-    setPaymentDetails({ amount: '', date: '' });
+    setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   }
 
@@ -131,9 +128,10 @@ export default function LoansPage() {
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
       recordedBy: 'Staff Admin',
+      method: 'cash',
     };
 
-    await addPayment(newPaymentData);
+    await addPayment(selectedLoan.id, newPaymentData);
     
     toast({
       title: 'Payment Recorded',
@@ -147,10 +145,10 @@ export default function LoansPage() {
   };
 
   const handleViewDetails = (loan: Loan) => {
-    router.push(`/dashboard/customers/${loan.customerId}`);
+    router.push(`/dashboard/borrowers/${loan.borrowerId}`);
   };
 
-  const selectedCustomer = selectedLoan ? getCustomerById(selectedLoan.customerId) : null;
+  const selectedBorrower = selectedLoan ? getBorrowerById(selectedLoan.borrowerId) : null;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -166,7 +164,7 @@ export default function LoansPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Loan ID</TableHead>
-                <TableHead>Customer</TableHead>
+                <TableHead>Borrower</TableHead>
                 <TableHead>Principal</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Status</TableHead>
@@ -175,15 +173,15 @@ export default function LoansPage() {
             </TableHeader>
             <TableBody>
               {loans.map((loan) => {
-                const customer = getCustomerById(loan.customerId);
-                const progress = getLoanProgress(loan.id, loan.principal);
+                const borrower = getBorrowerById(loan.borrowerId);
+                const progress = getLoanProgress(loan);
                 const isPaid = getLoanBalance(loan) <= 0;
-                const status = isPaid ? 'Paid' : loan.status;
+                const status = isPaid ? 'closed' : loan.status;
 
                 return (
                   <TableRow key={loan.id}>
                     <TableCell className="font-medium">{loan.id}</TableCell>
-                    <TableCell>{customer?.name}</TableCell>
+                    <TableCell>{borrower?.name}</TableCell>
                     <TableCell>MWK {loan.principal.toLocaleString()}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -227,7 +225,7 @@ export default function LoansPage() {
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             {selectedLoan && <DialogDescription>
-              For loan {selectedLoan.id} of {getCustomerById(selectedLoan.customerId)?.name}.
+              For loan {selectedLoan.id} of {getBorrowerById(selectedLoan.borrowerId)?.name}.
             </DialogDescription>}
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
@@ -252,11 +250,11 @@ export default function LoansPage() {
         </DialogContent>
       </Dialog>
       
-      {selectedCustomer && selectedLoan && (
+      {selectedBorrower && selectedLoan && (
         <ReceiptGenerator 
           isOpen={isReceiptGeneratorOpen}
           setIsOpen={setReceiptGeneratorOpen}
-          customer={selectedCustomer}
+          borrower={selectedBorrower}
           loan={selectedLoan}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}

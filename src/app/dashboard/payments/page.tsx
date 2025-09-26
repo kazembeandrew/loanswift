@@ -27,36 +27,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Customer, Loan, Payment } from '@/types';
-import ReceiptGenerator from '../customers/components/receipt-generator';
+import type { Borrower, Loan, Payment } from '@/types';
+import ReceiptGenerator from '../borrowers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getCustomers } from '@/services/customer-service';
+import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
-import { getPayments, addPayment } from '@/services/payment-service';
+import { getAllPayments, addPayment } from '@/services/payment-service';
 
 
 export default function PaymentsPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedBorrowerId, setSelectedBorrowerId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
-    const [customersData, loansData, paymentsData] = await Promise.all([
-      getCustomers(),
+    const [borrowersData, loansData, paymentsData] = await Promise.all([
+      getBorrowers(),
       getLoans(),
-      getPayments(),
+      getAllPayments(),
     ]);
-    setCustomers(customersData);
+    setBorrowers(borrowersData);
     setLoans(loansData);
     setPayments(paymentsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   }, []);
@@ -66,7 +66,7 @@ export default function PaymentsPage() {
   }, [fetchData]);
 
 
-  const getCustomerById = (id: string | null) => id ? customers.find((c) => c.id === id) : null;
+  const getBorrowerById = (id: string | null) => id ? borrowers.find((c) => c.id === id) : null;
   const getLoanById = (id: string | null) => id ? loans.find((l) => l.id === id) : null;
 
   const getLoanBalance = (loan: Loan) => {
@@ -84,7 +84,7 @@ export default function PaymentsPage() {
     if (!selectedLoan || !paymentDetails.amount) {
       toast({
         title: 'Error',
-        description: 'Please select a customer, loan and enter an amount.',
+        description: 'Please select a borrower, loan and enter an amount.',
         variant: 'destructive',
       });
       return;
@@ -107,9 +107,10 @@ export default function PaymentsPage() {
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
       recordedBy: 'Staff Admin',
+      method: 'cash',
     };
 
-    await addPayment(newPaymentData);
+    await addPayment(selectedLoan.id, newPaymentData);
 
     toast({
       title: 'Payment Recorded',
@@ -123,13 +124,13 @@ export default function PaymentsPage() {
   };
 
   const handleOpenRecordPayment = () => {
-    setSelectedCustomerId(null);
+    setSelectedBorrowerId(null);
     setSelectedLoanId(null);
     setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   }
 
-  const selectedCustomerForDialog = getCustomerById(selectedCustomerId);
+  const selectedBorrowerForDialog = getBorrowerById(selectedBorrowerId);
   const selectedLoanForDialog = getLoanById(selectedLoanId);
   
   const recentPayments = payments.slice(0, 7);
@@ -143,7 +144,7 @@ export default function PaymentsPage() {
                 <CardHeader>
                     <CardTitle>Record a Payment</CardTitle>
                     <CardDescription>
-                        Manually enter a new payment from a customer.
+                        Manually enter a new payment from a borrower.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center text-center p-10">
@@ -166,18 +167,18 @@ export default function PaymentsPage() {
                         recentPayments.map(payment => {
                           const loan = getLoanById(payment.loanId);
                           if (!loan) return null;
-                          const customer = getCustomerById(loan.customerId);
-                          if (!customer) return null;
-                          const avatarFallback = customer?.name.split(' ').map(n => n[0]).join('') || 'N/A';
+                          const borrower = getBorrowerById(loan.borrowerId);
+                          if (!borrower) return null;
+                          const avatarFallback = borrower?.name.split(' ').map(n => n[0]).join('') || 'N/A';
                           
                           return (
                             <div className="flex items-center" key={payment.id}>
                               <Avatar className="h-9 w-9">
-                                <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
+                                <AvatarImage src={`https://picsum.photos/seed/${borrower.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
                                 <AvatarFallback>{avatarFallback}</AvatarFallback>
                               </Avatar>
                               <div className="ml-4 space-y-1">
-                                <p className="text-sm font-medium leading-none">{customer.name}</p>
+                                <p className="text-sm font-medium leading-none">{borrower.name}</p>
                                 <p className="text-sm text-muted-foreground">
                                   Paid for Loan {payment.loanId} on {new Date(payment.date).toLocaleDateString()}
                                 </p>
@@ -202,29 +203,29 @@ export default function PaymentsPage() {
           <DialogHeader>
             <DialogTitle>Record New Payment</DialogTitle>
             <DialogDescription>
-                Select a customer and their loan to record a payment.
+                Select a borrower and their loan to record a payment.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="customer" className="text-right">
-                        Customer
+                    <Label htmlFor="borrower" className="text-right">
+                        Borrower
                     </Label>
-                    <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId || ''}>
+                    <Select onValueChange={setSelectedBorrowerId} value={selectedBorrowerId || ''}>
                         <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Select a customer" />
+                            <SelectValue placeholder="Select a borrower" />
                         </SelectTrigger>
                         <SelectContent>
-                            {customers.map(customer => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                    {customer.name}
+                            {borrowers.map(borrower => (
+                                <SelectItem key={borrower.id} value={borrower.id}>
+                                    {borrower.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
-                {selectedCustomerId && (
+                {selectedBorrowerId && (
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="loan" className="text-right">
                             Loan
@@ -234,7 +235,7 @@ export default function PaymentsPage() {
                                 <SelectValue placeholder="Select a loan" />
                             </SelectTrigger>
                             <SelectContent>
-                                {loans.filter(l => l.customerId === selectedCustomerId).map(loan => (
+                                {loans.filter(l => l.borrowerId === selectedBorrowerId).map(loan => (
                                     <SelectItem key={loan.id} value={loan.id}>
                                         {loan.id} - MWK {loan.principal.toLocaleString()} ({loan.status})
                                     </SelectItem>
@@ -263,11 +264,11 @@ export default function PaymentsPage() {
         </DialogContent>
       </Dialog>
       
-      {selectedCustomerForDialog && selectedLoanForDialog && (
+      {selectedBorrowerForDialog && selectedLoanForDialog && (
         <ReceiptGenerator 
           isOpen={isReceiptGeneratorOpen}
           setIsOpen={setReceiptGeneratorOpen}
-          customer={selectedCustomerForDialog}
+          borrower={selectedBorrowerForDialog}
           loan={selectedLoanForDialog}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}

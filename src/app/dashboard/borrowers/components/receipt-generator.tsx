@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { handleGenerateReceipt, handleGenerateReceiptImage } from '@/app/actions/receipt';
-import type { Customer, Loan } from '@/types';
+import type { Borrower, Loan } from '@/types';
 import { Loader2, Printer, Share2, Download, RefreshCw } from 'lucide-react';
 import ReceiptPreview from '@/components/receipt-preview';
 import Image from 'next/image';
@@ -18,7 +18,7 @@ import Image from 'next/image';
 type ReceiptGeneratorProps = {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  customer: Customer;
+  borrower: Borrower;
   loan: Loan;
   paymentAmount: number;
   paymentDate: string;
@@ -30,7 +30,7 @@ const placeholderLogoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAE
 export default function ReceiptGenerator({
   isOpen,
   setIsOpen,
-  customer,
+  borrower,
   loan,
   paymentAmount,
   paymentDate,
@@ -56,7 +56,7 @@ export default function ReceiptGenerator({
     setReceiptId(newReceiptId);
     try {
       const input = {
-        customerName: customer.name,
+        customerName: borrower.name,
         loanId: loan.id,
         paymentAmount: paymentAmount,
         paymentDate: new Date(paymentDate).toISOString(),
@@ -136,9 +136,6 @@ export default function ReceiptGenerator({
   const shareToWhatsApp = () => {
     if(receiptImageUrl) {
         toast({ title: 'Sharing', description: 'Please wait while we prepare the image for sharing.'});
-        // This is a simplified approach. In a real app, you'd upload the image
-        // and share the URL, as WhatsApp doesn't directly support sharing data URIs.
-        // For this demo, we'll just open the image in a new tab.
         const newWindow = window.open();
         newWindow?.document.write(`<img src="${receiptImageUrl}" alt="Receipt" />`);
     } else {

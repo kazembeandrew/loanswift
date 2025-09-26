@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import type { Customer, Loan, Payment } from '@/types';
+import type { Borrower, Loan, Payment } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -22,17 +22,17 @@ import {
 import { Label } from '@/components/ui/label';
 import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
-import { getCustomerById } from '@/services/customer-service';
-import { getLoansByCustomerId } from '@/services/loan-service';
-import { getPaymentsByLoanId, addPayment, getPayments } from '@/services/payment-service';
+import { getBorrowerById } from '@/services/borrower-service';
+import { getLoansByBorrowerId } from '@/services/loan-service';
+import { getPaymentsByLoanId, addPayment, getAllPayments } from '@/services/payment-service';
 import { uploadFile, getFiles, getDownloadURL } from '@/services/storage-service';
 
 
-export default function CustomerDetailPage() {
+export default function BorrowerDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [customerLoans, setCustomerLoans] = useState<Loan[]>([]);
+  const [borrower, setBorrower] = useState<Borrower | null>(null);
+  const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
   const [allPayments, setAllPayments] = useState<Payment[]>([]);
   const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
@@ -47,16 +47,16 @@ export default function CustomerDetailPage() {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [customerData, loansData, paymentsData, filesData] = await Promise.all([
-      getCustomerById(id),
-      getLoansByCustomerId(id),
-      getPayments(), // Fetch all payments to calculate balances correctly
-      // getFiles(`customers/${id}/attachments`) // Temporarily disabled
+    const [borrowerData, loansData, paymentsData, filesData] = await Promise.all([
+      getBorrowerById(id),
+      getLoansByBorrowerId(id),
+      getAllPayments(), // Fetch all payments to calculate balances correctly
+      getFiles(`borrowers/${id}/attachments`)
     ]);
-    setCustomer(customerData);
-    setCustomerLoans(loansData);
+    setBorrower(borrowerData);
+    setBorrowerLoans(loansData);
     setAllPayments(paymentsData);
-    // setAttachments(filesData); // Temporarily disabled
+    setAttachments(filesData);
   }, [id]);
 
   useEffect(() => {
@@ -64,10 +64,10 @@ export default function CustomerDetailPage() {
   }, [fetchData]);
 
 
-  if (!customer) {
+  if (!borrower) {
     return (
       <div className="flex min-h-screen w-full flex-col">
-        <Header title="Loading Customer..." />
+        <Header title="Loading Borrower..." />
         <main className="flex-1 flex items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
@@ -85,7 +85,7 @@ export default function CustomerDetailPage() {
   
   const handleRecordPaymentClick = (loan: Loan) => {
     setSelectedLoan(loan);
-    setPaymentDetails({ amount: '', date: '' });
+    setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   }
 
@@ -110,9 +110,10 @@ export default function CustomerDetailPage() {
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
       recordedBy: 'Staff Admin',
+      method: 'cash',
     };
 
-    await addPayment(newPaymentData);
+    await addPayment(selectedLoan.id, newPaymentData);
     
     toast({
       title: 'Payment Recorded',
@@ -128,21 +129,19 @@ export default function CustomerDetailPage() {
 
 
   const getLoanStatusVariant = (
-    status: 'Active' | 'Overdue' | 'Paid' | 'Pending'
-  ) => {
+    status: 'approved' | 'active' | 'closed'
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
-      case 'Active':
+      case 'active':
         return 'default';
-      case 'Overdue':
-        return 'destructive';
-      case 'Paid':
+      case 'closed':
         return 'secondary';
-      case 'Pending':
+      case 'approved':
         return 'outline';
     }
   };
 
-  const avatarFallback = customer.name.split(' ').map(n => n[0]).join('');
+  const avatarFallback = borrower.name.split(' ').map(n => n[0]).join('');
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -150,7 +149,7 @@ export default function CustomerDetailPage() {
       setIsUploading(true);
       try {
         await Promise.all(
-          filesToUpload.map(file => uploadFile(file, `customers/${id}/attachments/${file.name}`))
+          filesToUpload.map(file => uploadFile(file, `borrowers/${id}/attachments/${file.name}`))
         );
         toast({
           title: 'Upload Successful',
@@ -177,16 +176,16 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header title="Customer Dashboard" />
+      <Header title="Borrower Dashboard" />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16">
-            <AvatarImage src={`https://picsum.photos/seed/${customer.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
+            <AvatarImage src={`https://picsum.photos/seed/${borrower.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
             <AvatarFallback>{avatarFallback}</AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-headline text-3xl font-semibold">{customer.name}</h1>
-            <p className="text-muted-foreground">{customer.email}</p>
+            <h1 className="font-headline text-3xl font-semibold">{borrower.name}</h1>
+            <p className="text-muted-foreground">{borrower.idNumber}</p>
           </div>
         </div>
 
@@ -196,9 +195,10 @@ export default function CustomerDetailPage() {
               <CardTitle>Contact Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p><strong>Phone:</strong> {customer.phone}</p>
-              <p><strong>Address:</strong> {customer.address}</p>
-              <p><strong>Joined:</strong> {new Date(customer.joinDate).toLocaleDateString()}</p>
+              <p><strong>Phone:</strong> {borrower.phone}</p>
+              <p><strong>Address:</strong> {borrower.address}</p>
+              <p><strong>Guarantor:</strong> {borrower.guarantorName} ({borrower.guarantorPhone})</p>
+              <p><strong>Joined:</strong> {new Date(borrower.joinDate).toLocaleDateString()}</p>
             </CardContent>
           </Card>
           <Card className="lg:col-span-2">
@@ -206,8 +206,8 @@ export default function CustomerDetailPage() {
               <CardTitle>Loan History</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {customerLoans.length > 0 ? (
-                customerLoans.map(loan => {
+              {borrowerLoans.length > 0 ? (
+                borrowerLoans.map(loan => {
                   const balance = getLoanBalance(loan);
                   const isPaid = balance <= 0;
                   return (
@@ -220,7 +220,7 @@ export default function CustomerDetailPage() {
                         </p>
                       </div>
                        <div className="flex items-center gap-2">
-                         <Badge variant={getLoanStatusVariant(isPaid ? 'Paid' : loan.status)}>{isPaid ? 'Paid' : loan.status}</Badge>
+                         <Badge variant={getLoanStatusVariant(isPaid ? 'closed' : loan.status)}>{isPaid ? 'closed' : loan.status}</Badge>
                          {!isPaid && (
                           <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
                             <CircleDollarSign className="mr-2 h-4 w-4" />
@@ -232,20 +232,20 @@ export default function CustomerDetailPage() {
                   );
                 })
               ) : (
-                <p className="text-muted-foreground">No loans found for this customer.</p>
+                <p className="text-muted-foreground">No loans found for this borrower.</p>
               )}
             </CardContent>
           </Card>
         </div>
         
-        {customerLoans.some(loan => loan.collateral && loan.collateral.length > 0) && (
+        {borrowerLoans.some(loan => loan.collateral && loan.collateral.length > 0) && (
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-headline"><ShieldCheck className="h-5 w-5"/> Collateral</CardTitle>
-                    <CardDescription>Collateral items held against this customer's loans.</CardDescription>
+                    <CardDescription>Collateral items held against this borrower's loans.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {customerLoans.map(loan => 
+                    {borrowerLoans.map(loan => 
                       loan.collateral && loan.collateral.length > 0 && (
                         <div key={loan.id}>
                             <h4 className="font-semibold mb-2">For Loan: {loan.id}</h4>
@@ -272,7 +272,6 @@ export default function CustomerDetailPage() {
                 <Paperclip className="h-5 w-5 text-muted-foreground" />
                 <CardTitle className="font-headline">Attachments</CardTitle>
               </div>
-              {/*
               <Button variant="outline" size="sm" onClick={handleUploadClick} disabled={isUploading}>
                  {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Upload File
@@ -284,7 +283,6 @@ export default function CustomerDetailPage() {
                 onChange={handleFileChange}
                 multiple
               />
-              */}
             </CardHeader>
             <CardContent>
               {attachments.length > 0 ? (
@@ -297,8 +295,7 @@ export default function CustomerDetailPage() {
                 </ul>
               ) : (
                  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
-                      <p className="text-muted-foreground">File uploads are temporarily disabled.</p>
-                      <p className="text-xs text-muted-foreground mt-2">To enable, upgrade your Firebase project to the Blaze plan.</p>
+                      <p className="text-muted-foreground">No attachments found.</p>
                   </div>
               )}
             </CardContent>
@@ -327,7 +324,7 @@ export default function CustomerDetailPage() {
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             {selectedLoan && <DialogDescription>
-              For loan {selectedLoan.id} of {customer?.name}.
+              For loan {selectedLoan.id} of {borrower?.name}.
             </DialogDescription>}
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
@@ -352,11 +349,11 @@ export default function CustomerDetailPage() {
         </DialogContent>
       </Dialog>
       
-      {customer && selectedLoan && (
+      {borrower && selectedLoan && (
         <ReceiptGenerator 
           isOpen={isReceiptGeneratorOpen}
           setIsOpen={setReceiptGeneratorOpen}
-          customer={customer}
+          borrower={borrower}
           loan={selectedLoan}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}

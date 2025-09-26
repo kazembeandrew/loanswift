@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Loan } from '@/types';
 
@@ -18,8 +18,8 @@ export async function getLoanById(id: string): Promise<Loan | null> {
     return null;
 }
 
-export async function getLoansByCustomerId(customerId: string): Promise<Loan[]> {
-    const q = query(loansCollection, where("customerId", "==", customerId));
+export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> {
+    const q = query(loansCollection, where("borrowerId", "==", borrowerId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
 }
@@ -27,4 +27,9 @@ export async function getLoansByCustomerId(customerId: string): Promise<Loan[]> 
 export async function addLoan(loanData: Omit<Loan, 'id'>): Promise<string> {
   const docRef = await addDoc(loansCollection, loanData);
   return docRef.id;
+}
+
+export async function updateLoan(id: string, updates: Partial<Loan>): Promise<void> {
+    const docRef = doc(db, 'loans', id);
+    await updateDoc(docRef, updates);
 }

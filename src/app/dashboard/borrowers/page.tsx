@@ -1,12 +1,12 @@
 import { Header } from '@/components/header';
-import CustomerList from './components/customer-list';
+import BorrowerList from './components/borrower-list';
 
-export default function CustomersPage() {
+export default function BorrowersPage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header title="Customers" />
+      <Header title="Borrowers" />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <CustomerList />
+        <BorrowerList />
       </main>
     </div>
   );

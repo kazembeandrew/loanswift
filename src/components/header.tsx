@@ -17,11 +17,11 @@ import { useState } from 'react';
 
 type HeaderProps = {
   title: string;
-  showAddCustomerButton?: boolean;
-  onAddCustomerClick?: () => void;
+  showAddBorrowerButton?: boolean;
+  onAddBorrowerClick?: () => void;
 };
 
-export function Header({ title, showAddCustomerButton = false, onAddCustomerClick }: HeaderProps) {
+export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClick }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
 
   return (
@@ -34,10 +34,10 @@ export function Header({ title, showAddCustomerButton = false, onAddCustomerClic
         {title}
       </h1>
       <div className="ml-auto flex items-center gap-4">
-        {showAddCustomerButton && (
-          <Button onClick={onAddCustomerClick}>
+        {showAddBorrowerButton && (
+          <Button onClick={onAddBorrowerClick}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Add Customer
+            Add Borrower
           </Button>
         )}
         <Button variant="outline" className="hidden md:flex gap-2 items-center text-muted-foreground pr-8" onClick={() => setSearchOpen(true)}>

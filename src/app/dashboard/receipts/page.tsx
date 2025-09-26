@@ -6,19 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Customer, Loan, Payment } from '@/types';
-import { getCustomers } from '@/services/customer-service';
+import type { Borrower, Loan, Payment } from '@/types';
+import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
-import { getPayments } from '@/services/payment-service';
+import { getAllPayments } from '@/services/payment-service';
 
 
-const ExportButton = ({ payments, loans, customers }: { payments: Payment[], loans: Loan[], customers: Customer[] }) => {
+const ExportButton = ({ payments, loans, borrowers }: { payments: Payment[], loans: Loan[], borrowers: Borrower[] }) => {
   const { toast } = useToast();
 
-  const getCustomerByLoanId = (loanId: string): Customer | null => {
+  const getBorrowerByLoanId = (loanId: string): Borrower | null => {
     const loan = loans.find(l => l.id === loanId);
     if (!loan) return null;
-    return customers.find(c => c.id === loan.customerId) || null;
+    return borrowers.find(c => c.id === loan.borrowerId) || null;
   };
 
   const handleExport = () => {
@@ -31,12 +31,12 @@ const ExportButton = ({ payments, loans, customers }: { payments: Payment[], loa
       return;
     }
 
-    const headers = ["Receipt ID", "Customer Name", "Loan ID", "Amount", "Date", "Recorded By"];
+    const headers = ["Receipt ID", "Borrower Name", "Loan ID", "Amount", "Date", "Recorded By"];
     const rows = payments.map(payment => {
-      const customer = getCustomerByLoanId(payment.loanId);
+      const borrower = getBorrowerByLoanId(payment.loanId);
       return [
         payment.id,
-        customer?.name || 'N/A',
+        borrower?.name || 'N/A',
         payment.loanId,
         payment.amount,
         payment.date,
@@ -70,27 +70,27 @@ const ExportButton = ({ payments, loans, customers }: { payments: Payment[], loa
 export default function ReceiptsPage() {
     const [payments, setPayments] = useState<Payment[]>([]);
     const [loans, setLoans] = useState<Loan[]>([]);
-    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [borrowers, setBorrowers] = useState<Borrower[]>([]);
 
     const fetchData = useCallback(async () => {
-      const [paymentsData, loansData, customersData] = await Promise.all([
-        getPayments(),
+      const [paymentsData, loansData, borrowersData] = await Promise.all([
+        getAllPayments(),
         getLoans(),
-        getCustomers(),
+        getBorrowers(),
       ]);
       setPayments(paymentsData);
       setLoans(loansData);
-      setCustomers(customersData);
+      setBorrowers(borrowersData);
     }, []);
 
     useEffect(() => {
       fetchData();
     }, [fetchData]);
 
-    const getCustomerByLoanId = (loanId: string) => {
+    const getBorrowerByLoanId = (loanId: string) => {
         const loan = loans.find(l => l.id === loanId);
         if (!loan) return null;
-        return customers.find(c => c.id === loan.customerId);
+        return borrowers.find(c => c.id === loan.borrowerId);
     };
 
   return (
@@ -102,7 +102,7 @@ export default function ReceiptsPage() {
             Receipts Register
           </h1>
           <div className="ml-auto">
-            <ExportButton payments={payments} loans={loans} customers={customers} />
+            <ExportButton payments={payments} loans={loans} borrowers={borrowers} />
           </div>
         </div>
         <div className="rounded-lg border shadow-sm">
@@ -111,7 +111,7 @@ export default function ReceiptsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Receipt ID (Payment)</TableHead>
-                  <TableHead>Customer</TableHead>
+                  <TableHead>Borrower</TableHead>
                   <TableHead>Loan ID</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Date</TableHead>
@@ -120,11 +120,11 @@ export default function ReceiptsPage() {
               </TableHeader>
               <TableBody>
                 {payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
-                  const customer = getCustomerByLoanId(payment.loanId);
+                  const borrower = getBorrowerByLoanId(payment.loanId);
                   return (
                     <TableRow key={payment.id}>
                       <TableCell className="font-medium">{payment.id}</TableCell>
-                      <TableCell>{customer?.name || 'N/A'}</TableCell>
+                      <TableCell>{borrower?.name || 'N/A'}</TableCell>
                       <TableCell>{payment.loanId}</TableCell>
                       <TableCell>MWK {payment.amount.toLocaleString()}</TableCell>
                       <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>

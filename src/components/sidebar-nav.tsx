@@ -27,7 +27,7 @@ import {
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/loans', label: 'Loans', icon: ArrowLeftRight },
-  { href: '/dashboard/customers', label: 'Customers', icon: Users },
+  { href: '/dashboard/borrowers', label: 'Borrowers', icon: Users },
   { href: '/dashboard/payments', label: 'Payments', icon: Landmark },
   { href: '/dashboard/receipts', label: 'Receipts', icon: Receipt },
   { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
