@@ -315,12 +315,14 @@ export default function CustomerList() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit Customer</DropdownMenuItem>
                         <DropdownMenuItem>Add New Loan</DropdownMenuItem>
+                        <DropdownMenuItem>Edit Customer</DropdownMenuItem>
+                        <DropdownMenuItem>View Loan History</DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
                          {customerLoans.map((loan) => (
                           <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(customer, loan)}>
-                            Record Payment for {loan.id}
+                            For Loan {loan.id}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -376,5 +378,3 @@ export default function CustomerList() {
     </>
   );
 }
-
-    
