@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -67,7 +68,7 @@ export default function ReportsPage() {
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline">Arrears Summarization</CardTitle>
+            <CardTitle>Arrears Summarization</CardTitle>
             <CardDescription>
               Upload your loan portfolio report (Excel file) to automatically generate an arrears and portfolio summary.
             </CardDescription>
@@ -97,7 +98,7 @@ export default function ReportsPage() {
             {summary && (
               <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle className="font-headline">Generated Summary</CardTitle>
+                  <CardTitle>Generated Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <pre className="whitespace-pre-wrap font-body text-sm">{summary}</pre>

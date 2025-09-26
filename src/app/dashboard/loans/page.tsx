@@ -1,7 +1,9 @@
 
+
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import {
   Table,
@@ -46,6 +48,7 @@ export default function LoansPage() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
+  const router = useRouter();
 
   const getCustomerById = (id: string) => customers.find((c) => c.id === id);
 
@@ -100,6 +103,10 @@ export default function LoansPage() {
       setRecordPaymentOpen(false);
       setReceiptGeneratorOpen(true);
     }
+  };
+
+  const handleViewDetails = (loan: Loan) => {
+    router.push(`/dashboard/customers/${loan.customerId}`);
   };
 
   const selectedCustomer = selectedLoan ? getCustomerById(selectedLoan.customerId) : null;
@@ -157,7 +164,9 @@ export default function LoansPage() {
                           <DropdownMenuItem onClick={() => handleRecordPaymentClick(loan)}>
                             Record Payment
                           </DropdownMenuItem>
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewDetails(loan)}>
+                            View Details
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
