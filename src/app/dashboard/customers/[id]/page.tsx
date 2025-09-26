@@ -27,8 +27,9 @@ import { useToast } from '@/hooks/use-toast';
 
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  const customer = customers.find((c) => c.id === params.id);
-  const [customerLoans, setCustomerLoans] = useState<Loan[]>(loans.filter((l) => l.customerId === params.id));
+  const { id } = params;
+  const customer = customers.find((c) => c.id === id);
+  const [customerLoans, setCustomerLoans] = useState<Loan[]>(loans.filter((l) => l.customerId === id));
   const [allPayments, setAllPayments] = useState<Payment[]>(payments);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
