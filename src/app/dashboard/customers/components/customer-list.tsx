@@ -154,35 +154,37 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
   
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-     if (selectedCustomer && selectedLoan && paymentDetails.amount) {
-      const newPaymentAmount = parseFloat(paymentDetails.amount);
-      const newPaymentData: Omit<Payment, 'id'> = {
-        loanId: selectedLoan.id,
-        amount: newPaymentAmount,
-        date: paymentDetails.date || new Date().toISOString().split('T')[0],
-        recordedBy: 'Staff Admin',
-      };
+    if (!selectedCustomer || !selectedLoan || !paymentDetails.amount) return;
 
-      const balance = getLoanBalance(selectedLoan);
-      if (newPaymentAmount > balance) {
-        toast({
-          title: 'Overpayment Warning',
-          description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
-          variant: 'destructive',
-        });
-      }
-      
-      await addPayment(newPaymentData);
-      await fetchData();
+    const newPaymentAmount = parseFloat(paymentDetails.amount);
+    const balance = getLoanBalance(selectedLoan);
 
+    if (newPaymentAmount > balance) {
       toast({
-        title: 'Payment Recorded',
-        description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
+        title: 'Overpayment Warning',
+        description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}. The payment was not recorded.`,
+        variant: 'destructive',
       });
-
-      setRecordPaymentOpen(false);
-      setReceiptGeneratorOpen(true);
+      return;
     }
+
+    const newPaymentData: Omit<Payment, 'id'> = {
+      loanId: selectedLoan.id,
+      amount: newPaymentAmount,
+      date: paymentDetails.date || new Date().toISOString().split('T')[0],
+      recordedBy: 'Staff Admin',
+    };
+
+    await addPayment(newPaymentData);
+    await fetchData();
+
+    toast({
+      title: 'Payment Recorded',
+      description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
+    });
+
+    setRecordPaymentOpen(false);
+    setReceiptGeneratorOpen(true);
   }
 
   const handleEditCustomerClick = (customer: Customer) => {

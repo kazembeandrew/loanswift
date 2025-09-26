@@ -69,33 +69,56 @@ export default function PaymentsPage() {
   const getCustomerById = (id: string | null) => id ? customers.find((c) => c.id === id) : null;
   const getLoanById = (id: string | null) => id ? loans.find((l) => l.id === id) : null;
 
+  const getLoanBalance = (loan: Loan) => {
+    const totalPaid = payments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  };
+
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedLoan = getLoanById(selectedLoanId);
-    if (selectedLoan && paymentDetails.amount) {
-       const newPaymentData: Omit<Payment, 'id'> = {
-        loanId: selectedLoan.id,
-        amount: parseFloat(paymentDetails.amount),
-        date: paymentDetails.date || new Date().toISOString().split('T')[0],
-        recordedBy: 'Staff Admin',
-      };
-      await addPayment(newPaymentData);
-      await fetchData();
-      
-      toast({
-        title: 'Payment Recorded',
-        description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
-      });
 
-      setRecordPaymentOpen(false);
-      setReceiptGeneratorOpen(true);
-    } else {
-        toast({
-            title: 'Error',
-            description: 'Please select a customer, loan and enter an amount.',
-            variant: 'destructive'
-        })
+    if (!selectedLoan || !paymentDetails.amount) {
+      toast({
+        title: 'Error',
+        description: 'Please select a customer, loan and enter an amount.',
+        variant: 'destructive',
+      });
+      return;
     }
+
+    const newPaymentAmount = parseFloat(paymentDetails.amount);
+    const balance = getLoanBalance(selectedLoan);
+
+    if (newPaymentAmount > balance) {
+      toast({
+        title: 'Overpayment Warning',
+        description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}. The payment was not recorded.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newPaymentData: Omit<Payment, 'id'> = {
+      loanId: selectedLoan.id,
+      amount: newPaymentAmount,
+      date: paymentDetails.date || new Date().toISOString().split('T')[0],
+      recordedBy: 'Staff Admin',
+    };
+
+    await addPayment(newPaymentData);
+    await fetchData();
+
+    toast({
+      title: 'Payment Recorded',
+      description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
+    });
+
+    setRecordPaymentOpen(false);
+    setReceiptGeneratorOpen(true);
   };
 
   const handleOpenRecordPayment = () => {
