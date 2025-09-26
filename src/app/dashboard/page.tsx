@@ -35,7 +35,7 @@ import {
 import type { ChartConfig } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { loans as initialLoans, customers as initialCustomers } from '@/lib/data';
+import { loans as initialLoans, customers as initialCustomers, payments as initialPayments } from '@/lib/data';
 import type { Customer } from '@/types';
 
 const loanStatusData = [
@@ -90,6 +90,10 @@ const getCustomerById = (id: string): Customer | undefined => {
 export default function DashboardPage() {
 
   const overdueLoans = initialLoans.filter(loan => loan.status === 'Overdue');
+  const totalPrincipal = initialLoans.reduce((acc, loan) => acc + loan.principal, 0);
+  const totalCollected = initialPayments.reduce((acc, payment) => acc + payment.amount, 0);
+  const activeLoansCount = initialLoans.filter(loan => loan.status === 'Active').length;
+
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -104,7 +108,7 @@ export default function DashboardPage() {
               <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK 1,250,000</div>
+              <div className="text-2xl font-bold">MWK {totalPrincipal.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
                 +5.2% from last month
               </p>
@@ -118,7 +122,7 @@ export default function DashboardPage() {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK 450,231.89</div>
+              <div className="text-2xl font-bold">MWK {totalCollected.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
                 +10.1% from last month
               </p>
@@ -130,7 +134,7 @@ export default function DashboardPage() {
               <Landmark className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+150</div>
+              <div className="text-2xl font-bold">+{activeLoansCount}</div>
               <p className="text-xs text-muted-foreground">
                 +2 since last hour
               </p>
@@ -142,7 +146,7 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+12</div>
+              <div className="text-2xl font-bold">+{initialCustomers.length}</div>
               <p className="text-xs text-muted-foreground">
                 +5 this month
               </p>
