@@ -39,7 +39,7 @@ export function SidebarNav() {
         <Link href="/dashboard" className="flex items-center gap-2">
           <Landmark className="size-8 text-primary" />
           <h1 className="font-headline text-2xl font-semibold text-primary">
-            LoanSwift
+            Janalo Enterprises
           </h1>
         </Link>
       </SidebarHeader>

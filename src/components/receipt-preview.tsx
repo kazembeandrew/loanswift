@@ -30,7 +30,7 @@ export default function ReceiptPreview({ receiptText }: { receiptText: string })
              <Landmark className="size-10 text-primary" />
              <div>
                 <h2 className="font-headline text-2xl font-semibold text-primary">
-                LoanSwift Inc.
+                Janalo Enterprises
                 </h2>
                 <p className="text-sm text-muted-foreground">123 Finance St, Moneytown, USA</p>
              </div>

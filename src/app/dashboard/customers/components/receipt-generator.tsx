@@ -46,7 +46,7 @@ export default function ReceiptGenerator({
         paymentDate: new Date(paymentDate).toISOString(),
         staffName: 'Staff Admin', // Hardcoded for now
         receiptId: `RCPT-${Date.now()}`,
-        businessName: 'LoanSwift Inc.',
+        businessName: 'Janalo Enterprises',
         businessAddress: '123 Finance St, Moneytown, USA',
       };
       const result = await handleGenerateReceipt(input);

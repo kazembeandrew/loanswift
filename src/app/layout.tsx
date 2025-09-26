@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'LoanSwift',
+  title: 'Janalo Enterprises',
   description: 'Internal loan management system',
 };
 
