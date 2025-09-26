@@ -78,11 +78,13 @@ const generateReceiptFlow = ai.defineFlow(
     }
 
     const payments = await getPaymentsByLoanId(input.loanId);
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    // Get total paid *before* this new payment
+    const totalPaidPreviously = payments.filter(p => new Date(p.date) < new Date(input.paymentDate)).reduce((sum, p) => sum + p.amount, 0);
+
     const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     
     // The balance *after* the current payment is made.
-    const newTotalPaid = totalPaid + input.paymentAmount;
+    const newTotalPaid = totalPaidPreviously + input.paymentAmount;
     const balance = totalOwed - newTotalPaid;
 
     const promptInput = {
