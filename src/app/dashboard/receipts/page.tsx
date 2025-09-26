@@ -1,26 +1,38 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { payments as initialPayments, loans as initialLoans, customers as initialCustomers } from '@/lib/data';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Customer, Loan, Payment } from '@/types';
+import { getCustomers } from '@/services/customer-service';
+import { getLoans } from '@/services/loan-service';
+import { getPayments } from '@/services/payment-service';
 
 
-const ExportButton = () => {
+const ExportButton = ({ payments, loans, customers }: { payments: Payment[], loans: Loan[], customers: Customer[] }) => {
   const { toast } = useToast();
 
   const getCustomerByLoanId = (loanId: string): Customer | null => {
-    const loan = initialLoans.find(l => l.id === loanId);
+    const loan = loans.find(l => l.id === loanId);
     if (!loan) return null;
-    return initialCustomers.find(c => c.id === loan.customerId) || null;
+    return customers.find(c => c.id === loan.customerId) || null;
   };
 
   const handleExport = () => {
+    if (payments.length === 0) {
+      toast({
+        title: 'No Data to Export',
+        description: 'There are no receipts to export.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const headers = ["Receipt ID", "Customer Name", "Loan ID", "Amount", "Date", "Recorded By"];
-    const rows = initialPayments.map(payment => {
+    const rows = payments.map(payment => {
       const customer = getCustomerByLoanId(payment.loanId);
       return [
         payment.id,
@@ -56,10 +68,29 @@ const ExportButton = () => {
 }
 
 export default function ReceiptsPage() {
+    const [payments, setPayments] = useState<Payment[]>([]);
+    const [loans, setLoans] = useState<Loan[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
+
+    const fetchData = useCallback(async () => {
+      const [paymentsData, loansData, customersData] = await Promise.all([
+        getPayments(),
+        getLoans(),
+        getCustomers(),
+      ]);
+      setPayments(paymentsData);
+      setLoans(loansData);
+      setCustomers(customersData);
+    }, []);
+
+    useEffect(() => {
+      fetchData();
+    }, [fetchData]);
+
     const getCustomerByLoanId = (loanId: string) => {
-        const loan = initialLoans.find(l => l.id === loanId);
+        const loan = loans.find(l => l.id === loanId);
         if (!loan) return null;
-        return initialCustomers.find(c => c.id === loan.customerId);
+        return customers.find(c => c.id === loan.customerId);
     };
 
   return (
@@ -71,11 +102,11 @@ export default function ReceiptsPage() {
             Receipts Register
           </h1>
           <div className="ml-auto">
-            <ExportButton />
+            <ExportButton payments={payments} loans={loans} customers={customers} />
           </div>
         </div>
         <div className="rounded-lg border shadow-sm">
-          {initialPayments.length > 0 ? (
+          {payments.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -88,7 +119,7 @@ export default function ReceiptsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {initialPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
+                {payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
                   const customer = getCustomerByLoanId(payment.loanId);
                   return (
                     <TableRow key={payment.id}>
