@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -289,7 +290,11 @@ export default function CustomerList() {
               );
               return (
                 <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
+                  <TableCell className="font-medium">
+                     <Link href={`/dashboard/customers/${customer.id}`} className="hover:underline">
+                      {customer.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>{customer.email}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -317,7 +322,9 @@ export default function CustomerList() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Add New Loan</DropdownMenuItem>
                         <DropdownMenuItem>Edit Customer</DropdownMenuItem>
-                        <DropdownMenuItem>View Loan History</DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/dashboard/customers/${customer.id}`}>View Dashboard</Link>
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
                          {customerLoans.map((loan) => (
