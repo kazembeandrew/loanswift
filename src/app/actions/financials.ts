@@ -6,9 +6,9 @@ import {
   type GenerateFinancialSummaryOutput,
 } from '@/ai/flows/generate-financial-summary';
 
-export {
-  type GenerateFinancialSummaryInput,
-  type GenerateFinancialSummaryOutput,
+export type {
+  GenerateFinancialSummaryInput,
+  GenerateFinancialSummaryOutput,
 } from '@/ai/flows/generate-financial-summary';
 
 export async function handleGenerateFinancialSummary(

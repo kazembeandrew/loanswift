@@ -4,16 +4,14 @@
  * @fileOverview Generates a financial summary for the business.
  *
  * - generateFinancialSummary - A function that generates a financial analysis.
- * - GenerateFinancialSummaryInputSchema - The input schema for the generateFinancialSummary function.
  * - GenerateFinancialSummaryInput - The input type for the generateFinancialSummary function.
- * - GenerateFinancialSummaryOutputSchema - The output schema for the generateFinancialSummary function.
  * - GenerateFinancialSummaryOutput - The return type for the generateFinancialSummary function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const GenerateFinancialSummaryInputSchema = z.object({
+const GenerateFinancialSummaryInputSchema = z.object({
   totalPrincipal: z.number().describe('The total principal amount of all loans disbursed.'),
   totalCollected: z.number().describe('The total amount collected from payments.'),
   loanCount: z.number().describe('The total number of loans.'),
@@ -23,7 +21,7 @@ export const GenerateFinancialSummaryInputSchema = z.object({
 });
 export type GenerateFinancialSummaryInput = z.infer<typeof GenerateFinancialSummaryInputSchema>;
 
-export const GenerateFinancialSummaryOutputSchema = z.object({
+const GenerateFinancialSummaryOutputSchema = z.object({
   capitalAnalysis: z.string().describe('An analysis of the capital deployed and its return. Discuss the efficiency of capital usage.'),
   businessStanding: z.string().describe('An assessment of the overall business standing based on the provided metrics. Mention portfolio health.'),
   financialSituation: z.string().describe('A summary of the current financial situation, considering collections vs. deployed capital.'),
