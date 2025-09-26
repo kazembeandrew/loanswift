@@ -2,6 +2,7 @@
 
 'use client';
 
+import { useParams } from 'next/navigation';
 import { Header } from '@/components/header';
 import { customers, loans, payments } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,8 +27,9 @@ import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 
 
-export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function CustomerDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const customer = customers.find((c) => c.id === id);
   const [customerLoans, setCustomerLoans] = useState<Loan[]>(loans.filter((l) => l.customerId === id));
   const [allPayments, setAllPayments] = useState<Payment[]>(payments);
@@ -293,8 +295,3 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
-
-
-    
-
-    
