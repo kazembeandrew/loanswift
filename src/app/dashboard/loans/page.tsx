@@ -42,7 +42,7 @@ import { getAllPayments, addPayment } from '@/services/payment-service';
 export default function LoansPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -135,7 +135,7 @@ export default function LoansPage() {
     
     toast({
       title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
+      description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
     });
 
     setRecordPaymentOpen(false);

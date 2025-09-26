@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Payment } from '@/types';
 
@@ -17,18 +17,15 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
   return docRef.id;
 }
 
-// A function to get all payments for all loans might be needed for reporting.
+// A function to get all payments for all loans is needed for reporting.
 export async function getAllPayments(): Promise<(Payment & {loanId: string})[]> {
-    const allPayments: (Payment & {loanId: string})[] = [];
-    const loansSnapshot = await getDocs(collection(db, 'loans'));
-
-    for (const loanDoc of loansSnapshot.docs) {
-        const paymentsCollection = collection(db, `loans/${loanDoc.id}/payments`);
-        const paymentsSnapshot = await getDocs(paymentsCollection);
-        paymentsSnapshot.forEach(paymentDoc => {
-            allPayments.push({ loanId: loanDoc.id, id: paymentDoc.id, ...paymentDoc.data() } as Payment & {loanId: string});
-        });
-    }
-    
-    return allPayments;
+    const paymentsQuery = query(collectionGroup(db, 'payments'));
+    const querySnapshot = await getDocs(paymentsQuery);
+    const payments: (Payment & { loanId: string })[] = [];
+    querySnapshot.forEach((doc) => {
+        // The parent property gives you a reference to the loan document.
+        const loanId = doc.ref.parent.parent!.id;
+        payments.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
+    });
+    return payments;
 }

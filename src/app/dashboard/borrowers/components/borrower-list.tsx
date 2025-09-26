@@ -93,9 +93,9 @@ const borrowerFormDefaultValues = {
 };
 
 const newLoanFormDefaultValues = {
-    loanAmount: undefined,
-    interestRate: undefined,
-    repaymentPeriod: undefined,
+    loanAmount: 0,
+    interestRate: 0,
+    repaymentPeriod: 0,
     startDate: '',
     collateral: [],
 };
@@ -108,7 +108,7 @@ type BorrowerListProps = {
 export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp, setAddBorrowerOpen: setAddBorrowerOpenProp }: BorrowerListProps) {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   const [internalIsAddBorrowerOpen, setInternalIsAddBorrowerOpen] = useState(false);
   
   const isAddBorrowerOpen = isAddBorrowerOpenProp !== undefined ? isAddBorrowerOpenProp : internalIsAddBorrowerOpen;
@@ -221,6 +221,8 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const handleEditBorrowerSubmit = (values: z.infer<typeof borrowerFormSchema>) => {
     if (!selectedBorrower) return;
 
+    // Here you would typically call an updateBorrower service function
+    // For now, just updating local state for demo purposes
     setBorrowers(prev => prev.map(c => c.id === selectedBorrower.id ? {...c, ...values} : c));
     setEditBorrowerOpen(false);
     borrowerForm.reset(borrowerFormDefaultValues);
@@ -363,10 +365,10 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                  )}
                  {addBorrowerStep === 2 && (
                     <>
-                        <FormField control={borrowerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Loan Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={borrowerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Loan Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={borrowerForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={borrowerForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={borrowerForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                         <div>
                           <Label>Collateral</Label>
                           {borrowerCollateralFields.map((field, index) => (

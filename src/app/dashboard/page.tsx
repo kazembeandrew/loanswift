@@ -53,7 +53,7 @@ export default function DashboardPage() {
   const [isAddBorrowerOpen, setAddBorrowerOpen] = useState(false);
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   
   const fetchData = useCallback(async () => {
     const [borrowersData, loansData, paymentsData] = await Promise.all([
@@ -74,9 +74,28 @@ export default function DashboardPage() {
     return borrowers.find((borrower) => borrower.id === id);
   }
 
-  const activeLoans = loans.filter(loan => loan.status === 'active');
+  const activeLoans = loans.filter(loan => {
+    const totalPaid = payments.filter(p => p.loanId === loan.id).reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid > 0;
+  });
   const activeLoansCount = activeLoans.length;
-  const overdueLoansValue = activeLoans.reduce((sum, l) => sum + l.outstandingBalance, 0);
+  
+  const getLoanBalance = (loan: Loan) => {
+    const totalPaid = payments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  };
+  
+  const overdueLoans = loans.filter(loan => {
+      const balance = getLoanBalance(loan);
+      // Assuming 'approved' also means active before first payment
+      return balance > 0 && (loan.status === 'active' || loan.status === 'approved');
+  });
+
+  const overdueLoansValue = overdueLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   const totalCollected = payments.reduce((acc, payment) => acc + payment.amount, 0);
 
   const thirtyDaysAgo = subDays(new Date(), 30);
@@ -134,7 +153,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{activeLoansCount}</div>
                <p className="text-xs text-muted-foreground">
-                Total value at risk
+                Total loans with outstanding balances.
               </p>
             </CardContent>
           </Card>

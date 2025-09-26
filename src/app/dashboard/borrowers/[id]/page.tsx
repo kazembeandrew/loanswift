@@ -24,7 +24,7 @@ import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
-import { getPaymentsByLoanId, addPayment, getAllPayments } from '@/services/payment-service';
+import { addPayment, getAllPayments } from '@/services/payment-service';
 import { uploadFile, getFiles, getDownloadURL } from '@/services/storage-service';
 
 
@@ -33,7 +33,7 @@ export default function BorrowerDetailPage() {
   const id = params.id as string;
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
-  const [allPayments, setAllPayments] = useState<Payment[]>([]);
+  const [allPayments, setAllPayments] = useState<(Payment & { loanId: string })[]>([]);
   const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
   const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
   
@@ -117,7 +117,7 @@ export default function BorrowerDetailPage() {
     
     toast({
       title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
+      description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
     });
 
     setRecordPaymentOpen(false);
@@ -308,7 +308,7 @@ export default function BorrowerDetailPage() {
             <CardContent>
               <div className="relative h-64 w-full rounded-lg overflow-hidden border">
                  <iframe 
-                    src="https://www.openstreetmap.org/export/embed.html?bbox=33.7823%2C-13.9626%2C33.7923%2C-13.9526&layer=mapnik&marker=-13.9576,33.7873" 
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=33.7823%2C-13.9626%2C33.7923%2C-13.9526&layer=mapnik&marker=-13.9576,33.7873`} 
                     style={{border: 0, width: '100%', height: '100%'}}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"

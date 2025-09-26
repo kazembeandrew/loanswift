@@ -40,7 +40,7 @@ import { getAllPayments, addPayment } from '@/services/payment-service';
 export default function PaymentsPage() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -235,7 +235,7 @@ export default function PaymentsPage() {
                                 <SelectValue placeholder="Select a loan" />
                             </SelectTrigger>
                             <SelectContent>
-                                {loans.filter(l => l.borrowerId === selectedBorrowerId).map(loan => (
+                                {loans.filter(l => l.borrowerId === selectedBorrowerId && getLoanBalance(l) > 0).map(loan => (
                                     <SelectItem key={loan.id} value={loan.id}>
                                         {loan.id} - MWK {loan.principal.toLocaleString()} ({loan.status})
                                     </SelectItem>

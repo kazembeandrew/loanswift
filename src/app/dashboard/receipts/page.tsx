@@ -12,7 +12,7 @@ import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 
 
-const ExportButton = ({ payments, loans, borrowers }: { payments: Payment[], loans: Loan[], borrowers: Borrower[] }) => {
+const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { loanId: string })[], loans: Loan[], borrowers: Borrower[] }) => {
   const { toast } = useToast();
 
   const getBorrowerByLoanId = (loanId: string): Borrower | null => {
@@ -68,7 +68,7 @@ const ExportButton = ({ payments, loans, borrowers }: { payments: Payment[], loa
 }
 
 export default function ReceiptsPage() {
-    const [payments, setPayments] = useState<Payment[]>([]);
+    const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
     const [loans, setLoans] = useState<Loan[]>([]);
     const [borrowers, setBorrowers] = useState<Borrower[]>([]);
 
