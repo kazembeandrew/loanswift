@@ -81,7 +81,8 @@ export default function CustomerList() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
-  
+  const [addCustomerStep, setAddCustomerStep] = useState(1);
+
   const customerForm = useForm<z.infer<typeof customerFormSchema>>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
@@ -169,6 +170,7 @@ export default function CustomerList() {
     setCustomers(prev => [...prev, newCustomer]);
     setAddCustomerOpen(false);
     customerForm.reset();
+    setAddCustomerStep(1);
     toast({
       title: 'Customer Added',
       description: `${values.name} has been successfully added.`,
@@ -227,6 +229,7 @@ export default function CustomerList() {
         phone: '',
         address: ''
       });
+      setAddCustomerStep(1);
     }
   }, [isAddCustomerOpen, customerForm]);
 
@@ -255,120 +258,136 @@ export default function CustomerList() {
             <DialogHeader>
               <DialogTitle>Add New Customer</DialogTitle>
               <DialogDescription>
-                Fill in the details to add a new customer and optionally their first loan.
+                {addCustomerStep === 1 ? 'Step 1: Fill in the customer details.' : 'Step 2: Add an optional initial loan.'}
               </DialogDescription>
             </DialogHeader>
             <Form {...customerForm}>
               <form onSubmit={customerForm.handleSubmit(handleAddCustomerSubmit)} className="grid gap-4 py-4">
-                 <FormField
-                  control={customerForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                 {addCustomerStep === 1 && (
+                    <>
+                         <FormField
+                          control={customerForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={customerForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                <Input type="email" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={customerForm.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Phone</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={customerForm.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Address</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                    </>
+                 )}
+                 {addCustomerStep === 2 && (
+                    <>
+                         <FormField
+                          control={customerForm.control}
+                          name="loanAmount"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Loan Amount</FormLabel>
+                              <FormControl>
+                                <Input type="number" {...field} />
+                              </FormControl>
+                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={customerForm.control}
+                          name="interestRate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Interest Rate (%)</FormLabel>
+                              <FormControl>
+                                <Input type="number" {...field} />
+                              </FormControl>
+                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={customerForm.control}
+                          name="dateTaken"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Date Taken</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={customerForm.control}
+                          name="paymentPeriod"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Payment Period (Months)</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., 12" {...field} />
+                              </FormControl>
+                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                    </>
+                 )}
+                <DialogFooter className="mt-4">
+                  {addCustomerStep === 1 && (
+                      <Button type="button" onClick={async () => {
+                          const isValid = await customerForm.trigger(['name', 'email', 'phone', 'address']);
+                          if (isValid) setAddCustomerStep(2);
+                      }}>Next</Button>
                   )}
-                />
-                <FormField
-                  control={customerForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                  {addCustomerStep === 2 && (
+                    <>
+                      <Button type="button" variant="outline" onClick={() => setAddCustomerStep(1)}>Back</Button>
+                      <Button type="submit">Save Customer</Button>
+                    </>
                   )}
-                />
-                 <FormField
-                  control={customerForm.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={customerForm.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="text-lg font-semibold mt-4 pt-4 border-t">Initial Loan (Optional)</div>
-
-                 <FormField
-                  control={customerForm.control}
-                  name="loanAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Loan Amount</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={customerForm.control}
-                  name="interestRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Interest Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={customerForm.control}
-                  name="dateTaken"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date Taken</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={customerForm.control}
-                  name="paymentPeriod"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Period (Months)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 12" {...field} />
-                      </FormControl>
-                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit">Save customer</Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -629,3 +648,5 @@ export default function CustomerList() {
     </>
   );
 }
+
+    
