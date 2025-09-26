@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2 } from 'lucide-react';
+import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
@@ -218,7 +218,7 @@ export default function CustomerDetailPage() {
                         </p>
                       </div>
                        <div className="flex items-center gap-2">
-                         <Badge variant={getLoanStatusVariant(loan.status)}>{isPaid ? 'Paid' : loan.status}</Badge>
+                         <Badge variant={getLoanStatusVariant(isPaid ? 'Paid' : loan.status)}>{isPaid ? 'Paid' : loan.status}</Badge>
                          {!isPaid && (
                           <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
                             <CircleDollarSign className="mr-2 h-4 w-4" />
@@ -235,6 +235,33 @@ export default function CustomerDetailPage() {
             </CardContent>
           </Card>
         </div>
+        
+        {customerLoans.some(loan => loan.collateral && loan.collateral.length > 0) && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-headline"><ShieldCheck className="h-5 w-5"/> Collateral</CardTitle>
+                    <CardDescription>Collateral items held against this customer's loans.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {customerLoans.map(loan => 
+                      loan.collateral && loan.collateral.length > 0 && (
+                        <div key={loan.id}>
+                            <h4 className="font-semibold mb-2">For Loan: {loan.id}</h4>
+                            <ul className="space-y-2">
+                            {loan.collateral.map((item, index) => (
+                                <li key={index} className="flex justify-between items-center text-sm p-2 bg-muted rounded-md">
+                                    <span>{item.name}</span>
+                                    <span className="font-mono text-xs">MWK {item.value.toLocaleString()}</span>
+                                </li>
+                            ))}
+                            </ul>
+                        </div>
+                      )
+                    )}
+                </CardContent>
+            </Card>
+        )}
+
 
         <div className="grid gap-6 mt-6 md:grid-cols-2">
           <Card>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
 import type { Customer, Loan, Payment } from '@/types';
 import {
   Dialog,
@@ -50,6 +50,11 @@ import { addCustomer, getCustomers } from '@/services/customer-service';
 import { addLoan, getLoansByCustomerId, getLoans } from '@/services/loan-service';
 import { addPayment, getPayments, getPaymentsByLoanId } from '@/services/payment-service';
 
+const collateralSchema = z.object({
+  name: z.string().min(1, 'Collateral name is required'),
+  value: z.coerce.number().positive('Value must be positive'),
+});
+
 const customerFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
@@ -61,6 +66,7 @@ const customerFormSchema = z.object({
   interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative').optional(),
   dateTaken: z.string().optional(),
   paymentPeriod: z.string().optional(),
+  collateral: z.array(collateralSchema).optional(),
 });
 
 const newLoanFormSchema = z.object({
@@ -68,6 +74,7 @@ const newLoanFormSchema = z.object({
   interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative'),
   dateTaken: z.string().min(1, 'Date is required'),
   paymentPeriod: z.string().min(1, 'Payment period is required'),
+  collateral: z.array(collateralSchema).optional(),
 });
 
 const customerFormDefaultValues = {
@@ -79,6 +86,7 @@ const customerFormDefaultValues = {
   interestRate: 0,
   dateTaken: '',
   paymentPeriod: '',
+  collateral: [],
 };
 
 const newLoanFormDefaultValues = {
@@ -86,6 +94,7 @@ const newLoanFormDefaultValues = {
   interestRate: 0,
   dateTaken: '',
   paymentPeriod: '',
+  collateral: [],
 };
 
 type CustomerListProps = {
@@ -133,9 +142,19 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     defaultValues: customerFormDefaultValues,
   });
 
+  const { fields: customerCollateralFields, append: appendCustomerCollateral, remove: removeCustomerCollateral } = useFieldArray({
+    control: customerForm.control,
+    name: "collateral",
+  });
+
   const newLoanForm = useForm<z.infer<typeof newLoanFormSchema>>({
     resolver: zodResolver(newLoanFormSchema),
     defaultValues: newLoanFormDefaultValues,
+  });
+  
+  const { fields: newLoanCollateralFields, append: appendNewLoanCollateral, remove: removeNewLoanCollateral } = useFieldArray({
+      control: newLoanForm.control,
+      name: "collateral",
   });
 
   const getLoanBalance = (loan: Loan) => {
@@ -202,7 +221,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
     
     setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {...c, ...values} : c));
     setEditCustomerOpen(false);
-    customerForm.reset();
+    customerForm.reset(customerFormDefaultValues);
     toast({
       title: 'Customer Updated',
       description: `${values.name}'s details have been successfully updated.`,
@@ -228,6 +247,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
           term: parseInt(values.paymentPeriod, 10),
           startDate: values.dateTaken,
           status: 'Pending',
+          collateral: values.collateral,
         };
         await addLoan(newLoanData);
     }
@@ -258,6 +278,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
       term: parseInt(values.paymentPeriod, 10),
       startDate: values.dateTaken,
       status: 'Pending',
+      collateral: values.collateral,
     };
     
     await addLoan(newLoanData);
@@ -391,7 +412,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             <FormItem>
                               <FormLabel>Loan Amount</FormLabel>
                               <FormControl>
-                                <Input type="number" {...field} />
+                                <Input type="number" {...field} value={field.value ?? ''} />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
@@ -404,7 +425,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             <FormItem>
                               <FormLabel>Interest Rate (%)</FormLabel>
                               <FormControl>
-                                <Input type="number" {...field} />
+                                <Input type="number" {...field} value={field.value ?? ''} />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
@@ -417,7 +438,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             <FormItem>
                               <FormLabel>Date Taken</FormLabel>
                               <FormControl>
-                                <Input type="date" {...field} />
+                                <Input type="date" {...field} value={field.value ?? ''} />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
@@ -430,12 +451,55 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             <FormItem>
                               <FormLabel>Payment Period (Months)</FormLabel>
                               <FormControl>
-                                <Input placeholder="e.g., 12" {...field} />
+                                <Input placeholder="e.g., 12" {...field} value={field.value ?? ''} />
                               </FormControl>
                                <FormMessage />
                             </FormItem>
                           )}
                         />
+                        <div>
+                          <Label>Collateral</Label>
+                          {customerCollateralFields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-2 mt-2">
+                               <FormField
+                                  control={customerForm.control}
+                                  name={`collateral.${index}.name`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                       <FormControl>
+                                        <Input placeholder="Item Name" {...field} />
+                                       </FormControl>
+                                       <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={customerForm.control}
+                                  name={`collateral.${index}.value`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                       <FormControl>
+                                         <Input type="number" placeholder="Item Value" {...field} />
+                                       </FormControl>
+                                       <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeCustomerCollateral(index)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => appendCustomerCollateral({ name: '', value: 0 })}
+                          >
+                            Add Collateral
+                          </Button>
+                        </div>
                     </>
                  )}
                 <DialogFooter className="mt-4">
@@ -635,7 +699,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
       
       {selectedCustomer && (
         <Dialog open={isAddNewLoanOpen} onOpenChange={setAddNewLoanOpen}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Add New Loan</DialogTitle>
                     <DialogDescription>
@@ -648,12 +712,12 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             control={newLoanForm.control}
                             name="loanAmount"
                             render={({ field }) => (
-                                <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Amount</FormLabel>
+                                <FormItem>
+                                    <FormLabel>Amount</FormLabel>
                                     <FormControl>
-                                        <Input type="number" {...field} className="col-span-3" />
+                                        <Input type="number" {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 col-start-2" />
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
@@ -661,12 +725,12 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             control={newLoanForm.control}
                             name="interestRate"
                             render={({ field }) => (
-                                <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Interest (%)</FormLabel>
+                                <FormItem>
+                                    <FormLabel>Interest (%)</FormLabel>
                                     <FormControl>
-                                        <Input type="number" {...field} className="col-span-3" />
+                                        <Input type="number" {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 col-start-2" />
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
@@ -674,12 +738,12 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             control={newLoanForm.control}
                             name="dateTaken"
                             render={({ field }) => (
-                                <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Date Taken</FormLabel>
+                                <FormItem>
+                                    <FormLabel>Date Taken</FormLabel>
                                     <FormControl>
-                                        <Input type="date" {...field} className="col-span-3" />
+                                        <Input type="date" {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 col-start-2" />
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
@@ -687,15 +751,58 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
                             control={newLoanForm.control}
                             name="paymentPeriod"
                             render={({ field }) => (
-                                <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Payment Period</FormLabel>
+                                <FormItem>
+                                    <FormLabel>Payment Period</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g., 12 months" {...field} className="col-span-3" />
+                                        <Input placeholder="e.g., 12 months" {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 col-start-2" />
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
+                         <div>
+                          <Label>Collateral</Label>
+                          {newLoanCollateralFields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-2 mt-2">
+                               <FormField
+                                  control={newLoanForm.control}
+                                  name={`collateral.${index}.name`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                       <FormControl>
+                                        <Input placeholder="Item Name" {...field} />
+                                       </FormControl>
+                                       <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={newLoanForm.control}
+                                  name={`collateral.${index}.value`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                       <FormControl>
+                                         <Input type="number" placeholder="Item Value" {...field} />
+                                       </FormControl>
+                                       <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeNewLoanCollateral(index)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => appendNewLoanCollateral({ name: '', value: 0 })}
+                          >
+                            Add Collateral
+                          </Button>
+                        </div>
                         <DialogFooter>
                             <Button type="submit">Save loan</Button>
                         </DialogFooter>
