@@ -9,6 +9,7 @@ import {
   Landmark,
   Settings,
   Receipt,
+  PiggyBank,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -24,7 +25,7 @@ import {
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/loans', label: 'Loans', icon: Landmark },
+  { href: '/dashboard/loans', label: 'Loans', icon: PiggyBank },
   { href: '/dashboard/customers', label: 'Customers', icon: Users },
   { href: '/dashboard/receipts', label: 'Receipts', icon: Receipt },
   { href: '/dashboard/reports', label: 'Reports', icon: FileText },
