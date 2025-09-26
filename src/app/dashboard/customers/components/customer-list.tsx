@@ -149,6 +149,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
   const handleRecordPayment = (customer: Customer, loan: Loan) => {
     setSelectedCustomer(customer);
     setSelectedLoan(loan);
+    setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   };
   
@@ -243,6 +244,7 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
 
   const handleAddNewLoanClick = (customer: Customer) => {
     setSelectedCustomer(customer);
+    newLoanForm.reset(newLoanFormDefaultValues);
     setAddNewLoanOpen(true);
   };
   
@@ -295,6 +297,12 @@ export default function CustomerList({ isAddCustomerOpen: isAddCustomerOpenProp,
        customerForm.reset(customerFormDefaultValues);
     }
   }, [isEditCustomerOpen, customerForm]);
+  
+  useEffect(() => {
+    if (!isAddNewLoanOpen) {
+      newLoanForm.reset(newLoanFormDefaultValues);
+    }
+  }, [isAddNewLoanOpen, newLoanForm]);
 
   return (
     <>

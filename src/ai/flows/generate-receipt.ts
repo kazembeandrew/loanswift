@@ -79,7 +79,7 @@ const generateReceiptFlow = ai.defineFlow(
 
     const payments = await getPaymentsByLoanId(input.loanId);
     // Get total paid *before* this new payment
-    const totalPaidPreviously = payments.filter(p => new Date(p.date) < new Date(input.paymentDate)).reduce((sum, p) => sum + p.amount, 0);
+    const totalPaidPreviously = payments.reduce((sum, p) => sum + p.amount, 0);
 
     const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     
@@ -88,7 +88,7 @@ const generateReceiptFlow = ai.defineFlow(
 
     const promptInput = {
       ...input,
-      balance: balance,
+      balance: balance > 0 ? balance : 0, // Ensure balance is not negative
     };
 
     const {output} = await generateReceiptPrompt(promptInput);
