@@ -32,12 +32,15 @@ export default function ReceiptGenerator({
   paymentDate,
 }: ReceiptGeneratorProps) {
   const [receiptText, setReceiptText] = useState<string | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const generateReceipt = async () => {
     setIsLoading(true);
     setReceiptText(null);
+    const newReceiptId = `RCPT-${Date.now()}`;
+    setReceiptId(newReceiptId);
     try {
       const input = {
         customerName: customer.name,
@@ -45,9 +48,10 @@ export default function ReceiptGenerator({
         paymentAmount: paymentAmount,
         paymentDate: new Date(paymentDate).toISOString(),
         staffName: 'Staff Admin', // Hardcoded for now
-        receiptId: `RCPT-${Date.now()}`,
+        receiptId: newReceiptId,
         businessName: 'Janalo Enterprises',
-        businessAddress: '123 Finance St, Moneytown, USA',
+        businessAddress: 'Private Bag 292, Lilongwe',
+        balance: (loan.principal * (1 + loan.interestRate / 100)) - paymentAmount, // Simplified balance calculation
       };
       const result = await handleGenerateReceipt(input);
       setReceiptText(result.receiptText);
@@ -66,6 +70,7 @@ export default function ReceiptGenerator({
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setReceiptText(null);
+      setReceiptId(null);
     }
     setIsOpen(open);
   };
@@ -101,9 +106,14 @@ export default function ReceiptGenerator({
             <p className="text-muted-foreground">Generating receipt...</p>
           </div>
         )}
-        {receiptText && (
+        {receiptText && receiptId && (
           <div>
-            <ReceiptPreview receiptText={receiptText} />
+            <ReceiptPreview 
+              receiptText={receiptText} 
+              receiptId={receiptId} 
+              paymentDate={paymentDate}
+              paymentAmount={paymentAmount}
+            />
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'PDF download will be available soon.'})}>
                 <Download className="mr-2 h-4 w-4" /> Download PDF

@@ -20,10 +20,11 @@ const GenerateReceiptInputSchema = z.object({
   receiptId: z.string().describe('The unique ID of the receipt.'),
   businessName: z.string().describe('The name of the business.'),
   businessAddress: z.string().describe('The address of the business.'),
+  balance: z.number().describe('The outstanding balance, if any.'),
   businessLogoDataUri: z
     .string()
     .describe(
-      "A photo of the business logo, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A photo of the business logo, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ).
     optional(),
 });
@@ -44,23 +45,16 @@ const generateReceiptPrompt = ai.definePrompt({
   name: 'generateReceiptPrompt',
   input: {schema: GenerateReceiptInputSchema},
   output: {schema: GenerateReceiptOutputSchema},
-  prompt: `You are an AI assistant specialized in generating professional-looking payment receipts.  You will generate the receipt in plain text format.
+  prompt: `You are an AI assistant specialized in generating professional-looking payment receipts based on a template. You will generate the receipt in plain text format, using the fields provided.
 
-  The receipt should include the following information:
-  - Customer Name: {{{customerName}}}
-  - Loan ID: {{{loanId}}}
-  - Payment Amount: {{{paymentAmount}}}
-  - Payment Date: {{{paymentDate}}}
-  - Staff Name: {{{staffName}}}
-  - Receipt ID: {{{receiptId}}}
-  - Business Name: {{{businessName}}}
-  - Business Address: {{{businessAddress}}}
+The output should be structured exactly like this, with the placeholders filled in:
 
-  {{#if businessLogoDataUri}}
-  - Business Logo: {{media url=businessLogoDataUri}}
-  {{/if}}
+Received from: {{{customerName}}}
+The sum of: {{{paymentAmount}}}
+Balance if any: {{{balance}}}
+Received by: {{{staffName}}}
 
-  Ensure the receipt is clear, concise, and professional.  Include all provided details.
+Do not include any other fields or text.
   `,
 });
 
