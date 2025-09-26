@@ -102,6 +102,18 @@ export default function CustomerList() {
                 </Label>
                 <Input id="email" type="email" className="col-span-3" />
               </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="customer-id" className="text-right">
+                  ID Upload
+                </Label>
+                <Input id="customer-id" type="file" className="col-span-3" />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="application-form" className="text-right">
+                  Application Form
+                </Label>
+                <Input id="application-form" type="file" className="col-span-3" />
+              </div>
             </div>
             <DialogFooter>
               <Button type="submit" onClick={() => setAddCustomerOpen(false)}>Save customer</Button>
