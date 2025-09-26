@@ -25,8 +25,8 @@ const GenerateReceiptInputSchema = z.object({
     .string()
     .describe(
       "A photo of the business logo, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
-    ).
-    optional(),
+    )
+    .optional(),
 });
 
 export type GenerateReceiptInput = z.infer<typeof GenerateReceiptInputSchema>;
@@ -46,6 +46,10 @@ const generateReceiptPrompt = ai.definePrompt({
   input: {schema: GenerateReceiptInputSchema},
   output: {schema: GenerateReceiptOutputSchema},
   prompt: `You are an AI assistant specialized in generating professional-looking payment receipts based on a template. You will generate the receipt in plain text format, using the fields provided.
+{{#if businessLogoDataUri}}
+You should incorporate the business logo into the receipt. Here is the logo:
+{{media url=businessLogoDataUri}}
+{{/if}}
 
 The output should be structured exactly like this, with the placeholders filled in:
 
