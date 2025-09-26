@@ -6,6 +6,11 @@ import {
   type GenerateFinancialSummaryOutput,
 } from '@/ai/flows/generate-financial-summary';
 
+export {
+  type GenerateFinancialSummaryInput,
+  type GenerateFinancialSummaryOutput,
+} from '@/ai/flows/generate-financial-summary';
+
 export async function handleGenerateFinancialSummary(
   input: GenerateFinancialSummaryInput
 ): Promise<GenerateFinancialSummaryOutput> {

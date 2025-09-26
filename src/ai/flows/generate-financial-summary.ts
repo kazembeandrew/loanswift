@@ -4,7 +4,9 @@
  * @fileOverview Generates a financial summary for the business.
  *
  * - generateFinancialSummary - A function that generates a financial analysis.
+ * - GenerateFinancialSummaryInputSchema - The input schema for the generateFinancialSummary function.
  * - GenerateFinancialSummaryInput - The input type for the generateFinancialSummary function.
+ * - GenerateFinancialSummaryOutputSchema - The output schema for the generateFinancialSummary function.
  * - GenerateFinancialSummaryOutput - The return type for the generateFinancialSummary function.
  */
 
