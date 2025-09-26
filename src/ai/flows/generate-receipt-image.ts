@@ -58,7 +58,7 @@ const generateReceiptImageFlow = ai.defineFlow(
         - Business Address: "${input.businessAddress}"
         - Business Phone: "${input.businessPhone}"
         - Receipt ID: "${input.receiptId}"
-        - Payment Date: "${new Date(input.paymentDate).toLocaleDateString()}"
+        - Payment Date: "${input.paymentDate}"
         - Payment Amount: "MWK ${input.paymentAmount.toLocaleString()}"
         
         The receipt text content should be:

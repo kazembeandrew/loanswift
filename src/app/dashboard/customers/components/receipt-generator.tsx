@@ -92,7 +92,7 @@ export default function ReceiptGenerator({
         const input = {
             receiptText,
             receiptId,
-            paymentDate,
+            paymentDate: new Date(paymentDate).toLocaleDateString(),
             paymentAmount,
             businessName: businessDetails.name,
             businessAddress: businessDetails.address,
