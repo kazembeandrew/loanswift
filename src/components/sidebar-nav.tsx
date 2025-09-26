@@ -9,7 +9,7 @@ import {
   Landmark,
   Settings,
   Receipt,
-  PiggyBank,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -25,8 +25,9 @@ import {
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/loans', label: 'Loans', icon: PiggyBank },
+  { href: '/dashboard/loans', label: 'Loans', icon: ArrowLeftRight },
   { href: '/dashboard/customers', label: 'Customers', icon: Users },
+  { href: '/dashboard/payments', label: 'Payments', icon: Landmark },
   { href: '/dashboard/receipts', label: 'Receipts', icon: Receipt },
   { href: '/dashboard/reports', label: 'Reports', icon: FileText },
 ];
@@ -50,7 +51,7 @@ export function SidebarNav() {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === item.href}
+                isActive={pathname.startsWith(item.href) && (item.href === '/dashboard' ? pathname === item.href : true) }
                 tooltip={item.label}
                 className="justify-start"
               >
