@@ -106,8 +106,7 @@ export default function DashboardPage() {
 
   const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   
-  const totalIncome = miscIncome.reduce((acc, income) => acc + income.amount, 0);
-  const totalRevenue = totalIncome;
+  const totalRevenue = miscIncome.reduce((acc, income) => acc + income.amount, 0);
   
   const totalExpenses = expenses.reduce((acc, expense) => acc + expense.amount, 0);
   const totalDrawings = drawings.reduce((acc, drawing) => acc + drawing.amount, 0);
@@ -116,24 +115,7 @@ export default function DashboardPage() {
   const totalCapital = capital.reduce((acc, cap) => acc + cap.amount, 0);
   const totalPrincipalDisbursed = loans.reduce((acc, loan) => acc + loan.principal, 0);
   
-  const totalPrincipalRepaid = payments.reduce((sum, p) => {
-      const loan = loans.find(l => l.id === p.loanId);
-      if (!loan) return sum;
-      
-      const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-      const interestOwed = totalOwed - loan.principal;
-
-      const interestIncomeForLoan = miscIncome
-          .filter(i => i.loanId === loan.id && i.source === 'interest')
-          .reduce((s, i) => s + i.amount, 0);
-      
-      const principalPortion = p.amount - Math.max(0, Math.min(p.amount, interestOwed - interestIncomeForLoan));
-
-      return sum + principalPortion;
-  }, 0);
-
-
-  const availableFunds = totalCapital + totalPrincipalRepaid - totalPrincipalDisbursed - totalExpenses - totalDrawings;
+  const availableFunds = totalCapital + totalRevenue - totalPrincipalDisbursed - totalExpenses - totalDrawings;
 
   const recentPayments = payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
@@ -237,7 +219,6 @@ export default function DashboardPage() {
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    tickMargin={10}
                     tickFormatter={(value) => `K${Number(value) / 1000}K`}
                   />
                   <ChartTooltip
