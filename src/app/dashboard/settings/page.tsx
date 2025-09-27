@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/header';
 import {
   Card,
@@ -13,28 +13,71 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { getSettings, updateSettings } from '@/services/settings-service';
+import type { BusinessSettings } from '@/types';
+import { Loader2 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const [businessName, setBusinessName] = useState('Janalo Enterprises');
-  const [businessAddress, setBusinessAddress] = useState('Private Bag 292, Lilongwe');
-  const [businessPhone, setBusinessPhone] = useState('+265 996 566 091 / +265 880 663 248');
+  const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const handleSaveChanges = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real application, you would save these settings to a database.
-    // For this demo, we'll just show a success message.
-    toast({
-      title: 'Settings Saved',
-      description: 'Your business information has been updated.',
-    });
+  useEffect(() => {
+    async function fetchSettings() {
+      setIsLoading(true);
+      const settingsData = await getSettings();
+      setSettings(settingsData);
+      setIsLoading(false);
+    }
+    fetchSettings();
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    if (settings) {
+      setSettings({
+        ...settings,
+        [id]: id === 'reserveAmount' ? parseFloat(value) || 0 : value,
+      });
+    }
   };
+
+  const handleSaveChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+
+    try {
+      await updateSettings(settings);
+      toast({
+        title: 'Settings Saved',
+        description: 'Your business information has been updated.',
+      });
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      toast({
+        title: 'Error Saving Settings',
+        description: 'Could not save your settings. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen w-full flex-col">
+        <Header title="Settings" />
+        <main className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header title="Settings" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
-        <div className="grid gap-6">
+        <form onSubmit={handleSaveChanges} className="grid gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Business Information</CardTitle>
@@ -42,58 +85,59 @@ export default function SettingsPage() {
                 Manage your company details that appear on receipts and other documents.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveChanges} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="business-name">Business Name</Label>
-                  <Input
-                    id="business-name"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="business-address">Address</Label>
-                  <Input
-                    id="business-address"
-                    value={businessAddress}
-                    onChange={(e) => setBusinessAddress(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="business-phone">Phone Number</Label>
-                  <Input
-                    id="business-phone"
-                    value={businessPhone}
-                    onChange={(e) => setBusinessPhone(e.target.value)}
-                  />
-                </div>
-                <Button type="submit">Save Changes</Button>
-              </form>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="businessName">Business Name</Label>
+                <Input
+                  id="businessName"
+                  value={settings?.businessName || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="businessAddress">Address</Label>
+                <Input
+                  id="businessAddress"
+                  value={settings?.businessAddress || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="businessPhone">Phone Number</Label>
+                <Input
+                  id="businessPhone"
+                  value={settings?.businessPhone || ''}
+                  onChange={handleInputChange}
+                />
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Theme</CardTitle>
-              <CardDescription>
-                Customize the look and feel of the application.
-              </CardDescription>
+                <CardTitle>Financial Settings</CardTitle>
+                <CardDescription>
+                    Manage financial configurations for your business.
+                </CardDescription>
             </CardHeader>
-            <CardContent>
-               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed py-10">
-                  <div className="flex flex-col items-center gap-1 text-center">
-                    <h3 className="font-headline text-xl font-bold tracking-tight">
-                      Theme Customization Coming Soon
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      You'll be able to switch between light and dark mode and change colors.
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="reserveAmount">Reserve Amount (MWK)</Label>
+                    <Input
+                        id="reserveAmount"
+                        type="number"
+                        value={settings?.reserveAmount || 0}
+                        onChange={handleInputChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        This amount will be excluded from "Available for Lending" as a safety buffer.
                     </p>
-                  </div>
                 </div>
             </CardContent>
           </Card>
-        </div>
+
+          <Button type="submit">Save Changes</Button>
+        </form>
       </main>
     </div>
   );

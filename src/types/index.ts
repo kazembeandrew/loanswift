@@ -63,3 +63,11 @@ export type Drawing = {
   amount: number;
   description: string;
 };
+
+export type BusinessSettings = {
+  id: string;
+  businessName: string;
+  businessAddress: string;
+  businessPhone: string;
+  reserveAmount: number;
+};

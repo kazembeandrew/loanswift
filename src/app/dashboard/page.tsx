@@ -34,7 +34,7 @@ import {
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import type { Borrower, Loan, Payment, Capital, Income, Expense, Drawing } from '@/types';
+import type { Borrower, Loan, Payment, Capital, Income, Expense, Drawing, BusinessSettings } from '@/types';
 import { format, subMonths, getMonth, isAfter, subDays } from 'date-fns';
 import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from './borrowers/components/borrower-list';
@@ -46,6 +46,7 @@ import { getIncomeRecords } from '@/services/income-service';
 import { getExpenseRecords } from '@/services/expense-service';
 import { getDrawingRecords } from '@/services/drawing-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
+import { getSettings } from '@/services/settings-service';
 
 
 const monthlyCollectionsChartConfig = {
@@ -65,10 +66,11 @@ export default function DashboardPage() {
   const [miscIncome, setMiscIncome] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [settings, setSettings] = useState<BusinessSettings | null>(null);
 
   
   const fetchData = useCallback(async () => {
-    const [borrowersData, loansData, paymentsData, capitalData, incomeData, expenseData, drawingData] = await Promise.all([
+    const [borrowersData, loansData, paymentsData, capitalData, incomeData, expenseData, drawingData, settingsData] = await Promise.all([
       getBorrowers(),
       getLoans(),
       getAllPayments(),
@@ -76,6 +78,7 @@ export default function DashboardPage() {
       getIncomeRecords(),
       getExpenseRecords(),
       getDrawingRecords(),
+      getSettings(),
     ]);
     setBorrowers(borrowersData);
     setLoans(loansData);
@@ -84,6 +87,7 @@ export default function DashboardPage() {
     setMiscIncome(incomeData);
     setExpenses(expenseData);
     setDrawings(drawingData);
+    setSettings(settingsData);
   }, []);
 
   useEffect(() => {
@@ -116,6 +120,7 @@ export default function DashboardPage() {
   const totalPrincipalDisbursed = loans.reduce((acc, loan) => acc + loan.principal, 0);
   
   const availableFunds = totalCapital + totalRevenue - totalPrincipalDisbursed - totalExpenses - totalDrawings;
+  const availableForLending = availableFunds - (settings?.reserveAmount || 0);
 
   const recentPayments = payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
@@ -175,11 +180,11 @@ export default function DashboardPage() {
           </Card>
            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Available Funds</CardTitle>
+                <CardTitle className="text-sm font-medium">Available for Lending</CardTitle>
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">MWK {availableFunds.toLocaleString()}</div>
+                <div className="text-2xl font-bold">MWK {availableForLending.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Cash available for new loans.</p>
             </CardContent>
           </Card>
