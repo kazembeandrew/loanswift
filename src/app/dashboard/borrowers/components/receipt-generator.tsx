@@ -24,7 +24,7 @@ type ReceiptGeneratorProps = {
   loan: Loan;
   paymentAmount: number;
   paymentDate: string;
-  balance: number;
+  balance?: number;
 };
 
 export default function ReceiptGenerator({
@@ -34,7 +34,7 @@ export default function ReceiptGenerator({
   loan,
   paymentAmount,
   paymentDate,
-  balance,
+  balance = 0,
 }: ReceiptGeneratorProps) {
   const [receiptText, setReceiptText] = useState<string | null>(null);
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);

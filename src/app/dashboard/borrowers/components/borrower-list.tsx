@@ -116,7 +116,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
 
   const [isEditBorrowerOpen, setEditBorrowerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
-  const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [isReceiptGeneratorOpen, setReceiptGeneratorOpen]_useState(false);
   const [isAddNewLoanOpen, setAddNewLoanOpen] = useState(false);
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
