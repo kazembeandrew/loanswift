@@ -1,3 +1,4 @@
+import type { BusinessSettings } from '@/types';
 import { Landmark } from 'lucide-react';
 
 type ReceiptPreviewProps = {
@@ -5,6 +6,7 @@ type ReceiptPreviewProps = {
   receiptId: string;
   paymentDate: string;
   paymentAmount: number;
+  businessInfo: BusinessSettings;
 };
 
 export default function ReceiptPreview({
@@ -12,6 +14,7 @@ export default function ReceiptPreview({
   receiptId,
   paymentDate,
   paymentAmount,
+  businessInfo,
 }: ReceiptPreviewProps) {
   const lines = receiptText.split('\n');
 
@@ -47,14 +50,12 @@ export default function ReceiptPreview({
           <div className="flex justify-between items-start">
             <div>
               <h2 className="font-headline text-4xl font-bold text-black">
-                JANALO ENTERPRISES
+                {businessInfo.businessName}
               </h2>
-              <p className="text-sm text-black">Private Bag 292</p>
-              <p className="text-sm text-black">Lilongwe</p>
+              <p className="text-sm text-black">{businessInfo.businessAddress}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-black">Cell: +265 996 566 091</p>
-              <p className="text-sm text-black">+265 880 663 248</p>
+              <p className="text-sm text-black">Cell: {businessInfo.businessPhone}</p>
             </div>
           </div>
         </div>

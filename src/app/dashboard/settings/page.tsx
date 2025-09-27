@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { Header } from '@/components/header';
 import {
   Card,
@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react';
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, startTransition] = useTransition();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,20 +47,22 @@ export default function SettingsPage() {
     e.preventDefault();
     if (!settings) return;
 
-    try {
-      await updateSettings(settings);
-      toast({
-        title: 'Settings Saved',
-        description: 'Your business information has been updated.',
-      });
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-      toast({
-        title: 'Error Saving Settings',
-        description: 'Could not save your settings. Please try again.',
-        variant: 'destructive',
-      });
-    }
+    startTransition(async () => {
+      try {
+        await updateSettings(settings);
+        toast({
+          title: 'Settings Saved',
+          description: 'Your business information has been updated.',
+        });
+      } catch (error) {
+        console.error("Failed to save settings:", error);
+        toast({
+          title: 'Error Saving Settings',
+          description: 'Could not save your settings. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
   };
 
   if (isLoading) {
@@ -92,6 +95,7 @@ export default function SettingsPage() {
                   id="businessName"
                   value={settings?.businessName || ''}
                   onChange={handleInputChange}
+                  disabled={isSaving}
                 />
               </div>
               <div className="space-y-2">
@@ -100,6 +104,7 @@ export default function SettingsPage() {
                   id="businessAddress"
                   value={settings?.businessAddress || ''}
                   onChange={handleInputChange}
+                  disabled={isSaving}
                 />
               </div>
               <div className="space-y-2">
@@ -108,6 +113,7 @@ export default function SettingsPage() {
                   id="businessPhone"
                   value={settings?.businessPhone || ''}
                   onChange={handleInputChange}
+                  disabled={isSaving}
                 />
               </div>
             </CardContent>
@@ -128,6 +134,7 @@ export default function SettingsPage() {
                         type="number"
                         value={settings?.reserveAmount || 0}
                         onChange={handleInputChange}
+                        disabled={isSaving}
                     />
                     <p className="text-xs text-muted-foreground">
                         This amount will be excluded from "Available for Lending" as a safety buffer.
@@ -136,7 +143,10 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Button type="submit">Save Changes</Button>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
         </form>
       </main>
     </div>

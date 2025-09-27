@@ -48,10 +48,6 @@ const generateReceiptPrompt = ai.definePrompt({
   input: {schema: GenerateReceiptInputSchema},
   output: {schema: GenerateReceiptOutputSchema},
   prompt: `You are an AI assistant specialized in generating professional-looking payment receipts based on a template. You will generate the receipt in plain text format, using the fields provided.
-{{#if businessLogoDataUri}}
-You should incorporate the business logo into the receipt. Here is the logo:
-{{media url=businessLogoDataUri}}
-{{/if}}
 
 The output should be structured exactly like this, with the placeholders filled in:
 

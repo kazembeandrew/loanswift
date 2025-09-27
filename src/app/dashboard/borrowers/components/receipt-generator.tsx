@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { handleGenerateReceipt, handleGenerateReceiptImage } from '@/app/actions/receipt';
-import type { Borrower, Loan } from '@/types';
+import type { Borrower, Loan, BusinessSettings } from '@/types';
 import { Loader2, Printer, Share2, Download, RefreshCw } from 'lucide-react';
 import ReceiptPreview from '@/components/receipt-preview';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { getSettings } from '@/services/settings-service';
 
 type ReceiptGeneratorProps = {
   isOpen: boolean;
@@ -38,17 +39,23 @@ export default function ReceiptGenerator({
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const { toast } = useToast();
   
   const businessLogo = getPlaceholderImage('business-logo-small');
+  
+  useEffect(() => {
+    if (isOpen) {
+        getSettings().then(setSettings);
+    }
+  }, [isOpen]);
 
-  const businessDetails = {
-    name: 'Janalo Enterprises',
-    address: 'Private Bag 292, Lilongwe',
-    phone: '+265 996 566 091 / +265 880 663 248'
-  };
 
-  const generateReceiptText = async () => {
+  const generateReceiptText = useCallback(async () => {
+    if (!settings) {
+        toast({ title: "Error", description: "Business settings not loaded.", variant: "destructive" });
+        return;
+    }
     setIsGeneratingText(true);
     setReceiptText(null);
     setReceiptImageUrl(null);
@@ -62,8 +69,8 @@ export default function ReceiptGenerator({
         paymentDate: new Date(paymentDate).toISOString(),
         staffName: 'Staff Admin', // Hardcoded for now
         receiptId: newReceiptId,
-        businessName: businessDetails.name,
-        businessAddress: businessDetails.address,
+        businessName: settings.businessName,
+        businessAddress: settings.businessAddress,
         businessLogoDataUri: businessLogo?.imageUrl,
       };
       const result = await handleGenerateReceipt(input);
@@ -78,17 +85,17 @@ export default function ReceiptGenerator({
     } finally {
       setIsGeneratingText(false);
     }
-  };
+  }, [borrower, loan, paymentAmount, paymentDate, settings, businessLogo, toast]);
 
   useEffect(() => {
-    if (isOpen && !receiptText && !isGeneratingText) {
+    if (isOpen && settings && !receiptText && !isGeneratingText) {
       generateReceiptText();
     }
-  }, [isOpen, receiptText, isGeneratingText]);
+  }, [isOpen, settings, receiptText, isGeneratingText, generateReceiptText]);
 
   const generateImage = async () => {
-    if (!receiptText || !receiptId) {
-      toast({ title: 'Error', description: 'Receipt text not generated yet.', variant: 'destructive'});
+    if (!receiptText || !receiptId || !settings) {
+      toast({ title: 'Error', description: 'Receipt text or settings not available yet.', variant: 'destructive'});
       return;
     }
     setIsGeneratingImage(true);
@@ -99,9 +106,9 @@ export default function ReceiptGenerator({
             receiptId,
             paymentDate: new Date(paymentDate).toLocaleDateString(),
             paymentAmount,
-            businessName: businessDetails.name,
-            businessAddress: businessDetails.address,
-            businessPhone: businessDetails.phone,
+            businessName: settings.businessName,
+            businessAddress: settings.businessAddress,
+            businessPhone: settings.businessPhone,
             businessLogoDataUri: businessLogo?.imageUrl,
         };
         const result = await handleGenerateReceiptImage(input);
@@ -133,17 +140,43 @@ export default function ReceiptGenerator({
     window.print();
   };
 
-  const shareToWhatsApp = () => {
-    if(receiptImageUrl) {
-        toast({ title: 'Sharing', description: 'Please wait while we prepare the image for sharing.'});
-        const newWindow = window.open();
-        newWindow?.document.write(`<img src="${receiptImageUrl}" alt="Receipt" />`);
-    } else {
-        toast({ title: 'No Image', description: 'Please generate an image first.', variant: 'destructive'});
+  const handleShare = async () => {
+    if (!receiptImageUrl) {
+      toast({ title: 'No Image', description: 'Please generate an image first.', variant: 'destructive' });
+      return;
     }
-  }
+    try {
+      // Convert data URI to blob for sharing
+      const response = await fetch(receiptImageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `receipt-${receiptId}.png`, { type: 'image/png' });
 
-  const isLoading = isGeneratingText || isGeneratingImage;
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Payment Receipt ${receiptId}`,
+          text: `Here is the receipt for your payment of MWK ${paymentAmount.toLocaleString()}.`,
+          files: [file],
+        });
+      } else {
+        // Fallback for browsers that don't support navigator.share with files
+        const newWindow = window.open();
+        newWindow?.document.write(`
+          <html>
+            <head><title>Receipt ${receiptId}</title></head>
+            <body style="margin:0; background: #333; display:flex; justify-content:center; align-items:center;">
+              <img src="${receiptImageUrl}" alt="Receipt" style="max-width:100%; max-height:100%;" />
+            </body>
+          </html>
+        `);
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({ title: 'Sharing Failed', description: 'Could not share the receipt image.', variant: 'destructive' });
+    }
+  };
+
+
+  const isLoading = isGeneratingText || isGeneratingImage || !settings;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -155,26 +188,23 @@ export default function ReceiptGenerator({
           </DialogDescription>
         </DialogHeader>
 
-        {!receiptText && !isLoading && (
-            <div className="flex justify-center items-center h-48">
-                <Button onClick={generateReceiptText}>Generate Receipt</Button>
-            </div>
-        )}
-
-        {isGeneratingText && (
+        {isLoading && (
           <div className="flex flex-col items-center justify-center h-48 gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Generating receipt text...</p>
+            <p className="text-muted-foreground">
+                {isGeneratingText ? 'Generating receipt text...' : isGeneratingImage ? 'Generating receipt image...' : 'Loading settings...'}
+            </p>
           </div>
         )}
 
-        {receiptText && receiptId && !receiptImageUrl && (
+        {!isLoading && receiptText && receiptId && !receiptImageUrl && (
             <div className="space-y-4">
                  <ReceiptPreview 
                     receiptText={receiptText} 
                     receiptId={receiptId} 
                     paymentDate={paymentDate}
                     paymentAmount={paymentAmount}
+                    businessInfo={settings!}
                  />
                  <div className="flex justify-center items-center">
                     <Button onClick={generateImage} disabled={isGeneratingImage}>
@@ -185,7 +215,7 @@ export default function ReceiptGenerator({
             </div>
         )}
         
-        {isGeneratingImage && (
+        {isGeneratingImage && !receiptImageUrl && (
             <div className="flex flex-col items-center justify-center h-96 gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-muted-foreground">Generating receipt image...</p>
@@ -206,7 +236,7 @@ export default function ReceiptGenerator({
               <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'PDF download will be available soon.'})}>
                 <Download className="mr-2 h-4 w-4" /> Download
               </Button>
-               <Button variant="outline" onClick={shareToWhatsApp}>
+               <Button variant="outline" onClick={handleShare}>
                 <Share2 className="mr-2 h-4 w-4" /> Share
               </Button>
               <Button onClick={() => setReceiptImageUrl(null)}>
@@ -216,7 +246,7 @@ export default function ReceiptGenerator({
           </div>
         )}
 
-        {!receiptImageUrl && receiptText && (
+        {!isLoading && !receiptImageUrl && receiptText && (
              <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'PDF download will be available soon.'})}>
                 <Download className="mr-2 h-4 w-4" /> Download PDF
