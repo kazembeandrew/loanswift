@@ -30,8 +30,13 @@ export async function getAllPayments(): Promise<(Payment & {loanId: string})[]> 
     const payments: (Payment & { loanId: string })[] = [];
     querySnapshot.forEach((doc) => {
         // The parent property gives you a reference to the loan document.
-        const loanId = doc.ref.parent.parent!.id;
-        payments.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
+        const loanDocRef = doc.ref.parent.parent;
+        if (loanDocRef) {
+            const loanId = loanDocRef.id;
+            payments.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
+        } else {
+            console.warn(`Orphaned payment document found with ID: ${doc.id}. It has no parent loan.`);
+        }
     });
     return payments;
 }
