@@ -84,7 +84,7 @@ export default function FinancialsPage() {
     const overdueLoansValue = activeLoans.reduce((sum, loan) => sum + getLoanBalance(loan), 0);
     
     const totalCapital = capital.reduce((sum, item) => sum + item.amount, 0);
-    const totalMiscIncome = miscIncome.reduce((sum, item) => sum + item.amount, 0);
+    const totalMiscIncome = miscIncome.filter(i => i.source !== 'interest').reduce((sum, item) => sum + item.amount, 0);
     const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
     const totalDrawings = drawings.reduce((sum, item) => sum + item.amount, 0);
 
