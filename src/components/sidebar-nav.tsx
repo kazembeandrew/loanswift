@@ -11,6 +11,10 @@ import {
   Receipt,
   ArrowLeftRight,
   Banknote,
+  TrendingUp,
+  TrendingDown,
+  Briefcase,
+  PiggyBank,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -30,9 +34,19 @@ const menuItems = [
   { href: '/dashboard/borrowers', label: 'Borrowers', icon: Users },
   { href: '/dashboard/payments', label: 'Payments', icon: Landmark },
   { href: '/dashboard/receipts', label: 'Receipts', icon: Receipt },
-  { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
-  { href: '/dashboard/reports', label: 'Reports', icon: FileText },
 ];
+
+const financialMenuItems = [
+    { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
+    { href: '/dashboard/capital', label: 'Capital', icon: Briefcase },
+    { href: '/dashboard/income', label: 'Income', icon: TrendingUp },
+    { href: '/dashboard/expenses', label: 'Expenses', icon: TrendingDown },
+    { href: '/dashboard/drawings', label: 'Drawings', icon: PiggyBank },
+]
+
+const utilityMenuItems = [
+    { href: '/dashboard/reports', label: 'Reports', icon: FileText },
+]
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -54,6 +68,42 @@ export function SidebarNav() {
               <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith(item.href) && (item.href === '/dashboard' ? pathname === item.href : true) }
+                tooltip={item.label}
+                className="justify-start"
+              >
+                <Link href={item.href}>
+                  <item.icon className="size-4" />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+         <SidebarMenu className="mt-4">
+            <p className="px-2 py-1 text-xs font-semibold text-muted-foreground">Financials</p>
+          {financialMenuItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(item.href)}
+                tooltip={item.label}
+                className="justify-start"
+              >
+                <Link href={item.href}>
+                  <item.icon className="size-4" />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+         <SidebarMenu className="mt-4">
+            <p className="px-2 py-1 text-xs font-semibold text-muted-foreground">Utilities</p>
+          {utilityMenuItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(item.href)}
                 tooltip={item.label}
                 className="justify-start"
               >
