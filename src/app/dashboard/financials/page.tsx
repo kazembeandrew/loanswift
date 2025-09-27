@@ -208,7 +208,7 @@ export default function FinancialsPage() {
                 <CardTitle>Monthly Performance</CardTitle>
                 <CardDescription>Capital deployed vs. capital collected over the last 6 months.</CardDescription>
             </CardHeader>
-            <CardContent className="h-[350px] w-full">
+            <CardContent className="h-[350px] w-full p-2 sm:p-6 pt-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyData}>
                         <CartesianGrid strokeDasharray="3 3" />

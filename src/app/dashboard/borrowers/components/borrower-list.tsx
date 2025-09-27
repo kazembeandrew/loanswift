@@ -414,12 +414,12 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
           </DialogContent>
         </Dialog>
       </div>
-      <div className="rounded-lg border shadow-sm">
+      <div className="rounded-lg border shadow-sm mt-4">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Borrower</TableHead>
-              <TableHead>ID Number</TableHead>
+              <TableHead className="w-[150px] sm:w-auto">Borrower</TableHead>
+              <TableHead className="hidden md:table-cell">ID Number</TableHead>
               <TableHead>Active Loans</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -434,7 +434,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                       {borrower.name}
                     </Link>
                   </TableCell>
-                  <TableCell>{borrower.idNumber}</TableCell>
+                  <TableCell className="hidden md:table-cell">{borrower.idNumber}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {borrowerLoans.map((loan) => {
@@ -587,5 +587,3 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
     </>
   );
 }
-
-    

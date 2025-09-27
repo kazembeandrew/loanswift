@@ -31,11 +31,14 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Borrower, Loan, Payment, Capital, Income, Expense, Drawing, BusinessSettings } from '@/types';
-import { format, subMonths, getMonth, isAfter, subDays } from 'date-fns';
+import { format, subMonths, getMonth, isAfter, subDays, getYear } from 'date-fns';
 import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from './borrowers/components/borrower-list';
 import { getBorrowers } from '@/services/borrower-service';
@@ -146,12 +149,15 @@ export default function DashboardPage() {
       month: format(monthDate, 'MMM'),
       collected: 0,
       monthIndex: getMonth(monthDate),
+      year: getYear(monthDate)
     };
   });
 
   payments.forEach(payment => {
-    const paymentMonthIndex = getMonth(new Date(payment.date));
-    const collectionMonth = monthlyCollectionsData.find(m => m.monthIndex === paymentMonthIndex);
+    const paymentDate = new Date(payment.date);
+    const paymentMonthIndex = getMonth(paymentDate);
+    const paymentYear = getYear(paymentDate);
+    const collectionMonth = monthlyCollectionsData.find(m => m.monthIndex === paymentMonthIndex && m.year === paymentYear);
     if (collectionMonth) {
       collectionMonth.collected += payment.amount;
     }
@@ -224,10 +230,7 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
-              <ChartContainer
-                config={monthlyCollectionsChartConfig}
-                className="h-[300px] w-full"
-              >
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlyCollectionsData}>
                   <CartesianGrid vertical={false} />
                   <XAxis
@@ -241,13 +244,16 @@ export default function DashboardPage() {
                     axisLine={false}
                     tickFormatter={(value) => `K${Number(value) / 1000}K`}
                   />
-                  <ChartTooltip
+                  <Tooltip
                     cursor={false}
-                    content={<ChartTooltipContent />}
+                    content={<ChartTooltipContent 
+                        formatter={(value: any) => `MWK ${value.toLocaleString()}`}
+                        indicator='dot'
+                    />}
                   />
                   <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
                 </BarChart>
-              </ChartContainer>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
            <Card className="lg:col-span-3">
@@ -295,5 +301,3 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-
-    

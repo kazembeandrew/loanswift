@@ -183,7 +183,7 @@ export default function ReceiptGenerator({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-md md:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Generate Payment Receipt</DialogTitle>
           <DialogDescription>
@@ -230,9 +230,9 @@ export default function ReceiptGenerator({
         {receiptImageUrl && (
           <div className="space-y-4">
             <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                <Image src={receiptImageUrl} alt="Generated Receipt" layout="fill" objectFit="contain" />
+                <Image src={receiptImageUrl} alt="Generated Receipt" fill objectFit="contain" />
             </div>
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
                <Button variant="outline" onClick={generateImage} disabled={isGeneratingImage}>
                 <RefreshCw className="mr-2 h-4 w-4" /> Regenerate
               </Button>

@@ -206,7 +206,7 @@ export default function BorrowerDetailPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 mt-6 md:grid-cols-3">
+        <div className="grid gap-6 mt-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>
@@ -279,18 +279,18 @@ export default function BorrowerDetailPage() {
                   const balance = getLoanBalance(loan);
                   const status = getLoanStatus(loan);
                   return (
-                    <div key={loan.id} className="flex items-center justify-between p-2 rounded-md bg-muted gap-2">
-                      <div>
+                    <div key={loan.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md bg-muted gap-4">
+                      <div className="flex-1">
                         <p className="font-semibold">{loan.id}</p>
                         <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
                         <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : ''}`}>
                           Balance: MWK {balance.toLocaleString()}
                         </p>
                       </div>
-                       <div className="flex items-center gap-2">
-                         <Badge variant={getLoanStatusVariant(status)}>{status}</Badge>
+                       <div className="flex items-center gap-2 w-full sm:w-auto">
+                         <Badge variant={getLoanStatusVariant(status)} className="w-full sm:w-auto justify-center">{status}</Badge>
                          {status !== 'closed' && (
-                          <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)}>
+                          <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)} className="w-full sm:w-auto">
                             <CircleDollarSign className="mr-2 h-4 w-4" />
                             Record Payment
                           </Button>

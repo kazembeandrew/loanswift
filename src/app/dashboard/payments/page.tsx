@@ -212,12 +212,12 @@ export default function PaymentsPage() {
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
             <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="borrower" className="text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                    <Label htmlFor="borrower" className="sm:text-right">
                         Borrower
                     </Label>
                     <Select onValueChange={setSelectedBorrowerId} value={selectedBorrowerId || ''}>
-                        <SelectTrigger className="col-span-3">
+                        <SelectTrigger className="sm:col-span-3">
                             <SelectValue placeholder="Select a borrower" />
                         </SelectTrigger>
                         <SelectContent>
@@ -230,12 +230,12 @@ export default function PaymentsPage() {
                     </Select>
                 </div>
                 {selectedBorrowerId && (
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="loan" className="text-right">
+                     <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="loan" className="sm:text-right">
                             Loan
                         </Label>
                         <Select onValueChange={setSelectedLoanId} value={selectedLoanId || ''}>
-                             <SelectTrigger className="col-span-3">
+                             <SelectTrigger className="sm:col-span-3">
                                 <SelectValue placeholder="Select a loan" />
                             </SelectTrigger>
                             <SelectContent>
@@ -248,17 +248,17 @@ export default function PaymentsPage() {
                         </Select>
                     </div>
                 )}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="amount" className="text-right">
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                <Label htmlFor="amount" className="sm:text-right">
                   Amount
                 </Label>
-                <Input id="amount" type="number" className="col-span-3" value={paymentDetails.amount} onChange={(e) => setPaymentDetails(d => ({...d, amount: e.target.value}))}/>
+                <Input id="amount" type="number" className="sm:col-span-3" value={paymentDetails.amount} onChange={(e) => setPaymentDetails(d => ({...d, amount: e.target.value}))}/>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="date" className="text-right">
+              <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                <Label htmlFor="date" className="sm:text-right">
                   Date
                 </Label>
-                <Input id="date" type="date" className="col-span-3" value={paymentDetails.date} onChange={(e) => setPaymentDetails(d => ({...d, date: e.target.value}))}/>
+                <Input id="date" type="date" className="sm:col-span-3" value={paymentDetails.date} onChange={(e) => setPaymentDetails(d => ({...d, date: e.target.value}))}/>
               </div>
             </div>
             <DialogFooter>

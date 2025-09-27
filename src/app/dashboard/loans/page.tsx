@@ -173,10 +173,10 @@ export default function LoansPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Loan ID</TableHead>
+                <TableHead className="w-[80px]">Loan ID</TableHead>
                 <TableHead>Borrower</TableHead>
-                <TableHead>Principal</TableHead>
-                <TableHead>Progress</TableHead>
+                <TableHead className="hidden sm:table-cell">Principal</TableHead>
+                <TableHead className="hidden md:table-cell">Progress</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -191,10 +191,10 @@ export default function LoansPage() {
                   <TableRow key={loan.id}>
                     <TableCell className="font-medium">{loan.id}</TableCell>
                     <TableCell>{borrower?.name}</TableCell>
-                    <TableCell>MWK {loan.principal.toLocaleString()}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">MWK {loan.principal.toLocaleString()}</TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-2">
-                        <Progress value={progress} className="w-full" />
+                        <Progress value={progress} className="w-24" />
                         <span className="text-xs text-muted-foreground">{Math.round(progress)}%</span>
                       </div>
                     </TableCell>
