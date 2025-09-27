@@ -110,7 +110,22 @@ export default function DashboardPage() {
 
   const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   
-  const totalRevenue = miscIncome.reduce((acc, income) => acc + income.amount, 0);
+  const allIncome = miscIncome.concat(
+      payments.map(p => {
+          const loan = loans.find(l => l.id === p.loanId);
+          if (!loan) return null;
+          const interestPortion = p.amount > loan.principal ? (p.amount - loan.principal) : 0;
+          return {
+              id: p.id,
+              date: p.date,
+              amount: interestPortion, // Simplified interest calculation
+              source: 'interest',
+              loanId: p.loanId
+          }
+      }).filter((i): i is Income => i !== null)
+  );
+  
+  const totalRevenue = allIncome.reduce((acc, income) => acc + income.amount, 0);
   
   const totalExpenses = expenses.reduce((acc, expense) => acc + expense.amount, 0);
   const totalDrawings = drawings.reduce((acc, drawing) => acc + drawing.amount, 0);
@@ -280,4 +295,5 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-}
+
+    
