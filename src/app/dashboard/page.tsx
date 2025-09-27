@@ -9,6 +9,8 @@ import {
   FileX2,
   Briefcase,
   TrendingDown,
+  Banknote,
+  PiggyBank,
 } from 'lucide-react';
 import {
   Card,
@@ -32,13 +34,17 @@ import {
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import type { Borrower, Loan, Payment } from '@/types';
+import type { Borrower, Loan, Payment, Capital, Income, Expense, Drawing } from '@/types';
 import { format, subMonths, getMonth, isAfter, subDays } from 'date-fns';
 import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from './borrowers/components/borrower-list';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
+import { getCapitalContributions } from '@/services/capital-service';
+import { getIncomeRecords } from '@/services/income-service';
+import { getExpenseRecords } from '@/services/expense-service';
+import { getDrawingRecords } from '@/services/drawing-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 
 
@@ -55,16 +61,29 @@ export default function DashboardPage() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const [capital, setCapital] = useState<Capital[]>([]);
+  const [miscIncome, setMiscIncome] = useState<Income[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
+
   
   const fetchData = useCallback(async () => {
-    const [borrowersData, loansData, paymentsData] = await Promise.all([
+    const [borrowersData, loansData, paymentsData, capitalData, incomeData, expenseData, drawingData] = await Promise.all([
       getBorrowers(),
       getLoans(),
       getAllPayments(),
+      getCapitalContributions(),
+      getIncomeRecords(),
+      getExpenseRecords(),
+      getDrawingRecords(),
     ]);
     setBorrowers(borrowersData);
     setLoans(loansData);
     setPayments(paymentsData);
+    setCapital(capitalData);
+    setMiscIncome(incomeData);
+    setExpenses(expenseData);
+    setDrawings(drawingData);
   }, []);
 
   useEffect(() => {
@@ -87,7 +106,18 @@ export default function DashboardPage() {
   const activeLoansCount = activeLoans.length;
 
   const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
-  const totalCollected = payments.reduce((acc, payment) => acc + payment.amount, 0);
+  
+  const totalLoanPayments = payments.reduce((acc, payment) => acc + payment.amount, 0);
+  const totalMiscIncome = miscIncome.reduce((acc, income) => acc + income.amount, 0);
+  const totalRevenue = totalLoanPayments + totalMiscIncome;
+  
+  const totalExpenses = expenses.reduce((acc, expense) => acc + expense.amount, 0);
+  const totalDrawings = drawings.reduce((acc, drawing) => acc + drawing.amount, 0);
+  const profitLoss = totalRevenue - totalExpenses - totalDrawings;
+
+  const totalCapital = capital.reduce((acc, cap) => acc + cap.amount, 0);
+  const totalPrincipalDisbursed = loans.reduce((acc, loan) => acc + loan.principal, 0);
+  const availableFunds = totalCapital + totalRevenue - totalPrincipalDisbursed - totalExpenses - totalDrawings;
 
   const thirtyDaysAgo = subDays(new Date(), 30);
   const newBorrowersCount = borrowers.filter(c => isAfter(new Date(c.joinDate), thirtyDaysAgo)).length;
@@ -125,39 +155,37 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Collected
+                Total Revenue
               </CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK {totalCollected.toLocaleString()}</div>
+              <div className="text-2xl font-bold">MWK {totalRevenue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                +10.1% from last month
+                Loan payments + Miscellaneous income.
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
-              <FileX2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Profit / Loss</CardTitle>
+              <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeLoansCount}</div>
+              <div className={`text-2xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-destructive'}`}>MWK {profitLoss.toLocaleString()}</div>
                <p className="text-xs text-muted-foreground">
-                Total loans with outstanding balances.
+                Revenue - (Expenses + Drawings)
               </p>
             </CardContent>
           </Card>
-          <Card>
+           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New Borrowers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Available Funds</CardTitle>
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+{newBorrowersCount}</div>
-              <p className="text-xs text-muted-foreground">
-                in the last 30 days
-              </p>
+                <div className="text-2xl font-bold">MWK {availableFunds.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Cash available for new loans.</p>
             </CardContent>
           </Card>
            <Card>
@@ -177,7 +205,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle>Monthly Collections</CardTitle>
               <CardDescription>
-                Showing collections for the last 6 months.
+                Showing loan payment collections for the last 6 months.
               </CardDescription>
             </CardHeader>
             <CardContent className="pl-2">

@@ -13,9 +13,13 @@ import {
 import { Loader2, Sparkles, AlertTriangle, LandPlot, TrendingDown, Scale, Banknote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { handleGenerateFinancialSummary } from '@/app/actions/financials';
-import type { Loan, Payment } from '@/types';
+import type { Loan, Payment, Capital, Income, Expense, Drawing } from '@/types';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
+import { getCapitalContributions } from '@/services/capital-service';
+import { getIncomeRecords } from '@/services/income-service';
+import { getExpenseRecords } from '@/services/expense-service';
+import { getDrawingRecords } from '@/services/drawing-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subMonths, getMonth, getYear } from 'date-fns';
 
@@ -33,16 +37,28 @@ export default function FinancialsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const [capital, setCapital] = useState<Capital[]>([]);
+  const [miscIncome, setMiscIncome] = useState<Income[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
 
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
-    const [loansData, paymentsData] = await Promise.all([
+    const [loansData, paymentsData, capitalData, incomeData, expenseData, drawingData] = await Promise.all([
       getLoans(),
       getAllPayments(),
+      getCapitalContributions(),
+      getIncomeRecords(),
+      getExpenseRecords(),
+      getDrawingRecords(),
     ]);
     setLoans(loansData);
     setPayments(paymentsData);
+    setCapital(capitalData);
+    setMiscIncome(incomeData);
+    setExpenses(expenseData);
+    setDrawings(drawingData);
   }, []);
 
   useEffect(() => {
@@ -65,10 +81,13 @@ export default function FinancialsPage() {
     const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
     
     const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
+    const overdueLoansValue = activeLoans.reduce((sum, loan) => sum + getLoanBalance(loan), 0);
     
-    const overdueLoansValue = activeLoans.reduce((sum, loan) => {
-        return sum + getLoanBalance(loan);
-    }, 0);
+    const totalCapital = capital.reduce((sum, item) => sum + item.amount, 0);
+    const totalMiscIncome = miscIncome.reduce((sum, item) => sum + item.amount, 0);
+    const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
+    const totalDrawings = drawings.reduce((sum, item) => sum + item.amount, 0);
+
 
     try {
       const input = {
@@ -76,8 +95,12 @@ export default function FinancialsPage() {
         totalCollected,
         loanCount: loans.length,
         paymentCount: payments.length,
-        overdueLoanCount: activeLoans.length, // Portfolio at risk is all active loans
+        overdueLoanCount: activeLoans.length,
         overdueLoansValue,
+        totalCapital,
+        totalMiscIncome,
+        totalExpenses,
+        totalDrawings,
       };
       const result = await handleGenerateFinancialSummary(input);
       setSummary(result);
