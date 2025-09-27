@@ -22,7 +22,7 @@ const GenerateReceiptInputSchema = z.object({
   receiptId: z.string().describe('The unique ID of the receipt.'),
   businessName: z.string().describe('The name of the business.'),
   businessAddress: z.string().describe('The address of the business.'),
-  balance: z.number().describe('The outstanding balance, if any.').optional(),
+  balance: z.number().describe('The outstanding balance, if any.'),
   businessLogoDataUri: z
     .string()
     .describe(
@@ -67,24 +67,11 @@ const generateReceiptFlow = ai.defineFlow(
     outputSchema: GenerateReceiptOutputSchema,
   },
   async input => {
-
-    const loan = await getLoanById(input.loanId);
-    if (!loan) {
-        throw new Error(`Loan with ID ${input.loanId} not found.`);
-    }
-
-    const payments = await getPaymentsByLoanId(input.loanId);
-    // Get total paid *before* this new payment
-    const totalPaidPreviously = payments.reduce((sum, p) => sum + p.amount, 0);
-
-    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-    
-    // The balance *after* the current payment is made.
-    const balance = totalOwed - totalPaidPreviously - input.paymentAmount;
-
+    // The balance is now passed directly from the client, which has the most up-to-date view.
+    // This simplifies the logic and ensures accuracy.
     const promptInput = {
       ...input,
-      balance: balance > 0 ? balance : 0, // Ensure balance is not negative
+      balance: input.balance > 0 ? input.balance : 0, // Ensure balance is not negative
     };
 
     const {output} = await generateReceiptPrompt(promptInput);

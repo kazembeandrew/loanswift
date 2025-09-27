@@ -46,7 +46,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { addBorrower, getBorrowers } from '@/services/borrower-service';
+import { addBorrower, getBorrowers, updateBorrower } from '@/services/borrower-service';
 import { addLoan, getLoans } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
 
@@ -123,6 +123,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
   const [addBorrowerStep, setAddBorrowerStep] = useState(1);
+  const [receiptBalance, setReceiptBalance] = useState(0);
 
   const fetchData = useCallback(async () => {
     const [borrowersData, loansData, paymentsData] = await Promise.all([
@@ -200,6 +201,8 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
     };
 
     await addPayment(selectedLoan.id, newPaymentData);
+    
+    setReceiptBalance(balance - newPaymentAmount);
 
     toast({
       title: 'Payment Recorded',
@@ -218,18 +221,18 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
     setEditBorrowerOpen(true);
   };
 
-  const handleEditBorrowerSubmit = (values: z.infer<typeof borrowerFormSchema>) => {
+  const handleEditBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
     if (!selectedBorrower) return;
 
-    // Here you would typically call an updateBorrower service function
-    // For now, just updating local state for demo purposes
-    setBorrowers(prev => prev.map(c => c.id === selectedBorrower.id ? {...c, ...values} : c));
+    await updateBorrower(selectedBorrower.id, values);
+    
     setEditBorrowerOpen(false);
     borrowerForm.reset(borrowerFormDefaultValues);
     toast({
       title: 'Borrower Updated',
       description: `${values.name}'s details have been successfully updated.`,
     });
+    await fetchData();
   };
   
   const handleAddBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
@@ -578,6 +581,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
           loan={selectedLoan}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
+          balance={receiptBalance}
         />
       )}
     </>

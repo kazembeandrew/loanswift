@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Borrower } from '@/types';
 
@@ -24,4 +24,9 @@ export async function addBorrower(borrowerData: Omit<Borrower, 'id' | 'joinDate'
     joinDate: new Date().toISOString(),
   });
   return docRef.id;
+}
+
+export async function updateBorrower(id: string, updates: Partial<Omit<Borrower, 'id' | 'joinDate'>>): Promise<void> {
+    const docRef = doc(db, 'borrowers', id);
+    await updateDoc(docRef, updates);
 }

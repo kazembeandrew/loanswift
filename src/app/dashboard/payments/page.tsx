@@ -49,6 +49,7 @@ export default function PaymentsPage() {
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  const [receiptBalance, setReceiptBalance] = useState(0);
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
@@ -112,6 +113,8 @@ export default function PaymentsPage() {
     };
 
     await addPayment(selectedLoan.id, newPaymentData);
+
+    setReceiptBalance(balance - newPaymentAmount);
 
     toast({
       title: 'Payment Recorded',
@@ -273,6 +276,7 @@ export default function PaymentsPage() {
           loan={selectedLoanForDialog}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
+          balance={receiptBalance}
         />
       )}
     </div>
