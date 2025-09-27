@@ -103,7 +103,6 @@ export default function DashboardPage() {
   };
   
   const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
-  const activeLoansCount = activeLoans.length;
 
   const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   
@@ -119,9 +118,6 @@ export default function DashboardPage() {
   const totalPrincipalDisbursed = loans.reduce((acc, loan) => acc + loan.principal, 0);
   const availableFunds = totalCapital + totalRevenue - totalPrincipalDisbursed - totalExpenses - totalDrawings;
 
-  const thirtyDaysAgo = subDays(new Date(), 30);
-  const newBorrowersCount = borrowers.filter(c => isAfter(new Date(c.joinDate), thirtyDaysAgo)).length;
-  
   const recentPayments = payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
   const now = new Date();
@@ -275,11 +271,9 @@ export default function DashboardPage() {
             </CardContent>
             </Card>
         </div>
-
         
-        <div className="hidden">
-           <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
-        </div>
+        <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
+
       </main>
     </div>
   );
