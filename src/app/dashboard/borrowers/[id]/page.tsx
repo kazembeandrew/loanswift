@@ -5,7 +5,7 @@ import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck } from 'lucide-react';
+import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
@@ -185,6 +185,11 @@ export default function BorrowerDetailPage() {
     fileInput?.click();
   };
 
+  const totalAmountLoaned = borrowerLoans.reduce((sum, loan) => sum + loan.principal, 0);
+  const totalAmountRepaid = allPayments
+    .filter(p => borrowerLoans.some(l => l.id === p.loanId))
+    .reduce((sum, p) => sum + p.amount, 0);
+
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -201,8 +206,8 @@ export default function BorrowerDetailPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 mt-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
+        <div className="grid gap-6 mt-6 md:grid-cols-3">
+          <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Contact Information</CardTitle>
             </CardHeader>
@@ -213,7 +218,58 @@ export default function BorrowerDetailPage() {
               <p><strong>Joined:</strong> {new Date(borrower.joinDate).toLocaleDateString()}</p>
             </CardContent>
           </Card>
-          <Card className="lg:col-span-2">
+           <Card className="md:col-span-1">
+             <CardHeader>
+               <CardTitle className="flex items-center gap-2 font-headline"><Scale className="h-5 w-5"/> Financial Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <p className="text-sm text-muted-foreground">Total Amount Loaned</p>
+                    <p className="text-2xl font-bold">MWK {totalAmountLoaned.toLocaleString()}</p>
+                </div>
+                 <div>
+                    <p className="text-sm text-muted-foreground">Total Amount Repaid</p>
+                    <p className="text-2xl font-bold text-green-600">MWK {totalAmountRepaid.toLocaleString()}</p>
+                </div>
+            </CardContent>
+          </Card>
+          <Card className="md:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="font-headline">Attachments</CardTitle>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleUploadClick} disabled={isUploading}>
+                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Upload
+              </Button>
+              <Input 
+                type="file" 
+                className="hidden" 
+                ref={setFileInput} 
+                onChange={handleFileChange}
+                multiple
+              />
+            </CardHeader>
+            <CardContent>
+              {attachments.length > 0 ? (
+                <ul className="space-y-2">
+                  {attachments.map((file, index) => (
+                    <li key={index} className="flex items-center justify-between text-sm p-2 bg-muted rounded-md">
+                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
+                      <p className="text-muted-foreground">No attachments.</p>
+                  </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
             <CardHeader>
               <CardTitle>Loan History</CardTitle>
             </CardHeader>
@@ -248,7 +304,6 @@ export default function BorrowerDetailPage() {
               )}
             </CardContent>
           </Card>
-        </div>
         
         {borrowerLoans.some(loan => loan.collateral && loan.collateral.length > 0) && (
             <Card>
@@ -277,41 +332,7 @@ export default function BorrowerDetailPage() {
         )}
 
 
-        <div className="grid gap-6 mt-6 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Paperclip className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="font-headline">Attachments</CardTitle>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleUploadClick} disabled={isUploading}>
-                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Upload File
-              </Button>
-              <Input 
-                type="file" 
-                className="hidden" 
-                ref={setFileInput} 
-                onChange={handleFileChange}
-                multiple
-              />
-            </CardHeader>
-            <CardContent>
-              {attachments.length > 0 ? (
-                <ul className="space-y-2">
-                  {attachments.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between text-sm p-2 bg-muted rounded-md">
-                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
-                      <p className="text-muted-foreground">No attachments found.</p>
-                  </div>
-              )}
-            </CardContent>
-          </Card>
+        
           <Card>
              <CardHeader className="flex flex-row items-center gap-2">
                <MapPin className="h-5 w-5 text-muted-foreground" />
@@ -328,7 +349,7 @@ export default function BorrowerDetailPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        
       </main>
       
       <Dialog open={isRecordPaymentOpen} onOpenChange={setRecordPaymentOpen}>

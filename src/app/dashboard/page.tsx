@@ -86,12 +86,7 @@ export default function DashboardPage() {
   const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
   const activeLoansCount = activeLoans.length;
 
-  const overdueLoans = loans.filter(loan => {
-      const balance = getLoanBalance(loan);
-      return balance > 0;
-  });
-
-  const overdueLoansValue = overdueLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
+  const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   const totalCollected = payments.reduce((acc, payment) => acc + payment.amount, 0);
 
   const thirtyDaysAgo = subDays(new Date(), 30);
@@ -167,20 +162,18 @@ export default function DashboardPage() {
           </Card>
            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Staff Advances</CardTitle>
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Portfolio at Risk</CardTitle>
+                <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK 0</div>
-              <p className="text-xs text-muted-foreground">
-                Total outstanding advances
-              </p>
+                <div className="text-2xl font-bold text-destructive">MWK {overdueLoansValue.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Total outstanding on active loans.</p>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="lg:col-span-5">
+          <Card className="lg:col-span-4">
             <CardHeader>
               <CardTitle>Monthly Collections</CardTitle>
               <CardDescription>
@@ -215,60 +208,47 @@ export default function DashboardPage() {
               </ChartContainer>
             </CardContent>
           </Card>
-           <Card className="lg:col-span-2">
+           <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle className="font-headline">Portfolio at Risk</CardTitle>
-              <CardDescription>
-                Total value of all overdue loans.
-              </CardDescription>
+                <CardTitle>Recent Payments</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center h-[240px]">
-                <TrendingDown className="w-16 h-16 text-destructive" />
-                <div className="text-4xl font-bold text-destructive mt-4">
-                  MWK {overdueLoansValue.toLocaleString()}
+            <CardContent>
+                <div className="space-y-4">
+                {recentPayments.length > 0 ? (
+                    recentPayments.map(payment => {
+                    const loan = loans.find(l => l.id === payment.loanId);
+                    if (!loan) return null;
+                    const borrower = getBorrowerById(loan.borrowerId);
+                    const avatarFallback = borrower?.name.split(' ').map(n => n[0]).join('') || 'N/A';
+                    if (!borrower) return null;
+                    
+                    return (
+                        <div className="flex items-center" key={payment.id}>
+                        <Avatar className="h-9 w-9">
+                            <AvatarImage src={getBorrowerAvatar(borrower.id)} alt="Avatar" data-ai-hint="user avatar" />
+                            <AvatarFallback>{avatarFallback}</AvatarFallback>
+                        </Avatar>
+                        <div className="ml-4 space-y-1">
+                            <p className="text-sm font-medium leading-none">{borrower.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                             Paid on {new Date(payment.date).toLocaleDateString()} for Loan {payment.loanId}
+                            </p>
+                        </div>
+                        <div className="ml-auto font-medium">
+                            +MWK {payment.amount.toLocaleString()}
+                        </div>
+                        </div>
+                    )
+                    })
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-10">No recent payments.</p>
+                )}
                 </div>
             </CardContent>
-          </Card>
+            </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <div className="space-y-8">
-               {recentPayments.length > 0 ? (
-                recentPayments.map(payment => {
-                  const loan = loans.find(l => l.id === payment.loanId);
-                  if (!loan) return null;
-                  const borrower = getBorrowerById(loan.borrowerId);
-                  const avatarFallback = borrower?.name.split(' ').map(n => n[0]).join('') || 'N/A';
-                  if (!borrower) return null;
-                  
-                  return (
-                    <div className="flex items-center" key={payment.id}>
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={getBorrowerAvatar(borrower.id)} alt="Avatar" data-ai-hint="user avatar" />
-                        <AvatarFallback>{avatarFallback}</AvatarFallback>
-                      </Avatar>
-                      <div className="ml-4 space-y-1">
-                        <p className="text-sm font-medium leading-none">{borrower.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Paid for Loan {payment.loanId}
-                        </p>
-                      </div>
-                      <div className="ml-auto font-medium">
-                         +MWK {payment.amount.toLocaleString()}
-                      </div>
-                    </div>
-                  )
-                })
-               ) : (
-                <p className="text-sm text-muted-foreground">No recent payments.</p>
-               )}
-              </div>
-          </CardContent>
-        </Card>
+        
         <div className="hidden">
            <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
         </div>
