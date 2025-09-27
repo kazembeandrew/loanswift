@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments, addPayment } from '@/services/payment-service';
+import { getBorrowerAvatar } from '@/lib/placeholder-images';
 
 
 export default function PaymentsPage() {
@@ -174,7 +175,7 @@ export default function PaymentsPage() {
                           return (
                             <div className="flex items-center" key={payment.id}>
                               <Avatar className="h-9 w-9">
-                                <AvatarImage src={`https://picsum.photos/seed/${borrower.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
+                                <AvatarImage src={getBorrowerAvatar(borrower.id)} alt="Avatar" data-ai-hint="user avatar" />
                                 <AvatarFallback>{avatarFallback}</AvatarFallback>
                               </Avatar>
                               <div className="ml-4 space-y-1">
@@ -237,7 +238,7 @@ export default function PaymentsPage() {
                             <SelectContent>
                                 {loans.filter(l => l.borrowerId === selectedBorrowerId && getLoanBalance(l) > 0).map(loan => (
                                     <SelectItem key={loan.id} value={loan.id}>
-                                        {loan.id} - MWK {loan.principal.toLocaleString()} ({loan.status})
+                                        {loan.id} - MWK {loan.principal.toLocaleString()}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

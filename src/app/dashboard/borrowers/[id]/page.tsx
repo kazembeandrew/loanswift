@@ -26,6 +26,7 @@ import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
 import { uploadFile, getFiles } from '@/services/storage-service';
+import { getBorrowerAvatar } from '@/lib/placeholder-images';
 
 
 export default function BorrowerDetailPage() {
@@ -191,7 +192,7 @@ export default function BorrowerDetailPage() {
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16">
-            <AvatarImage src={`https://picsum.photos/seed/${borrower.id}/100/100`} alt="Avatar" data-ai-hint="user avatar" />
+            <AvatarImage src={getBorrowerAvatar(borrower.id)} alt="Avatar" data-ai-hint="user avatar" />
             <AvatarFallback>{avatarFallback}</AvatarFallback>
           </Avatar>
           <div>

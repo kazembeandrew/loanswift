@@ -14,6 +14,7 @@ import type { Borrower, Loan } from '@/types';
 import { Loader2, Printer, Share2, Download, RefreshCw } from 'lucide-react';
 import ReceiptPreview from '@/components/receipt-preview';
 import Image from 'next/image';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 type ReceiptGeneratorProps = {
   isOpen: boolean;
@@ -23,9 +24,6 @@ type ReceiptGeneratorProps = {
   paymentAmount: number;
   paymentDate: string;
 };
-
-// Placeholder logo - in a real app, this would come from settings or a file upload
-const placeholderLogoDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAARKSURBVHhe7ZxLyxRBFMfv990xwigGg4+giCA+go+gJz6CufXjLxDRDxDRL2AmmpkEiT5AUBMRjQQRjT4gKOKjiCYGj8EYxT/d2c6zVBvXTa/V7d1kMplM2+nUqXv1vVepU/f85YvF4g1jDMMYhmEMwzCGYQzDMAY/L+vr67BYLLi6ulpcXFzw8/PDjY2NyMnJQVxcHBISEvB4PDiOQyaTQUFBAbKysjA2Noby8vLw8vKCw+FApVIhLi4OoaGhiI6ORnt7O8LhMNvb28jPz4e7uzulpaVQUVGBgoICxMXFISUlBUVFRQkLC0Nzc7P+b+nl5QWVlZVYW1sLj8dDUVERSkpKkJaWhuLiYhQXF0Mmk0Gj0SAjIwOJiYlITU3FwsIC8vn8BePj45Gbm4vU1FTk5uYiOzsbubm5iIuLg1AohFarxXVdwsPDUVlZqb/vLy8veHh4QFZWFo6Ojujo6EBmZiaOjo5YXV09oL/vLywseGzZsoXFxUX09/ejqKgoWVhYQGBgIFpbWzE0NIRIJELz8/Ma4+PjQ4qKihIdHY3W1jby8vLi8vKCjY0NZmdn+f79e97e3vDy8sLq6iqDweAA7e3tKCwsRMvLy3R3d2NqagqNjY19+Pvvv1FYWIjV1VVkZGSgrq4O9fX1eHp64nQ6UVpaivb2dpSXl+Ps7AybzQY/Pz/s7u4KBoN9ePLkCfb29goGg/x89erVWFlZITs7G7W1tYiMjER4eDhat27dAnK5HDk5OYiNjUVERATi4uKwvb3N9PREpVLh0aNHGBoa4tOnT9HX10diYiJ8fHwwOjpKJBJhZGREOp0mGo1SVFSE2tra9Pb2MjY2RkFBAbKysqDRaPDz58+Ul5dDqVQyNDREaWkpUqmUkpISbN++HWVlZfT19bG/v8+LFy/Q1taGkZERjo6OeP/+PVZWVvj999+RkJCAlZUVhEIhNjY24Hkeubm5+Pnnn6HVamloaEBjYyO2trb48uVLevr0KWVlZQiFQpaWlvjo0SNGRkaIiYnh2bNnWFhYICwsDJWVleTm5qKgoACtra0MDw+ztLTE4uIiL1y4QHFxMTk5OQwMDCAQCEgmkwwNDfHTTz/h9XoZGhrirVu3ePLkCebn58nLy2NgYIBgMEhTUxOZmZmMjY3x9u1bPDw8UFxcTFFREWfOnKGrq4tbt25haGiIhYVFvLy8sLa2xvPnzxkaGuLUqVNERkYyNjbG/v7+v/B6vaysrCAUCrl16xaLi4sMDg6SSCTEx8czOzvLhQsXGBgYICIiAsPDw3h4eODSpUv88ccfCAaDVFVVYTAYkMvlDA0Nce7cOdra2jAyMhLDMAxjGIZhDMMYhmEMwxiGYSxbWlpiZWWFxMRElJeXExQUhJaWFhwOB4aHhyMcDsPk9uPz+dDX14eOjg50d3ejoqICra2tqKurw9nZGX19fbS0tODr64tSqURERIBIJEJrKysoKAxDA4P/LhQK0dvbi9LSUhQXF2NsbAz5+fno6+sjLS0NdXV16OvrA4lEgr+/P+Li4rC4uIjCwsLvTExM8ODgAKGhoZidnUVPTw+GhobQ3t6Ojo4O9PX1YWFhAbm5uWhoaIBhGPj5+aG6ujqA8/Pz0dbWBr1ej66uLlxcnPDy8sLW1hZ6e3vR1dWFlpaW/1f4+PjA3t4e+fn56OnpQXR0NGpra+ns7ERFRQWioqIglUqxvb1NbW0tMjIyyMjIgFAoxNraGklJSWhtbUVbWxsiIiL++XwxGIYxDMAwjGEMwzCGYRjDMAxjGEPTMGa/AXjQ5s3v7k+OAAAAAElFTkSuQmCC";
 
 export default function ReceiptGenerator({
   isOpen,
@@ -41,6 +39,8 @@ export default function ReceiptGenerator({
   const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const { toast } = useToast();
+  
+  const businessLogo = getPlaceholderImage('business-logo-small');
 
   const businessDetails = {
     name: 'Janalo Enterprises',
@@ -64,7 +64,7 @@ export default function ReceiptGenerator({
         receiptId: newReceiptId,
         businessName: businessDetails.name,
         businessAddress: businessDetails.address,
-        businessLogoDataUri: placeholderLogoDataUri,
+        businessLogoDataUri: businessLogo?.imageUrl,
       };
       const result = await handleGenerateReceipt(input);
       setReceiptText(result.receiptText);
@@ -102,7 +102,7 @@ export default function ReceiptGenerator({
             businessName: businessDetails.name,
             businessAddress: businessDetails.address,
             businessPhone: businessDetails.phone,
-            businessLogoDataUri: placeholderLogoDataUri,
+            businessLogoDataUri: businessLogo?.imageUrl,
         };
         const result = await handleGenerateReceiptImage(input);
         setReceiptImageUrl(result.imageUrl);

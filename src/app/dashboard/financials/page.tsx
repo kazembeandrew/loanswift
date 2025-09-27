@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { handleGenerateFinancialSummary } from '@/app/actions/financials';
 import type { Loan, Payment } from '@/types';
 import { getLoans } from '@/services/loan-service';
-import { getPayments } from '@/services/payment-service';
+import { getAllPayments } from '@/services/payment-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subMonths, getMonth, getYear } from 'date-fns';
 
@@ -32,14 +32,14 @@ export default function FinancialsPage() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
 
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
     const [loansData, paymentsData] = await Promise.all([
       getLoans(),
-      getPayments(),
+      getAllPayments(),
     ]);
     setLoans(loansData);
     setPayments(paymentsData);
@@ -49,17 +49,25 @@ export default function FinancialsPage() {
     fetchData();
   }, [fetchData]);
 
+  const getLoanBalance = (loan: Loan) => {
+    const totalPaid = payments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
     setSummary(null);
 
     const totalPrincipal = loans.reduce((sum, loan) => sum + loan.principal, 0);
     const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    const overdueLoans = loans.filter(loan => loan.status === 'Overdue');
-    const overdueLoansValue = overdueLoans.reduce((sum, loan) => {
-        const totalPaid = payments.filter(p => p.loanId === loan.id).reduce((s, p) => s + p.amount, 0);
-        const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-        return sum + (totalOwed - totalPaid);
+    
+    const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
+    
+    const overdueLoansValue = activeLoans.reduce((sum, loan) => {
+        return sum + getLoanBalance(loan);
     }, 0);
 
     try {
@@ -68,7 +76,7 @@ export default function FinancialsPage() {
         totalCollected,
         loanCount: loans.length,
         paymentCount: payments.length,
-        overdueLoanCount: overdueLoans.length,
+        overdueLoanCount: activeLoans.length, // Portfolio at risk is all active loans
         overdueLoansValue,
       };
       const result = await handleGenerateFinancialSummary(input);
@@ -91,11 +99,10 @@ export default function FinancialsPage() {
   
   const totalPrincipal = loans.reduce((sum, loan) => sum + loan.principal, 0);
   const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const overdueLoans = loans.filter(loan => loan.status === 'Overdue');
-  const overdueLoansValue = overdueLoans.reduce((sum, loan) => {
-    const totalPaid = payments.filter(p => p.loanId === loan.id).reduce((s, p) => s + p.amount, 0);
-    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-    return sum + (totalOwed - totalPaid);
+
+  const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
+  const overdueLoansValue = activeLoans.reduce((sum, loan) => {
+    return sum + getLoanBalance(loan);
   }, 0);
 
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
@@ -158,7 +165,7 @@ export default function FinancialsPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-destructive">MWK {overdueLoansValue.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">Total value of overdue loans.</p>
+                    <p className="text-xs text-muted-foreground">Total outstanding on active loans.</p>
                 </CardContent>
             </Card>
              <Card>
@@ -168,7 +175,7 @@ export default function FinancialsPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-xl font-bold">{loans.length} <span className="text-base font-normal text-muted-foreground">Total Loans</span></div>
-                    <div className="text-xl font-bold text-destructive">{overdueLoans.length} <span className="text-base font-normal text-muted-foreground">Overdue</span></div>
+                    <div className="text-xl font-bold text-destructive">{activeLoans.length} <span className="text-base font-normal text-muted-foreground">Active</span></div>
                 </CardContent>
             </Card>
         </div>

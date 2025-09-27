@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from './ui/sidebar';
 import { GlobalSearch } from './global-search';
 import { useState } from 'react';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 type HeaderProps = {
   title: string;
@@ -23,6 +24,7 @@ type HeaderProps = {
 
 export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClick }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
+  const userAvatar = getPlaceholderImage('user-avatar');
 
   return (
     <>
@@ -60,11 +62,11 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src="https://picsum.photos/seed/user-avatar/100/100"
-                  alt="User avatar"
-                  data-ai-hint="user avatar"
-                />
+                {userAvatar && <AvatarImage
+                  src={userAvatar.imageUrl}
+                  alt={userAvatar.description}
+                  data-ai-hint={userAvatar.imageHint}
+                />}
                 <AvatarFallback>SA</AvatarFallback>
               </Avatar>
             </Button>
