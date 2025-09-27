@@ -33,7 +33,6 @@ import {
   YAxis,
   ResponsiveContainer,
   Legend,
-  Tooltip,
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -230,7 +229,7 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
-              <ResponsiveContainer width="100%" height={300}>
+              <ChartContainer config={monthlyCollectionsChartConfig} className="min-h-[300px] w-full">
                 <BarChart data={monthlyCollectionsData}>
                   <CartesianGrid vertical={false} />
                   <XAxis
@@ -244,7 +243,7 @@ export default function DashboardPage() {
                     axisLine={false}
                     tickFormatter={(value) => `K${Number(value) / 1000}K`}
                   />
-                  <Tooltip
+                  <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent 
                         formatter={(value: any) => `MWK ${value.toLocaleString()}`}
@@ -253,7 +252,7 @@ export default function DashboardPage() {
                   />
                   <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </CardContent>
           </Card>
            <Card className="lg:col-span-3">
@@ -301,3 +300,4 @@ export default function DashboardPage() {
       </main>
     </div>
   );
+}
