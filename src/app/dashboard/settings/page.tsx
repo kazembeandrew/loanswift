@@ -12,15 +12,28 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { getSettings, updateSettings } from '@/services/settings-service';
+import { handleDeleteAllData } from '@/app/actions/reset';
 import type { BusinessSettings } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, startTransition] = useTransition();
+  const [isSaving, startSavingTransition] = useTransition();
+  const [isDeleting, startDeletingTransition] = useTransition();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,7 +60,7 @@ export default function SettingsPage() {
     e.preventDefault();
     if (!settings) return;
 
-    startTransition(async () => {
+    startSavingTransition(async () => {
       try {
         await updateSettings(settings);
         toast({
@@ -55,10 +68,33 @@ export default function SettingsPage() {
           description: 'Your business information has been updated.',
         });
       } catch (error) {
-        console.error("Failed to save settings:", error);
+        console.error('Failed to save settings:', error);
         toast({
           title: 'Error Saving Settings',
           description: 'Could not save your settings. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  const confirmDeleteAllData = () => {
+    startDeletingTransition(async () => {
+      try {
+        const result = await handleDeleteAllData();
+        if (result.success) {
+          toast({
+            title: 'Data Deletion Successful',
+            description: 'All application data has been permanently deleted. Please refresh the page.',
+          });
+        } else {
+            throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error('Failed to delete all data:', error);
+        toast({
+          title: 'Error Deleting Data',
+          description: error instanceof Error ? error.message : 'Could not delete all data. Please try again.',
           variant: 'destructive',
         });
       }
@@ -148,6 +184,42 @@ export default function SettingsPage() {
             Save Changes
           </Button>
         </form>
+
+        <Card className="border-destructive">
+            <CardHeader>
+                <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                <CardDescription>These actions are irreversible. Please proceed with caution.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+                <div>
+                    <h3 className="font-semibold">Delete All Application Data</h3>
+                    <p className="text-sm text-muted-foreground">Permanently delete all borrowers, loans, payments, and other data.</p>
+                </div>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete All Data
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete all data from your application, including all borrowers, loans, payments, financial records, and messages.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDeleteAllData} className="bg-destructive hover:bg-destructive/90">
+                                Confirm Deletion
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardContent>
+        </Card>
+
       </main>
     </div>
   );
