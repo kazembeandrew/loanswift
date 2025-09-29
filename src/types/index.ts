@@ -1,4 +1,5 @@
 
+
 export type UserProfile = {
   uid: string;
   email: string;
@@ -111,3 +112,18 @@ export type Account = {
   type: 'asset' | 'liability' | 'equity' | 'income' | 'expense';
   balance: number;
 };
+
+export type TransactionLine = {
+  accountId: string;
+  accountName: string;
+  type: 'debit' | 'credit';
+  amount: number;
+};
+
+export type JournalEntry = {
+  id: string;
+  date: string;
+  description: string;
+  lines: TransactionLine[];
+};
+

@@ -22,6 +22,7 @@ import {
   Shield,
   CreditCard,
   BookUser,
+  BookCopy,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -52,10 +53,8 @@ const financialItems = [
     { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
     { href: '/dashboard/banking', label: 'Banking', icon: CreditCard },
     { href: '/dashboard/accounts', label: 'Chart of Accounts', icon: BookUser },
+    { href: '/dashboard/journal', label: 'Journal', icon: BookCopy },
     { href: '/dashboard/capital', label: 'Capital', icon: Briefcase },
-    { href: '/dashboard/income', label: 'Income', icon: TrendingUp },
-    { href: '/dashboard/expenses', label: 'Expenses', icon: TrendingDown },
-    { href: '/dashboard/drawings', label: 'Drawings', icon: PiggyBank },
 ]
 
 const utilityItems = [
