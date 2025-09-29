@@ -11,15 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Loader2, Sparkles, AlertTriangle, LandPlot, TrendingDown, Scale, Banknote } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { handleGenerateFinancialSummary } from '@/app/actions/financials';
 import type { Loan, Payment, Account } from '@/types';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { getAccounts } from '@/services/account-service';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { format, subMonths, getMonth, getYear } from 'date-fns';
 
 type FinancialSummary = {
     capitalAnalysis: string;
@@ -33,38 +31,32 @@ type FinancialSummary = {
 export default function FinancialsPage() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [hasData, setHasData] = useState(false);
+  const [analysisInput, setAnalysisInput] = useState<any>(null);
 
   const { toast } = useToast();
 
-  const fetchData = useCallback(async () => {
-    const [loansData, paymentsData, accountsData] = await Promise.all([
+  const prepareAnalysisData = useCallback(async () => {
+    const [loans, payments, accounts] = await Promise.all([
       getLoans(),
       getAllPayments(),
       getAccounts(),
     ]);
-    setLoans(loansData);
-    setPayments(paymentsData);
-    setAccounts(accountsData);
-  }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (loans.length === 0 && payments.length === 0) {
+        setHasData(false);
+        return;
+    }
 
-  const getLoanBalance = (loan: Loan) => {
-    const totalPaid = payments
-      .filter(p => p.loanId === loan.id)
-      .reduce((sum, p) => sum + p.amount, 0);
-    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-    return totalOwed - totalPaid;
-  };
+    setHasData(true);
 
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    setSummary(null);
+    const getLoanBalance = (loan: Loan) => {
+        const totalPaid = payments
+          .filter(p => p.loanId === loan.id)
+          .reduce((sum, p) => sum + p.amount, 0);
+        const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+        return totalOwed - totalPaid;
+    };
 
     const totalPrincipal = loans.reduce((sum, loan) => sum + loan.principal, 0);
     const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -75,10 +67,9 @@ export default function FinancialsPage() {
     const totalCapital = accounts.filter(a => a.type === 'equity').reduce((sum, item) => sum + item.balance, 0);
     const totalMiscIncome = accounts.filter(a => a.type === 'income' && a.name !== 'Interest Income').reduce((sum, item) => sum + item.balance, 0);
     const totalExpenses = accounts.filter(a => a.type === 'expense').reduce((sum, item) => sum + item.balance, 0);
-    const totalDrawings = 0; // This concept is now part of journal entries against equity, so we can set to 0 for this analysis.
-
-    try {
-      const input = {
+    const totalDrawings = 0; 
+    
+    setAnalysisInput({
         totalPrincipal,
         totalCollected,
         loanCount: loans.length,
@@ -89,8 +80,24 @@ export default function FinancialsPage() {
         totalMiscIncome,
         totalExpenses,
         totalDrawings,
-      };
-      const result = await handleGenerateFinancialSummary(input);
+      });
+
+  }, []);
+
+  useEffect(() => {
+    prepareAnalysisData();
+  }, [prepareAnalysisData]);
+
+  const handleSubmit = async () => {
+    if (!analysisInput) {
+        toast({ title: "Data not ready", description: "Financial data is still loading, please wait.", variant: "destructive"});
+        return;
+    };
+    setIsLoading(true);
+    setSummary(null);
+
+    try {
+      const result = await handleGenerateFinancialSummary(analysisInput);
       setSummary(result);
       toast({
         title: 'Analysis Complete',
@@ -108,119 +115,21 @@ export default function FinancialsPage() {
     }
   };
   
-  const totalPrincipal = loans.reduce((sum, loan) => sum + loan.principal, 0);
-  const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-  const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
-  const overdueLoansValue = activeLoans.reduce((sum, loan) => {
-    return sum + getLoanBalance(loan);
-  }, 0);
-
-  const monthlyData = Array.from({ length: 6 }, (_, i) => {
-    const d = subMonths(new Date(), 5 - i);
-    return { 
-        name: format(d, 'MMM'),
-        month: getMonth(d),
-        year: getYear(d),
-        deployed: 0,
-        collected: 0,
-    };
-  });
-
-  loans.forEach(loan => {
-    const loanDate = new Date(loan.startDate);
-    const record = monthlyData.find(m => m.month === getMonth(loanDate) && m.year === getYear(loanDate));
-    if (record) {
-        record.deployed += loan.principal;
-    }
-  });
-
-  payments.forEach(payment => {
-    const paymentDate = new Date(payment.date);
-    const record = monthlyData.find(m => m.month === getMonth(paymentDate) && m.year === getYear(paymentDate));
-    if (record) {
-        record.collected += payment.amount;
-    }
-  });
-
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header title="Financials" />
+      <Header title="AI Financial Analysis" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Capital Deployed</CardTitle>
-                    <LandPlot className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">MWK {totalPrincipal.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">Total principal of all loans.</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
-                    <Banknote className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">MWK {totalCollected.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">Total from all customer payments.</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Portfolio at Risk</CardTitle>
-                    <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-destructive">MWK {overdueLoansValue.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">Total outstanding on active loans.</p>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Loans Overview</CardTitle>
-                    <Scale className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-xl font-bold">{loans.length} <span className="text-base font-normal text-muted-foreground">Total Loans</span></div>
-                    <div className="text-xl font-bold text-destructive">{activeLoans.length} <span className="text-base font-normal text-muted-foreground">Active</span></div>
-                </CardContent>
-            </Card>
-        </div>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Monthly Performance</CardTitle>
-                <CardDescription>Capital deployed vs. capital collected over the last 6 months.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[350px] w-full p-2 sm:p-6 pt-0">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis tickFormatter={(value) => `K${Number(value) / 1000}k`} />
-                        <Tooltip formatter={(value: number) => `MWK ${value.toLocaleString()}`} />
-                        <Legend />
-                        <Bar dataKey="deployed" fill="hsl(var(--muted-foreground))" name="Capital Deployed" />
-                        <Bar dataKey="collected" fill="hsl(var(--primary))" name="Capital Collected" />
-                    </BarChart>
-                </ResponsiveContainer>
-            </CardContent>
-        </Card>
-        
         <Card>
           <CardHeader>
             <CardTitle>AI-Powered Financial Analysis</CardTitle>
             <CardDescription>
-              Generate a comprehensive analysis of your business's financial health based on your complete loan and payment data.
+              Generate a comprehensive analysis of your business's financial health based on your complete loan and payment data. The AI will assess capital efficiency, business standing, profitability, and more.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center justify-center">
-             {loans.length > 0 ? (
-                <Button onClick={handleSubmit} disabled={isLoading} size="lg">
+          <CardContent className="flex flex-col items-center justify-center gap-4">
+             {hasData ? (
+                <Button onClick={handleSubmit} disabled={isLoading || !analysisInput} size="lg">
                     {isLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -235,16 +144,13 @@ export default function FinancialsPage() {
                     <p className="text-sm text-muted-foreground">Add some loans and payments first.</p>
                 </div>
              )}
+             {isLoading && (
+                <div className="text-center text-muted-foreground">
+                    <p>This may take a moment...</p>
+                </div>
+            )}
           </CardContent>
         </Card>
-
-        {isLoading && (
-          <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-dashed p-10">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="mt-4 text-muted-foreground">Analyzing your financial data...</p>
-            <p className="text-sm text-muted-foreground">This may take a moment.</p>
-          </div>
-        )}
 
         {summary && (
           <div className="grid gap-6 mt-6 md:grid-cols-2">

@@ -1,17 +1,11 @@
 
 'use client';
 import {
-  ArrowDown,
-  ArrowUp,
   CircleDollarSign,
-  Landmark,
   Users,
-  Wallet,
-  FileX2,
   Briefcase,
   TrendingDown,
-  Banknote,
-  PiggyBank,
+  Wallet,
 } from 'lucide-react';
 import {
   Card,
@@ -33,12 +27,11 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Borrower, Loan, Payment, Account, BusinessSettings } from '@/types';
-import { format, subMonths, getMonth, isAfter, subDays, getYear } from 'date-fns';
+import { format, subMonths, getMonth, getYear } from 'date-fns';
 import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from './borrowers/components/borrower-list';
 import { getBorrowers } from '@/services/borrower-service';
@@ -109,8 +102,6 @@ export default function DashboardPage() {
     .filter(a => a.type === 'expense')
     .reduce((sum, a) => sum + a.balance, 0);
     
-  // Profit/Loss is Revenue - Expenses. Note that balances for these accounts are stored
-  // as positive numbers, so a simple subtraction is correct.
   const profitLoss = totalRevenue - totalExpenses;
 
   const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
@@ -174,7 +165,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className={`text-2xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-destructive'}`}>MWK {profitLoss.toLocaleString()}</div>
                <p className="text-xs text-muted-foreground">
-                Revenue minus Expenses.
+                Total Revenue minus Total Expenses.
               </p>
             </CardContent>
           </Card>
