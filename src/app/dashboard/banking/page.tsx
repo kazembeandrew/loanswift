@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,13 +13,11 @@ import {
 } from '@/components/ui/table';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
-import type { Loan, Payment, Capital, Income, Expense, Drawing, Borrower } from '@/types';
+import type { Loan, Payment, Capital, Borrower, JournalEntry } from '@/types';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { getCapitalContributions } from '@/services/capital-service';
-import { getIncomeRecords } from '@/services/income-service';
-import { getExpenseRecords } from '@/services/expense-service';
-import { getDrawingRecords } from '@/services/drawing-service';
+import { getJournalEntries } from '@/services/journal-service';
 import { getBorrowers } from '@/services/borrower-service';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -40,17 +39,13 @@ export default function BankingPage() {
       loansData,
       paymentsData,
       capitalData,
-      incomeData,
-      expenseData,
-      drawingData,
+      journalEntriesData,
       borrowersData,
     ] = await Promise.all([
       getLoans(),
       getAllPayments(),
       getCapitalContributions(),
-      getIncomeRecords(),
-      getExpenseRecords(),
-      getDrawingRecords(),
+      getJournalEntries(),
       getBorrowers(),
     ]);
 
@@ -62,27 +57,46 @@ export default function BankingPage() {
 
     // Inflows
     capitalData.forEach(c => allTransactions.push({ date: c.date, description: `Capital Contribution`, amount: c.amount, type: 'inflow', category: 'Capital' }));
-    incomeData.forEach(i => allTransactions.push({ date: i.date, description: `Misc. Income: ${i.source}`, amount: i.amount, type: 'inflow', category: 'Income' }));
     paymentsData.forEach(p => {
         const loan = loansData.find(l => l.id === p.loanId);
         const borrowerName = loan ? getBorrowerName(loan.borrowerId) : 'Unknown';
         allTransactions.push({ date: p.date, description: `Payment from ${borrowerName} for Loan ${p.loanId}`, amount: p.amount, type: 'inflow', category: 'Payment' })
     });
+    // Journal Entries that are Inflows (e.g. Misc Income credited to an income account, cash debited)
+    journalEntriesData.forEach(j => {
+        j.lines.forEach(line => {
+            if (line.accountName === 'Cash on Hand' && line.type === 'debit') {
+                 allTransactions.push({ date: j.date, description: j.description, amount: line.amount, type: 'inflow', category: 'Journal' });
+            }
+            // Simplified: Add other misc income here if needed
+        });
+    });
+
 
     // Outflows
     loansData.forEach(l => allTransactions.push({ date: l.startDate, description: `Loan Disbursement to ${getBorrowerName(l.borrowerId)} (${l.id})`, amount: l.principal, type: 'outflow', category: 'Lending' }));
-    expenseData.forEach(e => allTransactions.push({ date: e.date, description: `Expense: ${e.description || e.category}`, amount: e.amount, type: 'outflow', category: 'Expense' }));
-    drawingData.forEach(d => allTransactions.push({ date: d.date, description: `Owner Drawing: ${d.description || 'N/A'}`, amount: d.amount, type: 'outflow', category: 'Drawing' }));
+    // Journal Entries that are Outflows (e.g. Expenses, Drawings where cash is credited)
+    journalEntriesData.forEach(j => {
+        j.lines.forEach(line => {
+            if (line.accountName === 'Cash on Hand' && line.type === 'credit') {
+                allTransactions.push({ date: j.date, description: j.description, amount: line.amount, type: 'outflow', category: 'Journal' });
+            }
+        });
+    });
 
     const sortedTransactions = allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    let runningBalance = 0;
-    sortedTransactions.forEach(t => {
-        runningBalance += t.type === 'inflow' ? t.amount : -t.amount;
-    });
+    // Recalculate balance based on sorted transactions
+    const finalBalance = sortedTransactions.reduce((acc, t) => {
+        return acc + (t.type === 'inflow' ? t.amount : -t.amount);
+    }, 0);
+    
+    // Note: The balance calculation here is a simple cash flow summary.
+    // The "official" balance should come from the Chart of Accounts ('Cash on Hand').
+    // This is for display purposes on this page.
 
     setTransactions(sortedTransactions);
-    setBalance(runningBalance);
+    setBalance(finalBalance);
 
   }, []);
 
@@ -92,6 +106,7 @@ export default function BankingPage() {
 
   const totalInflows = transactions.filter(t => t.type === 'inflow').reduce((sum, t) => sum + t.amount, 0);
   const totalOutflows = transactions.filter(t => t.type === 'outflow').reduce((sum, t) => sum + t.amount, 0);
+  const currentBalance = totalInflows - totalOutflows;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -100,12 +115,12 @@ export default function BankingPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
+                    <CardTitle className="text-sm font-medium">Net Cash Flow</CardTitle>
                     <Scale className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className={cn("text-2xl font-bold", balance >= 0 ? "text-primary" : "text-destructive")}>
-                        MWK {balance.toLocaleString()}
+                    <div className={cn("text-2xl font-bold", currentBalance >= 0 ? "text-primary" : "text-destructive")}>
+                        MWK {currentBalance.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">Total inflows minus total outflows.</p>
                 </CardContent>
@@ -135,7 +150,7 @@ export default function BankingPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Transaction History</CardTitle>
-                <CardDescription>A complete log of all financial activities.</CardDescription>
+                <CardDescription>A complete log of all financial activities affecting cash.</CardDescription>
             </CardHeader>
             <CardContent>
                  {transactions.length > 0 ? (
@@ -175,3 +190,5 @@ export default function BankingPage() {
     </div>
   );
 }
+
+    

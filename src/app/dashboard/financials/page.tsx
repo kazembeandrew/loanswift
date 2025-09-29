@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,13 +14,10 @@ import {
 import { Loader2, Sparkles, AlertTriangle, LandPlot, TrendingDown, Scale, Banknote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { handleGenerateFinancialSummary } from '@/app/actions/financials';
-import type { Loan, Payment, Capital, Income, Expense, Drawing } from '@/types';
+import type { Loan, Payment, Account } from '@/types';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
-import { getCapitalContributions } from '@/services/capital-service';
-import { getIncomeRecords } from '@/services/income-service';
-import { getExpenseRecords } from '@/services/expense-service';
-import { getDrawingRecords } from '@/services/drawing-service';
+import { getAccounts } from '@/services/account-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subMonths, getMonth, getYear } from 'date-fns';
 
@@ -37,28 +35,19 @@ export default function FinancialsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
-  const [capital, setCapital] = useState<Capital[]>([]);
-  const [miscIncome, setMiscIncome] = useState<Income[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
-    const [loansData, paymentsData, capitalData, incomeData, expenseData, drawingData] = await Promise.all([
+    const [loansData, paymentsData, accountsData] = await Promise.all([
       getLoans(),
       getAllPayments(),
-      getCapitalContributions(),
-      getIncomeRecords(),
-      getExpenseRecords(),
-      getDrawingRecords(),
+      getAccounts(),
     ]);
     setLoans(loansData);
     setPayments(paymentsData);
-    setCapital(capitalData);
-    setMiscIncome(incomeData);
-    setExpenses(expenseData);
-    setDrawings(drawingData);
+    setAccounts(accountsData);
   }, []);
 
   useEffect(() => {
@@ -83,11 +72,10 @@ export default function FinancialsPage() {
     const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
     const overdueLoansValue = activeLoans.reduce((sum, loan) => sum + getLoanBalance(loan), 0);
     
-    const totalCapital = capital.reduce((sum, item) => sum + item.amount, 0);
-    const totalMiscIncome = miscIncome.filter(i => i.source !== 'interest').reduce((sum, item) => sum + item.amount, 0);
-    const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
-    const totalDrawings = drawings.reduce((sum, item) => sum + item.amount, 0);
-
+    const totalCapital = accounts.filter(a => a.type === 'equity').reduce((sum, item) => sum + item.balance, 0);
+    const totalMiscIncome = accounts.filter(a => a.type === 'income' && a.name !== 'Interest Income').reduce((sum, item) => sum + item.balance, 0);
+    const totalExpenses = accounts.filter(a => a.type === 'expense').reduce((sum, item) => sum + item.balance, 0);
+    const totalDrawings = 0; // This concept is now part of journal entries against equity, so we can set to 0 for this analysis.
 
     try {
       const input = {

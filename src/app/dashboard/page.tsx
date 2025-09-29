@@ -1,3 +1,4 @@
+
 'use client';
 import {
   ArrowDown,
@@ -36,17 +37,14 @@ import {
 } from 'recharts';
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import type { Borrower, Loan, Payment, Capital, Income, Expense, Drawing, BusinessSettings } from '@/types';
+import type { Borrower, Loan, Payment, Account, BusinessSettings } from '@/types';
 import { format, subMonths, getMonth, isAfter, subDays, getYear } from 'date-fns';
 import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from './borrowers/components/borrower-list';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
-import { getCapitalContributions } from '@/services/capital-service';
-import { getIncomeRecords } from '@/services/income-service';
-import { getExpenseRecords } from '@/services/expense-service';
-import { getDrawingRecords } from '@/services/drawing-service';
+import { getAccounts } from '@/services/account-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { getSettings } from '@/services/settings-service';
 
@@ -64,31 +62,22 @@ export default function DashboardPage() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
-  const [capital, setCapital] = useState<Capital[]>([]);
-  const [miscIncome, setMiscIncome] = useState<Income[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
 
   
   const fetchData = useCallback(async () => {
-    const [borrowersData, loansData, paymentsData, capitalData, incomeData, expenseData, drawingData, settingsData] = await Promise.all([
+    const [borrowersData, loansData, paymentsData, accountsData, settingsData] = await Promise.all([
       getBorrowers(),
       getLoans(),
       getAllPayments(),
-      getCapitalContributions(),
-      getIncomeRecords(),
-      getExpenseRecords(),
-      getDrawingRecords(),
+      getAccounts(),
       getSettings(),
     ]);
     setBorrowers(borrowersData);
     setLoans(loansData);
     setPayments(paymentsData);
-    setCapital(capitalData);
-    setMiscIncome(incomeData);
-    setExpenses(expenseData);
-    setDrawings(drawingData);
+    setAccounts(accountsData);
     setSettings(settingsData);
   }, []);
 
@@ -109,37 +98,26 @@ export default function DashboardPage() {
   };
   
   const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
-
   const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   
-  const allIncome = miscIncome.concat(
-      payments.map(p => {
-          const loan = loans.find(l => l.id === p.loanId);
-          if (!loan) return null;
-          // This is a simplified calculation for demonstration
-          const interestComponent = loan.principal * (loan.interestRate / 100);
-          const paymentTowardsInterest = Math.min(p.amount, interestComponent); // Simplified
-          return {
-              id: `int-${p.id}`,
-              date: p.date,
-              amount: paymentTowardsInterest,
-              source: 'interest' as 'interest',
-              loanId: p.loanId
-          }
-      }).filter((i): i is Income => i !== null)
-  );
+  // --- Refactored Financial Calculations ---
+  const totalRevenue = accounts
+    .filter(a => a.type === 'income')
+    .reduce((sum, a) => sum + a.balance, 0);
   
-  const totalRevenue = allIncome.reduce((acc, income) => acc + income.amount, 0);
-  
-  const totalExpenses = expenses.reduce((acc, expense) => acc + expense.amount, 0);
-  const totalDrawings = drawings.reduce((acc, drawing) => acc + drawing.amount, 0);
-  const profitLoss = totalRevenue - totalExpenses - totalDrawings;
+  const totalExpenses = accounts
+    .filter(a => a.type === 'expense')
+    .reduce((sum, a) => sum + a.balance, 0);
+    
+  // Profit/Loss is Revenue - Expenses. Note that balances for these accounts are stored
+  // as positive numbers, so a simple subtraction is correct.
+  const profitLoss = totalRevenue - totalExpenses;
 
-  const totalCapital = capital.reduce((acc, cap) => acc + cap.amount, 0);
-  const totalPrincipalDisbursed = loans.reduce((acc, loan) => acc + loan.principal, 0);
+  const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
+  const cashBalance = cashAccount ? cashAccount.balance : 0;
   
-  const availableFunds = totalCapital + totalRevenue - totalPrincipalDisbursed - totalExpenses - totalDrawings;
-  const availableForLending = availableFunds - (settings?.reserveAmount || 0);
+  const availableForLending = cashBalance - (settings?.reserveAmount || 0);
+  // --- End of Refactored Calculations ---
 
   const recentPayments = payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
@@ -184,7 +162,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">MWK {totalRevenue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                Interest + Miscellaneous income.
+                Sum of all income accounts.
               </p>
             </CardContent>
           </Card>
@@ -196,7 +174,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className={`text-2xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-destructive'}`}>MWK {profitLoss.toLocaleString()}</div>
                <p className="text-xs text-muted-foreground">
-                Revenue - (Expenses + Drawings)
+                Revenue minus Expenses.
               </p>
             </CardContent>
           </Card>
@@ -207,7 +185,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">MWK {availableForLending.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Cash available for new loans.</p>
+                <p className="text-xs text-muted-foreground">Cash on Hand, less reserves.</p>
             </CardContent>
           </Card>
            <Card>
