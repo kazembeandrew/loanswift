@@ -1,10 +1,15 @@
-diff --git a/node_modules/firebase/firestore/dist/memory/esm/index.js b/node_modules/firebase/firestore/dist/memory/esm/index.js
-index f30f146..082b4ac 100644
---- a/node_modules/firebase/firestore/dist/memory/esm/index.js
-+++ b/node_modules/firebase/firestore/dist/memory/esm/index.js
-@@ -1,4 +1,4 @@
--import { registerVersion } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js';
-+import { registerVersion } from '@firebase/app';
- import { onLog, setLogLevel } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-util.js';
- import 'https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-interop-types.js';
- import { Component } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-component.js';
+--- a/node_modules/firebase/dist/esm/index.js
++++ b/node_modules/firebase/dist/esm/index.js
+@@ -1,5 +1,5 @@
+ import { registerVersion } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
+-import { onLog, setLogLevel, getLogLevel, LogLevel } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
++import { onLog, setLogLevel, getLogLevel } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
+ export { _isFirebaseApp, _getProvider, _registerComponent, _getLG, _logError, _registerFramework, _getAppCheckToken, _getModularInstance, _addComponent, _addOrOverwriteComponent, _DEFAULT_ENTRY_NAME, _FirebaseService, _createFirebaseNamespace, _extendNamespace, _registerService, _removeServiceInstance } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
+ import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
+ export { initializeApp, getApp, getApps, deleteApp, onCLS, onINP, onLCP, onFCP, onTTFB } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
+@@ -53,4 +53,4 @@
+   registerVersion('app-compat', version);
+ }
+ 
+-export { FirebaseError, SDK_VERSION, onLog, setLogLevel, getLogLevel, LogLevel };
++export { FirebaseError, SDK_VERSION, onLog, setLogLevel, getLogLevel };
