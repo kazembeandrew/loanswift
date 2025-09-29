@@ -1,0 +1,44 @@
+diff --git a/node_modules/firebase/dist/index.mjs b/node_modules/firebase/dist/index.mjs
+index 45b85a3..0752538 100644
+--- a/node_modules/firebase/dist/index.mjs
++++ b/node_modules/firebase/dist/index.mjs
+@@ -19417,7 +19417,7 @@ function ae(t) {
+  * from the browser.
+  */ class ce {
+     constructor(t, e) {
+-        this.host = t, this.ssl = e, this.forceLongPolling = !1, this.autoDetectLongPolling = !1, 
++        this.host = t, this.ssl = e, this.forceLongPolling = !1, this.autoDetectLongPolling = !1, this.experimentalForceLongPolling = !1,
+         /**
+          * The last-heard response time for a long-polling request. This is used by
+          * the Connection to determine if we should use long-polling for the next request.
+@@ -20121,7 +20121,7 @@ function le(t, e) {
+ function fe(t) {
+     return function(t) {
+         let e = 0;
+-        return t.ssl && (e |= 1), t.forceLongPolling && (e |= 2), t.autoDetectLongPolling && (e |= 4), 
++        return t.ssl && (e |= 1), (t.forceLongPolling || t.experimentalForceLongPolling) && (e |= 2), t.autoDetectLongPolling && (e |= 4), 
+         e;
+     }(t) + t.host;
+ }
+diff --git a/node_modules/firebase/dist/index.node.mjs b/node_modules/firebase/dist/index.node.mjs
+index 5488429..91c0ff6 100644
+--- a/node_modules/firebase/dist/index.node.mjs
++++ b/node_modules/firebase/dist/index.node.mjs
+@@ -19417,7 +19417,7 @@ function ae(t) {
+  * from the browser.
+  */ class ce {
+     constructor(t, e) {
+-        this.host = t, this.ssl = e, this.forceLongPolling = !1, this.autoDetectLongPolling = !1, 
++        this.host = t, this.ssl = e, this.forceLongPolling = !1, this.autoDetectLongPolling = !1, this.experimentalForceLongPolling = !1,
+         /**
+          * The last-heard response time for a long-polling request. This is used by
+          * the Connection to determine if we should use long-polling for the next request.
+@@ -20121,7 +20121,7 @@ function le(t, e) {
+ function fe(t) {
+     return function(t) {
+         let e = 0;
+-        return t.ssl && (e |= 1), t.forceLongPolling && (e |= 2), t.autoDetectLongPolling && (e |= 4), 
++        return t.ssl && (e |= 1), (t.forceLongPolling || t.experimentalForceLongPolling) && (e |= 2), t.autoDetectLongPolling && (e |= 4), 
+         e;
+     }(t) + t.host;
+ }

@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getApps, initializeApp } from "firebase/app";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -18,7 +18,18 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+const apps = getApps();
+const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
+
+let db;
+if (typeof window === "undefined") {
+    // On the server, we need to use initializeFirestore with long polling enabled.
+    db = initializeFirestore(app, {experimentalForceLongPolling: true});
+} else {
+    // On the client, we can use the regular getFirestore.
+    db = getFirestore(app);
+}
+
 export const storage = getStorage(app);
 export const auth = getAuth(app);
+export { db };
