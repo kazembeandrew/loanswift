@@ -63,12 +63,6 @@ const borrowerFormSchema = z.object({
   address: z.string().min(1, 'Address is required'),
   guarantorName: z.string().min(1, 'Guarantor name is required'),
   guarantorPhone: z.string().min(1, 'Guarantor phone is required'),
-
-  loanAmount: z.coerce.number().positive('Loan amount must be a positive number').optional(),
-  interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative').optional(),
-  repaymentPeriod: z.coerce.number().int().positive('Repayment period must be a positive integer').optional(),
-  startDate: z.string().optional(),
-  collateral: z.array(collateralSchema).optional(),
 });
 
 const newLoanFormSchema = z.object({
@@ -86,11 +80,6 @@ const borrowerFormDefaultValues = {
   address: '',
   guarantorName: '',
   guarantorPhone: '',
-  loanAmount: undefined,
-  interestRate: undefined,
-  repaymentPeriod: undefined,
-  startDate: '',
-  collateral: [],
 };
 
 const newLoanFormDefaultValues = {
@@ -124,7 +113,6 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
   const { userProfile } = useAuth();
-  const [addBorrowerStep, setAddBorrowerStep] = useState(1);
   const [receiptBalance, setReceiptBalance] = useState(0);
 
   const fetchData = useCallback(async () => {
@@ -146,11 +134,6 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const borrowerForm = useForm<z.infer<typeof borrowerFormSchema>>({
     resolver: zodResolver(borrowerFormSchema),
     defaultValues: borrowerFormDefaultValues,
-  });
-
-  const { fields: borrowerCollateralFields, append: appendBorrowerCollateral, remove: removeBorrowerCollateral } = useFieldArray({
-    control: borrowerForm.control,
-    name: "collateral",
   });
 
   const newLoanForm = useForm<z.infer<typeof newLoanFormSchema>>({
@@ -248,38 +231,11 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       guarantorPhone: values.guarantorPhone,
     };
     
-    const newBorrowerId = await addBorrower(newBorrowerData);
-
-    if (values.loanAmount && values.startDate && values.repaymentPeriod) {
-        const newLoanData: Omit<Loan, 'id'> = {
-          borrowerId: newBorrowerId,
-          principal: values.loanAmount,
-          interestRate: values.interestRate || 0,
-          repaymentPeriod: values.repaymentPeriod,
-          startDate: values.startDate,
-          outstandingBalance: values.loanAmount * (1 + (values.interestRate || 0) / 100),
-          collateral: values.collateral,
-        };
-        const newLoanId = await addLoan(newLoanData);
-
-        // After adding the borrower and loan, open the receipt dialog for a "payment" of 0
-        // which represents the loan disbursement. This is a bit of a workaround.
-        // A better UX might be a dedicated loan agreement generator.
-        const createdBorrower = await getBorrowers().then(b => b.find(br => br.id === newBorrowerId));
-        const createdLoan = await getLoans().then(l => l.find(ln => ln.id === newLoanId));
-        if (createdBorrower && createdLoan) {
-            setSelectedBorrower(createdBorrower);
-            setSelectedLoan(createdLoan);
-            setPaymentDetails({ amount: '0', date: newLoanData.startDate }); // Use 0 amount for disbursement
-            setReceiptBalance(newLoanData.outstandingBalance);
-            setReceiptGeneratorOpen(true);
-        }
-    }
+    await addBorrower(newBorrowerData);
     
     await fetchData();
     setAddBorrowerOpen(false);
     borrowerForm.reset(borrowerFormDefaultValues);
-    setAddBorrowerStep(1);
     toast({
       title: 'Borrower Added',
       description: `${values.name} has been successfully added.`,
@@ -343,7 +299,6 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   useEffect(() => {
     if (!isAddBorrowerOpen) {
       borrowerForm.reset(borrowerFormDefaultValues);
-      setAddBorrowerStep(1);
     }
   }, [isAddBorrowerOpen, borrowerForm]);
 
@@ -376,53 +331,19 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
             <DialogHeader>
               <DialogTitle>Add New Borrower</DialogTitle>
               <DialogDescription>
-                {addBorrowerStep === 1 ? 'Step 1: Fill in the borrower details.' : 'Step 2: Add an optional initial loan.'}
+                Fill in the borrower's personal details below.
               </DialogDescription>
             </DialogHeader>
             <Form {...borrowerForm}>
               <form onSubmit={borrowerForm.handleSubmit(handleAddBorrowerSubmit)} className="grid gap-4 py-4">
-                 {addBorrowerStep === 1 && (
-                    <>
-                        <FormField control={borrowerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    </>
-                 )}
-                 {addBorrowerStep === 2 && (
-                    <>
-                        <FormField control={borrowerForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Loan Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={borrowerForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <div>
-                          <Label>Collateral</Label>
-                          {borrowerCollateralFields.map((field, index) => (
-                            <div key={field.id} className="flex items-center gap-2 mt-2">
-                               <FormField control={borrowerForm.control} name={`collateral.${index}.name`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input placeholder="Item Name" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={borrowerForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                              <Button type="button" variant="ghost" size="icon" onClick={() => removeBorrowerCollateral(index)}><Trash2 className="h-4 w-4" /></Button>
-                            </div>
-                          ))}
-                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => appendBorrowerCollateral({ name: '', value: 0 })}>Add Collateral</Button>
-                        </div>
-                    </>
-                 )}
+                <FormField control={borrowerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <DialogFooter className="mt-4">
-                  {addBorrowerStep === 1 && (
-                      <Button type="button" onClick={async () => {
-                          const isValid = await borrowerForm.trigger(['name', 'phone', 'idNumber', 'address', 'guarantorName', 'guarantorPhone']);
-                          if (isValid) setAddBorrowerStep(2);
-                      }}>Next</Button>
-                  )}
-                  {addBorrowerStep === 2 && (
-                    <>
-                      <Button type="button" variant="outline" onClick={() => setAddBorrowerStep(1)}>Back</Button>
-                      <Button type="submit">Save Borrower</Button>
-                    </>
-                  )}
+                    <Button type="submit">Save Borrower</Button>
                 </DialogFooter>
               </form>
             </Form>
