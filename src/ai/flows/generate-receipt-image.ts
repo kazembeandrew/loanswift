@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -50,7 +51,7 @@ const generateReceiptImageFlow = ai.defineFlow(
         model: 'googleai/imagen-4.0-fast-generate-001',
         prompt: `Generate a professional, clean, and modern-looking payment receipt image.
         
-        ${input.businessLogoDataUri ? `**Incorporate this logo into the receipt design:** {{media url=${input.businessLogoDataUri}}}` : '**Do not include any logos or icons.**'}
+        The design should include a designated blank space at the top left for a business logo. Do not generate a logo.
 
         The receipt should contain the following information, clearly laid out:
         
