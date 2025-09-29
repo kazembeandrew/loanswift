@@ -28,14 +28,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getSettings, updateSettings } from '@/services/settings-service';
 import { handleDeleteAllData } from '@/app/actions/reset';
+import { performMonthEndClose } from '@/app/actions/accounting';
 import type { BusinessSettings } from '@/types';
-import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
+import { Loader2, Trash2, ShieldAlert, BookLock } from 'lucide-react';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, startSavingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
+  const [isClosing, startClosingTransition] = useTransition();
   const { toast } = useToast();
   const { userProfile } = useAuth();
 
@@ -102,6 +104,25 @@ export default function SettingsPage() {
         toast({
           title: 'Error Deleting Data',
           description: error instanceof Error ? error.message : 'Could not delete all data. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  const handleMonthEndClose = () => {
+    startClosingTransition(async () => {
+      try {
+        const result = await performMonthEndClose();
+        toast({
+          title: 'Month-End Close Successful',
+          description: `Period closed. Profit/Loss has been moved to equity. Entry: ${result.description}`,
+        });
+      } catch (error) {
+         console.error('Failed to perform month-end close:', error);
+        toast({
+          title: 'Error Closing Month',
+          description: error instanceof Error ? error.message : 'Could not perform month-end close. Please try again.',
           variant: 'destructive',
         });
       }
@@ -190,7 +211,7 @@ export default function SettingsPage() {
                 <CardDescription>
                     Manage financial configurations for your business.
                 </CardDescription>
-            </CardHeader>
+            </Header>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="reserveAmount">Reserve Amount (MWK)</Label>
@@ -213,6 +234,41 @@ export default function SettingsPage() {
             Save Changes
           </Button>
         </form>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Accounting</CardTitle>
+                <CardDescription>Perform periodic accounting procedures.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+                 <div>
+                    <h3 className="font-semibold">Month-End Close</h3>
+                    <p className="text-sm text-muted-foreground">Transfer net profit/loss to equity and reset income/expense accounts.</p>
+                </div>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="outline" disabled={isClosing}>
+                            {isClosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookLock className="mr-2 h-4 w-4" />}
+                            Perform Month-End Close
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will calculate net profit/loss for the current period, transfer it to your equity account, and reset all income and expense accounts to zero. This action cannot be undone for the period being closed.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleMonthEndClose}>
+                                Yes, close the books
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardContent>
+        </Card>
 
         <Card className="border-destructive">
             <CardHeader>
