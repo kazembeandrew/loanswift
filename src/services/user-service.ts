@@ -30,19 +30,18 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     }
 
     const docRef = doc(db, 'users', user.uid);
-    const docSnap = await getDoc(docRef);
-
+    
+    // This is the source of truth for the role, coming from Firebase Auth claims.
+    // This must be set by a secure server-side process (see actions/user.ts)
+    await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
+    
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
         role: finalRole,
     };
 
-    // Set/update custom claims for the user in Firebase Auth. This is the source of truth.
-    await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
-    
     // Create or update the user profile in Firestore to match the auth claims.
-    // This now handles both new user creation and syncing existing users' roles.
     await setDoc(docRef, userProfile, { merge: true });
     
     return userProfile;
