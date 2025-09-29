@@ -47,16 +47,17 @@ const generateReceiptPrompt = ai.definePrompt({
   name: 'generateReceiptPrompt',
   input: {schema: GenerateReceiptInputSchema},
   output: {schema: GenerateReceiptOutputSchema},
-  prompt: `You are an AI assistant specialized in generating professional-looking payment receipts based on a template. You will generate the receipt in plain text format, using the fields provided.
+  prompt: `You are an AI assistant specialized in generating professional-looking payment receipts based on a template. Your output should be plain text, with each field on a new line.
 
-The output should be structured exactly like this, with the placeholders filled in:
+Generate a receipt with the following information, formatted exactly as shown below:
 
 Received from: {{{customerName}}}
-The sum of: {{{paymentAmount}}}
-Balance if any: {{{balance}}}
+The sum of: MWK {{{paymentAmount}}}
+For Loan: {{{loanId}}}
+Balance if any: MWK {{{balance}}}
 Received by: {{{staffName}}}
 
-Do not include any other fields or text.
+Do not add any extra text, formatting, or labels.
   `,
 });
 
