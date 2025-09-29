@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -74,7 +73,7 @@ export default function ReceiptsPage() {
     const [loans, setLoans] = useState<Loan[]>([]);
     const [borrowers, setBorrowers] = useState<Borrower[]>([]);
     const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
-    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+    const [selectedPayment, setSelectedPayment] = useState<Payment & {loanId: string} | null>(null);
 
     const fetchData = useCallback(async () => {
       const [paymentsData, loansData, borrowersData] = await Promise.all([
@@ -97,7 +96,7 @@ export default function ReceiptsPage() {
         return borrowers.find(c => c.id === loan.borrowerId);
     };
 
-    const handleViewReceipt = (payment: Payment) => {
+    const handleViewReceipt = (payment: Payment & {loanId: string}) => {
         setSelectedPayment(payment);
         setReceiptGeneratorOpen(true);
     };
@@ -107,14 +106,20 @@ export default function ReceiptsPage() {
     
     // This is a simplified balance calculation for receipt viewing purposes.
     // It might not be perfectly accurate if payments aren't ordered, but it's good for a preview.
-    const getBalanceForReceipt = (payment: Payment | null): number => {
+    const getBalanceForReceipt = (payment: (Payment & {loanId: string}) | null): number => {
         if (!payment || !selectedLoan) return 0;
         const totalOwed = selectedLoan.principal * (1 + selectedLoan.interestRate / 100);
         const paymentsForLoan = payments
             .filter(p => p.loanId === payment.loanId && new Date(p.date) <= new Date(payment.date))
             .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
-        const totalPaidUpToThisPayment = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
+        const totalPaidUpToThisPayment = paymentsForLoan.reduce((sum, p) => {
+            // Only sum up payments up to and including the selected one in the sorted list
+            if (paymentsForLoan.findIndex(pay => pay.id === p.id) <= paymentsForLoan.findIndex(pay => pay.id === payment.id)) {
+                return sum + p.amount;
+            }
+            return sum;
+        }, 0);
         
         return totalOwed - totalPaidUpToThisPayment;
     }
@@ -196,4 +201,3 @@ export default function ReceiptsPage() {
     </div>
   );
 }
-

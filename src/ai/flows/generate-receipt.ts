@@ -10,8 +10,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getLoanById } from '@/services/loan-service';
-import { getPaymentsByLoanId } from '@/services/payment-service';
 
 const GenerateReceiptInputSchema = z.object({
   customerName: z.string().describe('The name of the customer.'),
@@ -23,12 +21,6 @@ const GenerateReceiptInputSchema = z.object({
   businessName: z.string().describe('The name of the business.'),
   businessAddress: z.string().describe('The address of the business.'),
   balance: z.number().describe('The outstanding balance, if any.'),
-  businessLogoDataUri: z
-    .string()
-    .describe(
-      "A photo of the business logo, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
-    )
-    .optional(),
 });
 
 export type GenerateReceiptInput = z.infer<typeof GenerateReceiptInputSchema>;
