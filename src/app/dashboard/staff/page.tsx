@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
@@ -24,9 +23,20 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getAllUsers, updateUserRole } from '@/services/user-service';
 import type { UserProfile } from '@/types';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert, PlusCircle, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function StaffPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -104,11 +114,40 @@ export default function StaffPage() {
       <Header title="Staff Management" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <Card>
-          <CardHeader>
-            <CardTitle>User Accounts</CardTitle>
-            <CardDescription>
-              Manage user roles directly from this table.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center">
+            <div className="grid gap-2">
+                <CardTitle>User Accounts</CardTitle>
+                <CardDescription>
+                Manage user roles directly from this table. New users can be added via the Firebase Console.
+                </CardDescription>
+            </div>
+            <Dialog>
+                <DialogTrigger asChild>
+                     <Button className="ml-auto gap-1">
+                        <PlusCircle className="h-4 w-4" />
+                        Add User
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New User</DialogTitle>
+                        <DialogDescription>
+                            For security, new user accounts must be created in the Firebase Console. This ensures that password credentials are handled securely.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-muted-foreground">Click the button below to go to the Firebase Authentication page where you can add a new user.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button asChild>
+                            <a href="https://console.firebase.google.com/project/studio-3290000872-cc6d3/authentication/users" target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Go to Firebase Console
+                            </a>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
             {isLoading ? (
