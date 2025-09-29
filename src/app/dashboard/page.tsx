@@ -116,12 +116,14 @@ export default function DashboardPage() {
       payments.map(p => {
           const loan = loans.find(l => l.id === p.loanId);
           if (!loan) return null;
-          const interestPortion = p.amount > loan.principal ? (p.amount - loan.principal) : 0;
+          // This is a simplified calculation for demonstration
+          const interestComponent = loan.principal * (loan.interestRate / 100);
+          const paymentTowardsInterest = Math.min(p.amount, interestComponent); // Simplified
           return {
-              id: p.id,
+              id: `int-${p.id}`,
               date: p.date,
-              amount: interestPortion, // Simplified interest calculation
-              source: 'interest',
+              amount: paymentTowardsInterest,
+              source: 'interest' as 'interest',
               loanId: p.loanId
           }
       }).filter((i): i is Income => i !== null)
@@ -230,28 +232,30 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="pl-2">
               <ChartContainer config={monthlyCollectionsChartConfig} className="min-h-[300px] w-full">
-                <BarChart data={monthlyCollectionsData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `K${Number(value) / 1000}K`}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent 
-                        formatter={(value: any) => `MWK ${value.toLocaleString()}`}
-                        indicator='dot'
-                    />}
-                  />
-                  <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
-                </BarChart>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyCollectionsData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `K${Number(value) / 1000}K`}
+                    />
+                    <ChartTooltip
+                      cursor={false}
+                      content={<ChartTooltipContent 
+                          formatter={(value: any) => `MWK ${value.toLocaleString()}`}
+                          indicator='dot'
+                      />}
+                    />
+                    <Bar dataKey="collected" fill="var(--color-collected)" radius={8} />
+                  </BarChart>
+                </ResponsiveContainer>
               </ChartContainer>
             </CardContent>
           </Card>

@@ -77,7 +77,7 @@ function ConversationList({
               )}
             </div>
             <div className="line-clamp-2 text-xs text-muted-foreground">
-              {convo.lastMessage?.text.substring(0, 300)}
+              {convo.lastMessage?.text.substring(0, 300) || "No messages yet."}
             </div>
           </button>
         ))}
@@ -128,7 +128,10 @@ export default function ChatPage() {
   }, [fetchConversations, fetchAllUsers]);
 
   useEffect(() => {
-    if (!selectedConversationId) return;
+    if (!selectedConversationId) {
+      setMessages([]);
+      return;
+    };
 
     startMessagesLoading(async () => {
       try {
@@ -172,12 +175,13 @@ export default function ChatPage() {
   }
 
   const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+  const otherParticipantEmail = selectedConversation?.participantEmails.find(e => e !== userProfile?.email);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header title="Chat" />
       <main className="flex flex-1">
-        <div className="w-1/3 border-r">
+        <div className="w-1/3 border-r flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
                  <h2 className="text-xl font-bold">Conversations</h2>
                  <Dialog open={isNewConvoOpen} onOpenChange={setIsNewConvoOpen}>
@@ -222,11 +226,11 @@ export default function ChatPage() {
                 <CardHeader className="flex flex-row items-center border-b">
                     <div className="flex items-center gap-2">
                         <Avatar>
-                            <AvatarImage src={getBorrowerAvatar(selectedConversation?.participantEmails.find(e => e !== userProfile?.email) || '')} data-ai-hint="user avatar" />
-                            <AvatarFallback>??</AvatarFallback>
+                            <AvatarImage src={getBorrowerAvatar(otherParticipantEmail || '')} data-ai-hint="user avatar" />
+                            <AvatarFallback>{otherParticipantEmail?.substring(0, 2).toUpperCase() || '??'}</AvatarFallback>
                         </Avatar>
                         <div>
-                             <CardTitle>{selectedConversation?.participantEmails.find(e => e !== userProfile?.email)}</CardTitle>
+                             <CardTitle>{otherParticipantEmail}</CardTitle>
                         </div>
                     </div>
                 </CardHeader>

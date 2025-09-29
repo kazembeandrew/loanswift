@@ -43,6 +43,7 @@ export default function BorrowerDetailPage() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [isUploading, setIsUploading] = useState(false);
+  const [receiptBalance, setReceiptBalance] = useState(0);
 
   const { toast } = useToast();
 
@@ -115,6 +116,8 @@ export default function BorrowerDetailPage() {
     };
 
     await addPayment(selectedLoan.id, newPaymentData);
+
+    setReceiptBalance(balance - newPaymentAmount);
     
     toast({
       title: 'Payment Recorded',
@@ -283,7 +286,7 @@ export default function BorrowerDetailPage() {
                       <div className="flex-1">
                         <p className="font-semibold">{loan.id}</p>
                         <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
-                        <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : ''}`}>
+                        <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : 'text-destructive'}`}>
                           Balance: MWK {balance.toLocaleString()}
                         </p>
                       </div>
@@ -390,6 +393,7 @@ export default function BorrowerDetailPage() {
           loan={selectedLoan}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
+          balance={receiptBalance}
         />
       )}
 

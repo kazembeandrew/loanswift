@@ -74,7 +74,6 @@ export default function ReceiptGenerator({
         businessName: settings.businessName,
         businessAddress: settings.businessAddress,
         balance,
-        businessLogoDataUri: businessLogo?.imageUrl,
       };
       const result = await handleGenerateReceipt(input);
       setReceiptText(result.receiptText);
@@ -88,7 +87,7 @@ export default function ReceiptGenerator({
     } finally {
       setIsGeneratingText(false);
     }
-  }, [borrower, loan, paymentAmount, paymentDate, settings, businessLogo, toast, balance]);
+  }, [borrower, loan, paymentAmount, paymentDate, settings, toast, balance]);
 
   useEffect(() => {
     if (isOpen && settings && !receiptText && !isGeneratingText) {
@@ -140,7 +139,15 @@ export default function ReceiptGenerator({
   };
   
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const receiptElement = document.getElementById('receipt-preview');
+      if (receiptElement) {
+        printWindow.document.write(receiptElement.innerHTML);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
   };
 
   const handleShare = async () => {
@@ -199,22 +206,26 @@ export default function ReceiptGenerator({
             </p>
           </div>
         )}
+        
+        <div style={{ display: !isLoading && receiptText && !receiptImageUrl ? 'block' : 'none' }}>
+           {receiptText && receiptId && settings && (
+             <ReceiptPreview 
+                receiptText={receiptText} 
+                receiptId={receiptId} 
+                paymentDate={paymentDate}
+                paymentAmount={paymentAmount}
+                businessInfo={settings}
+             />
+           )}
+        </div>
+
 
         {!isLoading && receiptText && receiptId && !receiptImageUrl && (
-            <div className="space-y-4">
-                 <ReceiptPreview 
-                    receiptText={receiptText} 
-                    receiptId={receiptId} 
-                    paymentDate={paymentDate}
-                    paymentAmount={paymentAmount}
-                    businessInfo={settings!}
-                 />
-                 <div className="flex justify-center items-center">
-                    <Button onClick={generateImage} disabled={isGeneratingImage}>
-                        {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Generate Image for Sharing
-                    </Button>
-                 </div>
+            <div className="flex justify-center items-center mt-4">
+              <Button onClick={generateImage} disabled={isGeneratingImage}>
+                  {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Generate Image for Sharing
+              </Button>
             </div>
         )}
         
@@ -230,7 +241,7 @@ export default function ReceiptGenerator({
         {receiptImageUrl && (
           <div className="space-y-4">
             <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                <Image src={receiptImageUrl} alt="Generated Receipt" fill objectFit="contain" />
+                <Image src={receiptImageUrl} alt="Generated Receipt" layout="fill" objectFit="contain" />
             </div>
             <div className="mt-6 flex flex-wrap justify-end gap-2">
                <Button variant="outline" onClick={generateImage} disabled={isGeneratingImage}>

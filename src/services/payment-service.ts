@@ -23,7 +23,8 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const totalPaidPreviously = allPaymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
     const outstandingBalance = totalOwed - totalPaidPreviously;
 
-    if (paymentData.amount > outstandingBalance) {
+    // Allow for small rounding differences, but not significant overpayment.
+    if (paymentData.amount > outstandingBalance + 0.01) { 
         throw new Error(`Payment of ${paymentData.amount} exceeds the outstanding balance of ${outstandingBalance}.`);
     }
 
@@ -55,7 +56,9 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     }
     
     const newOutstandingBalance = outstandingBalance - paymentData.amount;
-    updateLoan(loanId, { outstandingBalance: newOutstandingBalance });
+    const loanRef = doc(db, 'loans', loanId);
+    batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
+
 
     await batch.commit();
     return newPaymentRef.id;

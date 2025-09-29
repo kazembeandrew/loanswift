@@ -79,6 +79,7 @@ export async function sendMessage(
 // Start a new conversation or get an existing one
 export async function findOrCreateConversation(currentUser: UserProfile, otherUser: UserProfile): Promise<string> {
   const participants = [currentUser.uid, otherUser.uid].sort();
+  const participantEmails = [currentUser.email, otherUser.email].sort();
 
   // Query for an existing conversation with these two participants
   const q = query(
@@ -93,9 +94,10 @@ export async function findOrCreateConversation(currentUser: UserProfile, otherUs
     return snapshot.docs[0].id;
   } else {
     // Create a new conversation
-    const conversationData = {
+    const conversationData: Omit<Conversation, 'id'> = {
       participants,
-      participantEmails: [currentUser.email, otherUser.email].sort(),
+      participantEmails,
+      createdAt: new Date().toISOString(),
       lastMessage: null,
     };
     const docRef = await addDoc(conversationsCollection, conversationData);

@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { Borrower, Loan } from '@/types';
@@ -44,8 +41,10 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen, fetchData]);
 
   useEffect(() => {
     if (query.length > 1) {
@@ -55,8 +54,7 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
         .filter(
           (c) =>
             c.name.toLowerCase().includes(lowerCaseQuery) ||
-            c.idNumber.toLowerCase().includes(lowerCaseQuery) ||
-            c.id.toLowerCase().includes(lowerCaseQuery)
+            c.idNumber.toLowerCase().includes(lowerCaseQuery)
         )
         .map((c) => ({
           type: 'borrower',
@@ -71,9 +69,9 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
             const borrower = borrowers.find(c => c.id === l.borrowerId);
             return {
                 type: 'loan',
-                title: l.id,
-                description: `Loan | ${borrower?.name || 'Unknown Borrower'}`,
-                href: `/dashboard/loans`,
+                title: `Loan ${l.id}`,
+                description: `For ${borrower?.name || 'Unknown Borrower'}`,
+                href: `/dashboard/borrowers/${l.borrowerId}`,
             };
         });
 
@@ -100,20 +98,24 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
     setQuery('');
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+        setQuery('');
+        setResults([]);
+    }
+    setIsOpen(open);
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="p-0 gap-0 top-1/4">
-        <DialogHeader className="sr-only">
-          <DialogTitle>Global Search</DialogTitle>
-          <DialogDescription>Search for borrowers or loans by name, ID number, or ID.</DialogDescription>
-        </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="p-0 gap-0 top-[20%]">
         <div className="flex items-center border-b px-3">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for borrowers or loans..."
-            className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            placeholder="Search borrowers by name/ID, or loans by ID..."
+            className="flex h-12 w-full rounded-md bg-transparent text-base outline-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
         <div className="py-2">
@@ -122,7 +124,7 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
                     {results.map((result, index) => (
                         <div 
                             key={index}
-                            className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent mx-2"
+                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent mx-2"
                             onClick={() => handleSelect(result.href)}
                         >
                              {result.type === 'borrower' ? <User className="mr-2 h-4 w-4" /> : <FileText className="mr-2 h-4 w-4" />}

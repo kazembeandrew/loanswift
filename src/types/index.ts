@@ -98,9 +98,9 @@ export type Conversation = {
   id: string;
   participants: string[]; // Array of UserProfile['uid']
   participantEmails: string[];
-  lastMessage?: {
+  createdAt: string; // ISO string format
+  lastMessage: {
     text: string;
     timestamp: string;
-  };
+  } | null;
 };
-

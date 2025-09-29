@@ -241,7 +241,7 @@ export default function PaymentsPage() {
                             <SelectContent>
                                 {loans.filter(l => l.borrowerId === selectedBorrowerId && getLoanBalance(l) > 0).map(loan => (
                                     <SelectItem key={loan.id} value={loan.id}>
-                                        {loan.id} - MWK {loan.principal.toLocaleString()}
+                                        {loan.id} - Bal: MWK {getLoanBalance(loan).toLocaleString()}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
