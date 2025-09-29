@@ -82,8 +82,10 @@ export default function StaffPage() {
   }, [toast]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (userProfile?.role === 'admin') {
+      fetchData();
+    }
+  }, [fetchData, userProfile]);
   
   const handleRoleChange = (uid: string, newRole: UserProfile['role']) => {
     startUpdatingTransition(async () => {
