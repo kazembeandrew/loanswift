@@ -20,6 +20,7 @@ import {
   MessageSquare,
   MessageCircle,
   Shield,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -48,6 +49,7 @@ const portfolioItems = [
 
 const financialItems = [
     { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
+    { href: '/dashboard/banking', label: 'Banking', icon: CreditCard },
     { href: '/dashboard/capital', label: 'Capital', icon: Briefcase },
     { href: '/dashboard/income', label: 'Income', icon: TrendingUp },
     { href: '/dashboard/expenses', label: 'Expenses', icon: TrendingDown },
