@@ -30,7 +30,7 @@ export default function IncomeStatement() {
   }, [fetchData, userProfile]);
 
   if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo')) {
-    return null; // Or some access denied message
+    return null; 
   }
 
   if (isLoading) {
@@ -59,12 +59,6 @@ export default function IncomeStatement() {
       </CardHeader>
       <CardContent>
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
           <TableBody>
             <TableRow className="font-semibold">
               <TableCell>Operating Revenue</TableCell>

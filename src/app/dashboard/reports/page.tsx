@@ -10,12 +10,17 @@ import { Loader2, UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { handleSummarizeArrears } from '@/app/actions/summarize';
 import IncomeStatement from './components/income-statement';
+import BalanceSheet from './components/balance-sheet';
+import { useAuth } from '@/context/auth-context';
 
 export default function ReportsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
+  const showFinancialReports = userProfile?.role === 'admin' || userProfile?.role === 'ceo';
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -67,10 +72,15 @@ export default function ReportsPage() {
     <div className="flex min-h-screen w-full flex-col">
       <Header title="Reports" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
-        <div className="grid gap-6">
-            <IncomeStatement />
+        <div className="grid gap-6 lg:grid-cols-2">
+            {showFinancialReports && (
+              <>
+                <IncomeStatement />
+                <BalanceSheet />
+              </>
+            )}
 
-            <Card>
+            <Card className="lg:col-span-2">
             <CardHeader>
                 <CardTitle>Arrears Summarization</CardTitle>
                 <CardDescription>
