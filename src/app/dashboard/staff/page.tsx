@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { Header } from '@/components/header';
 import {
   Table,
@@ -11,11 +11,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { getAllUsers } from '@/services/user-service';
+import { getAllUsers, updateUserRole } from '@/services/user-service';
 import type { UserProfile } from '@/types';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -24,6 +31,7 @@ import { getBorrowerAvatar } from '@/lib/placeholder-images';
 export default function StaffPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, startUpdatingTransition] = useTransition();
   const { toast } = useToast();
   const { userProfile } = useAuth();
 
@@ -48,16 +56,26 @@ export default function StaffPage() {
     fetchData();
   }, [fetchData]);
   
-  const getRoleVariant = (role: 'admin' | 'staff') => {
-    switch (role) {
-      case 'admin':
-        return 'default';
-      case 'staff':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  }
+  const handleRoleChange = (uid: string, newRole: 'admin' | 'staff') => {
+    startUpdatingTransition(async () => {
+      try {
+        await updateUserRole(uid, newRole);
+        toast({
+          title: 'Role Updated',
+          description: `The user's role has been successfully changed to ${newRole}.`,
+        });
+        // Refresh the user list to show the updated role
+        await fetchData();
+      } catch (error) {
+        console.error('Failed to update role:', error);
+        toast({
+          title: 'Error updating role',
+          description: 'Could not update the user role. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    });
+  };
 
   if (!userProfile || userProfile.role !== 'admin') {
     return (
@@ -89,7 +107,7 @@ export default function StaffPage() {
           <CardHeader>
             <CardTitle>User Accounts</CardTitle>
             <CardDescription>
-              A list of all users with access to the system. Roles can be managed in the Firebase Console.
+              Manage user roles directly from this table.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -122,7 +140,19 @@ export default function StaffPage() {
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          <Badge variant={getRoleVariant(user.role)} className="capitalize">{user.role}</Badge>
+                          <Select
+                            value={user.role}
+                            onValueChange={(newRole: 'admin' | 'staff') => handleRoleChange(user.uid, newRole)}
+                            disabled={isUpdating || user.uid === userProfile.uid}
+                          >
+                            <SelectTrigger className="w-28">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="staff">Staff</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="font-mono text-xs">{user.uid}</TableCell>
                       </TableRow>

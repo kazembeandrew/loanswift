@@ -1,4 +1,6 @@
-import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
+'use server';
+
+import { doc, getDoc, setDoc, getDocs, collection, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
 import type { User } from 'firebase/auth';
@@ -28,4 +30,9 @@ export async function createUserProfile(user: User): Promise<UserProfile> {
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, userProfile);
     return userProfile;
+}
+
+export async function updateUserRole(uid: string, role: 'admin' | 'staff'): Promise<void> {
+    const docRef = doc(db, 'users', uid);
+    await updateDoc(docRef, { role });
 }
