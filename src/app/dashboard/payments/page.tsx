@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -36,6 +37,7 @@ import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments, addPayment } from '@/services/payment-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
+import { useAuth } from '@/context/auth-context';
 
 
 export default function PaymentsPage() {
@@ -51,6 +53,7 @@ export default function PaymentsPage() {
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [receiptBalance, setReceiptBalance] = useState(0);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
   const fetchData = useCallback(async () => {
     const [borrowersData, loansData, paymentsData] = await Promise.all([
@@ -108,7 +111,7 @@ export default function PaymentsPage() {
       loanId: selectedLoan.id,
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: 'Staff Admin',
+      recordedBy: userProfile?.email || 'Staff Admin',
       method: 'cash',
     };
 

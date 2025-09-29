@@ -46,13 +46,13 @@ import {
 const portfolioItems = [
   { href: '/dashboard/loans', label: 'Loans', icon: ArrowLeftRight },
   { href: '/dashboard/borrowers', label: 'Borrowers', icon: Users },
-  { href: '/dashboard/payments', label: 'Payments', icon: Landmark },
+  { href: '/dashboard/payments', label: 'Payments', icon: Banknote },
   { href: '/dashboard/receipts', label: 'Receipts', icon: Receipt },
 ];
 
 const financialItems = [
-    { href: '/dashboard/financials', label: 'Financials', icon: Banknote },
-    { href: '/dashboard/banking', label: 'Banking', icon: CreditCard },
+    { href: '/dashboard/financials', label: 'Financials', icon: PiggyBank },
+    { href: '/dashboard/banking', label: 'Banking', icon: Landmark },
     { href: '/dashboard/accounts', label: 'Chart of Accounts', icon: BookUser },
     { href: '/dashboard/journal', label: 'Journal', icon: BookCopy },
 ]

@@ -1,7 +1,7 @@
 
 import { collection, addDoc, getDocs, query, where, doc, getDoc, collectionGroup, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Payment, Income, Loan } from '@/types';
+import type { Payment, Account, Loan } from '@/types';
 import { getLoanById, updateLoan } from './loan-service';
 import { addJournalEntry } from './journal-service';
 import { getAccounts } from './account-service';
@@ -34,12 +34,27 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
 
     const interestOwedTotal = totalOwed - loan.principal;
     
-    // Find previously recorded interest income for this loan
-    const incomeRecords = collection(db, 'income');
-    const q = query(incomeRecords, where("loanId", "==", loanId), where("source", "==", "interest"));
-    const interestIncomeDocs = await getDocs(q);
-    const interestPaidPreviously = interestIncomeDocs.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
+    // Find previously recorded interest income for this loan via journal entries now.
+    const allAccounts = await getAccounts();
+    const interestIncomeAccount = allAccounts.find(a => a.name === 'Interest Income');
+    if (!interestIncomeAccount) {
+         throw new Error("Interest Income account not found. Cannot accurately calculate interest portions.");
+    }
+    // This is a simplification. A real system would need to trace journal entries for the specific loan.
+    // For now, we will rely on a simpler calculation.
+    // TODO: Implement a more robust interest tracking mechanism.
     
+    const allPayments = (await getAllPayments()).filter(p => p.loanId === loanId);
+    const interestPaidPreviously = allPayments.reduce((acc, p) => {
+        const remainingInterest = (loan.principal * (loan.interestRate / 100)) - acc.totalInterestPaid;
+        const interestForThisPayment = Math.min(p.amount, remainingInterest);
+        return {
+            ...acc,
+            totalInterestPaid: acc.totalInterestPaid + interestForThisPayment
+        }
+    }, { totalInterestPaid: 0 }).totalInterestPaid;
+
+
     const remainingInterestToPay = interestOwedTotal - interestPaidPreviously;
     const interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
     const principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
@@ -48,7 +63,6 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const accounts = await getAccounts();
     const loanPortfolioAccount = accounts.find(a => a.name === 'Loan Portfolio');
     const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
-    const interestIncomeAccount = accounts.find(a => a.name === 'Interest Income');
 
     if (!loanPortfolioAccount || !cashAccount || !interestIncomeAccount) {
         throw new Error("Critical accounting accounts ('Loan Portfolio', 'Cash on Hand', 'Interest Income') are not set up. Cannot record payment.");
@@ -60,25 +74,13 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const paymentsCollection = collection(db, `loans/${loanId}/payments`);
     const newPaymentRef = doc(paymentsCollection);
     batch.set(newPaymentRef, paymentData);
-
-    // 2. Record interest portion as income (for P&L reporting, this might become redundant with Journal)
-    if (interestPortionOfPayment > 0) {
-        const incomeData: Omit<Income, 'id'> = {
-            amount: interestPortionOfPayment,
-            date: paymentData.date,
-            source: 'interest',
-            loanId: loanId,
-        };
-        const newIncomeRef = doc(collection(db, 'income'));
-        batch.set(newIncomeRef, incomeData);
-    }
     
-    // 3. Update the loan's outstanding balance
+    // 2. Update the loan's outstanding balance
     const newOutstandingBalance = outstandingBalance - paymentData.amount;
     const loanRef = doc(db, 'loans', loanId);
     batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
     
-    // 4. Create the automated Journal Entry via a separate call (not in batch, as it's a transaction)
+    // 3. Create the automated Journal Entry via a separate call (not in batch, as it's a transaction)
     try {
         await addJournalEntry({
             date: paymentData.date,
@@ -102,7 +104,7 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
                     type: 'credit',
                     amount: interestPortionOfPayment,
                 }] : [])
-            ].filter(Boolean)
+            ].filter(Boolean) as any
         });
     } catch (journalError) {
         console.error("CRITICAL: Failed to create automated journal entry for payment. Financial records may be inconsistent.", journalError);
