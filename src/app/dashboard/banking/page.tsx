@@ -13,10 +13,9 @@ import {
 } from '@/components/ui/table';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
-import type { Loan, Payment, Capital, Borrower, JournalEntry } from '@/types';
+import type { Loan, Payment, Borrower, JournalEntry } from '@/types';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
-import { getCapitalContributions } from '@/services/capital-service';
 import { getJournalEntries } from '@/services/journal-service';
 import { getBorrowers } from '@/services/borrower-service';
 import { Badge } from '@/components/ui/badge';
@@ -38,13 +37,11 @@ export default function BankingPage() {
     const [
       loansData,
       paymentsData,
-      capitalData,
       journalEntriesData,
       borrowersData,
     ] = await Promise.all([
       getLoans(),
       getAllPayments(),
-      getCapitalContributions(),
       getJournalEntries(),
       getBorrowers(),
     ]);
@@ -55,38 +52,34 @@ export default function BankingPage() {
 
     const allTransactions: Transaction[] = [];
 
-    // Inflows
-    capitalData.forEach(c => allTransactions.push({ date: c.date, description: `Capital Contribution`, amount: c.amount, type: 'inflow', category: 'Capital' }));
+    // Inflows from loan payments
     paymentsData.forEach(p => {
         const loan = loansData.find(l => l.id === p.loanId);
         const borrowerName = loan ? getBorrowerName(loan.borrowerId) : 'Unknown';
         allTransactions.push({ date: p.date, description: `Payment from ${borrowerName} for Loan ${p.loanId}`, amount: p.amount, type: 'inflow', category: 'Payment' })
     });
-    // Journal Entries that are Inflows (e.g. Misc Income credited to an income account, cash debited)
+
+    // Inflows & Outflows from Journal Entries affecting Cash on Hand
     journalEntriesData.forEach(j => {
         j.lines.forEach(line => {
-            if (line.accountName === 'Cash on Hand' && line.type === 'debit') {
-                 allTransactions.push({ date: j.date, description: j.description, amount: line.amount, type: 'inflow', category: 'Journal' });
+            if (line.accountName === 'Cash on Hand') {
+                 allTransactions.push({ 
+                     date: j.date, 
+                     description: j.description, 
+                     amount: line.amount, 
+                     type: line.type === 'debit' ? 'inflow' : 'outflow', 
+                     category: 'Journal' 
+                 });
             }
-            // Simplified: Add other misc income here if needed
         });
     });
 
 
-    // Outflows
+    // Outflows from loan disbursements
     loansData.forEach(l => allTransactions.push({ date: l.startDate, description: `Loan Disbursement to ${getBorrowerName(l.borrowerId)} (${l.id})`, amount: l.principal, type: 'outflow', category: 'Lending' }));
-    // Journal Entries that are Outflows (e.g. Expenses, Drawings where cash is credited)
-    journalEntriesData.forEach(j => {
-        j.lines.forEach(line => {
-            if (line.accountName === 'Cash on Hand' && line.type === 'credit') {
-                allTransactions.push({ date: j.date, description: j.description, amount: line.amount, type: 'outflow', category: 'Journal' });
-            }
-        });
-    });
-
+    
     const sortedTransactions = allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
-    // Recalculate balance based on sorted transactions
     const finalBalance = sortedTransactions.reduce((acc, t) => {
         return acc + (t.type === 'inflow' ? t.amount : -t.amount);
     }, 0);
