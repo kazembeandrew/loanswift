@@ -11,8 +11,6 @@ export async function handleCreateUser(email: string, password: string): Promise
     });
 
     // We need to create the user profile in Firestore as well.
-    // The client-side createUserProfile function is fine for this, 
-    // as it just writes to Firestore.
     await createUserProfile({
         uid: userRecord.uid,
         email: userRecord.email || '',

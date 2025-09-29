@@ -34,6 +34,7 @@ export default function LoginPage() {
             description: 'Please check your email and password.',
             variant: 'destructive',
         });
+    } finally {
       setIsLoading(false);
     }
   };
