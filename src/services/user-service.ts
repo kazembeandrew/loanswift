@@ -1,6 +1,6 @@
 'use server';
 
-import { doc, getDoc, setDoc, getDocs, collection, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getDocs, collection, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { adminAuth } from '@/lib/firebase-admin';
 import type { UserProfile } from '@/types';
@@ -46,4 +46,27 @@ export async function updateUserRole(uid: string, role: UserProfile['role']): Pr
     // Then, update the role in the Firestore document
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
+}
+
+export async function seedInitialAdmin() {
+    const adminEmail = "kazembeandrew@gmail.com";
+    try {
+        const userRecord = await adminAuth.getUserByEmail(adminEmail);
+        if (userRecord) {
+            const currentClaims = userRecord.customClaims;
+            if (!currentClaims || currentClaims.role !== 'admin') {
+                console.log(`User ${adminEmail} found. Setting role to admin.`);
+                await updateUserRole(userRecord.uid, 'admin');
+                console.log(`Role for ${adminEmail} successfully updated to admin.`);
+            } else {
+                console.log(`User ${adminEmail} is already an admin.`);
+            }
+        }
+    } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+            console.log(`Initial admin user ${adminEmail} not found. Skipping seeding.`);
+        } else {
+            console.error(`Error during initial admin seeding:`, error);
+        }
+    }
 }

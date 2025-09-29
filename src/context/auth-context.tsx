@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOutUser, signInWithEmail } from '@/services/auth-service';
-import { getUserProfile } from '@/services/user-service';
+import { getUserProfile, seedInitialAdmin } from '@/services/user-service';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -16,6 +16,9 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// A flag to ensure seeding only runs once per session.
+let adminSeeded = false;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -28,7 +31,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(user);
         
         // Force refresh the token to get custom claims
-        const tokenResult = await user.getIdTokenResult(true);
+        await user.getIdTokenResult(true);
+
+        if (!adminSeeded) {
+          try {
+            await seedInitialAdmin();
+            adminSeeded = true;
+            console.log("Initial admin seeding process completed.");
+          } catch(error) {
+            console.error("Admin seeding failed:", error);
+          }
+        }
+        
+        const tokenResult = await user.getIdTokenResult();
         const claims = tokenResult.claims;
         const userRole = claims.role as UserProfile['role'] || 'loan_officer';
 
