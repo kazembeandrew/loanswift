@@ -15,7 +15,8 @@ import {
   TrendingDown,
   Briefcase,
   PiggyBank,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -56,7 +57,7 @@ const utilityItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { userProfile } = useAuth();
+  const { userProfile, signOut } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
@@ -179,6 +180,16 @@ export function SidebarNav() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
+           <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={signOut}
+                tooltip="Logout"
+                className="justify-start"
+              >
+                <LogOut className="size-4" />
+                <span>Logout</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
