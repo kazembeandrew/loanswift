@@ -22,8 +22,9 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getAllUsers, updateUserRole } from '@/services/user-service';
+import { handleCreateUser } from '@/app/actions/user';
 import type { UserProfile } from '@/types';
-import { Loader2, ShieldAlert, PlusCircle, ExternalLink } from 'lucide-react';
+import { Loader2, ShieldAlert, PlusCircle } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import {
@@ -36,12 +37,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
 
 export default function StaffPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, startUpdatingTransition] = useTransition();
+  const [isCreating, startCreatingTransition] = useTransition();
+  const [isAddUserOpen, setAddUserOpen] = useState(false);
+  const [newUser, setNewUser] = useState({ email: '', password: '' });
   const { toast } = useToast();
   const { userProfile } = useAuth();
 
@@ -74,7 +80,6 @@ export default function StaffPage() {
           title: 'Role Updated',
           description: `The user's role has been successfully changed to ${newRole}.`,
         });
-        // Refresh the user list to show the updated role
         await fetchData();
       } catch (error) {
         console.error('Failed to update role:', error);
@@ -84,6 +89,25 @@ export default function StaffPage() {
           variant: 'destructive',
         });
       }
+    });
+  };
+
+  const handleAddUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.email || !newUser.password) {
+        toast({ title: "Missing fields", description: "Please enter email and password.", variant: "destructive"});
+        return;
+    }
+    startCreatingTransition(async () => {
+        const result = await handleCreateUser(newUser.email, newUser.password);
+        if (result.success) {
+            toast({ title: "User Created", description: "The new user has been successfully created."});
+            setAddUserOpen(false);
+            setNewUser({email: '', password: ''});
+            await fetchData();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive"});
+        }
     });
   };
 
@@ -118,10 +142,10 @@ export default function StaffPage() {
             <div className="grid gap-2">
                 <CardTitle>User Accounts</CardTitle>
                 <CardDescription>
-                Manage user roles directly from this table. New users can be added via the Firebase Console.
+                Manage user roles and add new users.
                 </CardDescription>
             </div>
-            <Dialog>
+             <Dialog open={isAddUserOpen} onOpenChange={setAddUserOpen}>
                 <DialogTrigger asChild>
                      <Button className="ml-auto gap-1">
                         <PlusCircle className="h-4 w-4" />
@@ -132,20 +156,27 @@ export default function StaffPage() {
                     <DialogHeader>
                         <DialogTitle>Add New User</DialogTitle>
                         <DialogDescription>
-                            For security, new user accounts must be created in the Firebase Console. This ensures that password credentials are handled securely.
+                            Create a new user account. They will be assigned the 'staff' role by default.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-sm text-muted-foreground">Click the button below to go to the Firebase Authentication page where you can add a new user.</p>
-                    </div>
-                    <DialogFooter>
-                        <Button asChild>
-                            <a href="https://console.firebase.google.com/project/studio-3290000872-cc6d3/authentication/users" target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Go to Firebase Console
-                            </a>
-                        </Button>
-                    </DialogFooter>
+                    <form onSubmit={handleAddUserSubmit}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="email" className="text-right">Email</Label>
+                                <Input id="email" type="email" className="col-span-3" value={newUser.email} onChange={(e) => setNewUser(u => ({ ...u, email: e.target.value }))} disabled={isCreating} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="password" className="text-right">Password</Label>
+                                <Input id="password" type="password" className="col-span-3" value={newUser.password} onChange={(e) => setNewUser(u => ({ ...u, password: e.target.value }))} disabled={isCreating} />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" disabled={isCreating}>
+                                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Create User
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
           </CardHeader>
