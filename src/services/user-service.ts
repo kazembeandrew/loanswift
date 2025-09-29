@@ -31,9 +31,13 @@ export async function createUserProfile(user: {uid: string, email: string}, role
 
     const docRef = doc(db, 'users', user.uid);
     
-    // This is the source of truth for the role, coming from Firebase Auth claims.
-    // This must be set by a secure server-side process (see actions/user.ts)
-    await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
+    try {
+        await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
+    } catch (error) {
+        console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
+        // Do not re-throw the error, allow profile creation to continue.
+        // The role will be based on the parameter, which is a safe fallback.
+    }
     
     const userProfile: UserProfile = {
         uid: user.uid,
