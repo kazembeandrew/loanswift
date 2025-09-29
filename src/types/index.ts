@@ -78,3 +78,10 @@ export type BusinessSettings = {
   businessPhone: string;
   reserveAmount: number;
 };
+
+export type Message = {
+  id: string;
+  authorEmail: string;
+  content: string;
+  createdAt: string; // ISO string format
+};

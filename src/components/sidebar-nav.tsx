@@ -16,7 +16,8 @@ import {
   Briefcase,
   PiggyBank,
   ChevronDown,
-  LogOut
+  LogOut,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -53,6 +54,7 @@ const financialItems = [
 
 const utilityItems = [
     { href: '/dashboard/reports', label: 'Reports', icon: FileText },
+    { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
 ]
 
 export function SidebarNav() {
