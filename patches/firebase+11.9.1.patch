@@ -1,15 +1,26 @@
---- a/node_modules/firebase/dist/esm/index.js
-+++ b/node_modules/firebase/dist/esm/index.js
-@@ -1,5 +1,5 @@
- import { registerVersion } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
--import { onLog, setLogLevel, getLogLevel, LogLevel } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
-+import { onLog, setLogLevel, getLogLevel } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
- export { _isFirebaseApp, _getProvider, _registerComponent, _getLG, _logError, _registerFramework, _getAppCheckToken, _getModularInstance, _addComponent, _addOrOverwriteComponent, _DEFAULT_ENTRY_NAME, _FirebaseService, _createFirebaseNamespace, _extendNamespace, _registerService, _removeServiceInstance } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
- import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
- export { initializeApp, getApp, getApps, deleteApp, onCLS, onINP, onLCP, onFCP, onTTFB } from 'https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js';
-@@ -53,4 +53,4 @@
-   registerVersion('app-compat', version);
- }
- 
--export { FirebaseError, SDK_VERSION, onLog, setLogLevel, getLogLevel, LogLevel };
-+export { FirebaseError, SDK_VERSION, onLog, setLogLevel, getLogLevel };
+diff --git a/node_modules/firebase/node_modules/firebase/dist/index.node.cjs.js b/node_modules/firebase/node_modules/firebase/dist/index.node.cjs.js
+index 4016c14..d30779e 100644
+--- a/node_modules/firebase/node_modules/firebase/dist/index.node.cjs.js
++++ b/node_modules/firebase/node_modules/firebase/dist/index.node.cjs.js
+@@ -107127,7 +107127,7 @@
+  * @returns A `Promise` that resolves with the created `Firestore` object.
+  */
+ function initializeFirestore(app, settings) {
+-    const provider = new modular_exp.FirestoreProvider();
++    const provider = new modular_exp.FirestoreProvider('node-cjs');
+     const firestore = provider.getImmediate({
+         app,
+         settings
+diff --git a/node_modules/firebase/node_modules/firebase/dist/index.node.mjs b/node_modules/firebase/node_modules/firebase/dist/index.node.mjs
+index 548325e..e70d649 100644
+--- a/node_modules/firebase/node_modules/firebase/dist/index.node.mjs
++++ b/node_modules/firebase/node_modules/firebase/dist/index.node.mjs
+@@ -107085,7 +107085,7 @@
+  * @returns A `Promise` that resolves with the created `Firestore` object.
+  */
+ function initializeFirestore(app, settings) {
+-    const provider = new FirestoreProvider();
++    const provider = new FirestoreProvider('node-esm');
+     const firestore = provider.getImmediate({
+         app,
+         settings
