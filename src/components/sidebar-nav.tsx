@@ -19,6 +19,7 @@ import {
   LogOut,
   MessageSquare,
   MessageCircle,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -59,6 +60,11 @@ const utilityItems = [
     { href: '/dashboard/chat', label: 'Chat', icon: MessageCircle },
 ]
 
+const adminItems = [
+    { href: '/dashboard/staff', label: 'Staff', icon: Shield },
+];
+
+
 export function SidebarNav() {
   const pathname = usePathname();
   const { userProfile, signOut } = useAuth();
@@ -67,6 +73,7 @@ export function SidebarNav() {
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
   const isUtilitiesActive = utilityItems.some(item => pathname.startsWith(item.href));
+  const isAdminActive = adminItems.some(item => pathname.startsWith(item.href));
 
   return (
     <Sidebar className="border-r" variant="sidebar">
@@ -165,6 +172,32 @@ export function SidebarNav() {
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>
+
+        {isAdmin && (
+          <Collapsible defaultOpen={isAdminActive} className="mt-2">
+            <CollapsibleTrigger className="w-full">
+              <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
+                <span>Admin</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenu className="mt-2">
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
+                      <Link href={item.href}>
+                        <item.icon className="size-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
 
       </SidebarContent>
       <SidebarFooter className="p-4">
