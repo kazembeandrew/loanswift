@@ -23,14 +23,22 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 }
 
 export async function createUserProfile(user: {uid: string, email: string}, role: UserProfile['role'] = 'loan_officer'): Promise<UserProfile> {
+    
+    // This is the new, robust seeding logic. If the user being created is the designated admin,
+    // their role is automatically elevated to 'admin'.
+    let finalRole = role;
+    if (user.email === 'kazembeandrew@gmail.com') {
+        finalRole = 'admin';
+    }
+
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
-        role,
+        role: finalRole,
     };
     
     // Set custom claims for the user in Firebase Auth
-    await adminAuth.setCustomUserClaims(user.uid, { role });
+    await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
     
     // Store user profile in Firestore
     const docRef = doc(db, 'users', user.uid);
@@ -46,27 +54,4 @@ export async function updateUserRole(uid: string, role: UserProfile['role']): Pr
     // Then, update the role in the Firestore document
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
-}
-
-export async function seedInitialAdmin() {
-    const adminEmail = "kazembeandrew@gmail.com";
-    try {
-        const userRecord = await adminAuth.getUserByEmail(adminEmail);
-        if (userRecord) {
-            const currentClaims = userRecord.customClaims;
-            if (!currentClaims || currentClaims.role !== 'admin') {
-                console.log(`User ${adminEmail} found. Setting role to admin.`);
-                await updateUserRole(userRecord.uid, 'admin');
-                console.log(`Role for ${adminEmail} successfully updated to admin.`);
-            } else {
-                console.log(`User ${adminEmail} is already an admin.`);
-            }
-        }
-    } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-            console.log(`Initial admin user ${adminEmail} not found. Skipping seeding.`);
-        } else {
-            console.error(`Error during initial admin seeding:`, error);
-        }
-    }
 }

@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOutUser, signInWithEmail } from '@/services/auth-service';
-import { getUserProfile, seedInitialAdmin } from '@/services/user-service';
+import { getUserProfile } from '@/services/user-service';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -16,9 +16,6 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// A flag to ensure seeding only runs once per session.
-let adminSeeded = false;
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -30,44 +27,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         setUser(user);
         
-        // Force refresh the token to get custom claims
+        // Force refresh the token to get custom claims immediately after login/state change
         await user.getIdTokenResult(true);
-
-        if (!adminSeeded) {
-          try {
-            await seedInitialAdmin();
-            adminSeeded = true;
-            console.log("Initial admin seeding process completed.");
-          } catch(error) {
-            console.error("Admin seeding failed:", error);
-          }
-        }
-        
         const tokenResult = await user.getIdTokenResult();
         const claims = tokenResult.claims;
         const userRole = claims.role as UserProfile['role'] || 'loan_officer';
-
+        
         // Fetch profile from Firestore, but use the claim as the source of truth for the role
         let profile = await getUserProfile(user.uid);
         if (profile) {
             profile.role = userRole; // Ensure role is consistent with claim
             setUserProfile(profile);
         } else {
-            // This case is for a user that exists in Auth but not Firestore.
-            // This shouldn't happen in normal flow with our new user creation logic.
-            // But as a fallback, create a profile.
-            const newProfileData: UserProfile = {
+             // This case is for a user that exists in Auth but not Firestore.
+            // This can happen if the `users` document was manually deleted.
+            // We'll create a profile based on the Auth data.
+             const newProfileData: UserProfile = {
                 uid: user.uid,
                 email: user.email || '',
                 role: userRole,
             };
-            // This doesn't call the full createUserProfile service to avoid a server-to-server loop
-            // on claims. We assume claims are set by an admin action.
-            const { setDoc, doc } = await import('firebase/firestore');
+             const { setDoc, doc } = await import('firebase/firestore');
             const { db } = await import('@/lib/firebase');
             await setDoc(doc(db, 'users', user.uid), newProfileData);
             setUserProfile(newProfileData);
         }
+
       } else {
         setUser(null);
         setUserProfile(null);
@@ -80,10 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
         const userCredential = await signInWithEmail(email, password);
-        const user = userCredential;
         // The onAuthStateChanged listener will handle setting user and userProfile state
-        router.push('/dashboard');
-        return user;
+        // and redirecting to the dashboard.
     } catch (error) {
         console.error("Sign in error:", error);
         throw error;
@@ -98,6 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value = { user, userProfile, loading, signIn, signOut };
+
+  useEffect(() => {
+    if (!loading && user) {
+        router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
