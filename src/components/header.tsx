@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Search, PlusCircle } from 'lucide-react';
+import { Bell, Search, PlusCircle, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,7 @@ import { SidebarTrigger } from './ui/sidebar';
 import { GlobalSearch } from './global-search';
 import { useState } from 'react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { useAuth } from '@/context/auth-context';
 
 type HeaderProps = {
   title: string;
@@ -24,7 +25,10 @@ type HeaderProps = {
 
 export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClick }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
+  const { user, signOut } = useAuth();
   const userAvatar = getPlaceholderImage('user-avatar');
+  const userDisplayName = user?.email || 'Staff Admin';
+  const userFallback = userDisplayName.substring(0, 2).toUpperCase();
 
   return (
     <>
@@ -37,7 +41,7 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
       </h1>
       <div className="ml-auto flex items-center gap-4">
         {showAddBorrowerButton && (
-          <Button onClick={onAddBorrowerClick}>
+          <Button onClick={onAddBorrowerClick} className="hidden sm:flex">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Borrower
           </Button>
@@ -67,17 +71,20 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
                   alt={userAvatar.description}
                   data-ai-hint={userAvatar.imageHint}
                 />}
-                <AvatarFallback>SA</AvatarFallback>
+                <AvatarFallback>{userFallback}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Staff Admin</DropdownMenuLabel>
+            <DropdownMenuLabel>{userDisplayName}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuItem>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
