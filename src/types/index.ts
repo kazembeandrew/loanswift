@@ -104,3 +104,10 @@ export type Conversation = {
     timestamp: string;
   } | null;
 };
+
+export type Account = {
+  id: string;
+  name: string;
+  type: 'asset' | 'liability' | 'equity' | 'income' | 'expense';
+  balance: number;
+};
