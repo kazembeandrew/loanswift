@@ -2,11 +2,7 @@ import { collection, getDocs, writeBatch, collectionGroup } from 'firebase/fires
 import { db } from '@/lib/firebase';
 
 const collectionsToDelete = [
-    'borrowers', 
-    'capital', 
-    'drawings', 
-    'expenses', 
-    'income', 
+    'borrowers',
     'conversations',
     'settings', // also reset settings
 ];

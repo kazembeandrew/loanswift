@@ -55,7 +55,6 @@ const financialItems = [
     { href: '/dashboard/banking', label: 'Banking', icon: CreditCard },
     { href: '/dashboard/accounts', label: 'Chart of Accounts', icon: BookUser },
     { href: '/dashboard/journal', label: 'Journal', icon: BookCopy },
-    { href: '/dashboard/capital', label: 'Capital', icon: Briefcase },
 ]
 
 const utilityItems = [
