@@ -1,11 +1,12 @@
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Loan } from '@/types';
+import { addJournalEntry } from './journal-service';
+import { getAccounts } from './account-service';
 
-const loansCollection = collection(db, 'loans');
 
 export async function getLoans(): Promise<Loan[]> {
-  const snapshot = await getDocs(loansCollection);
+  const snapshot = await getDocs(collection(db, 'loans'));
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
 }
 
@@ -19,13 +20,47 @@ export async function getLoanById(id: string): Promise<Loan | null> {
 }
 
 export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> {
-    const q = query(loansCollection, where("borrowerId", "==", borrowerId));
+    const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
 }
 
 export async function addLoan(loanData: Omit<Loan, 'id'>): Promise<string> {
-  const docRef = await addDoc(loansCollection, loanData);
+  const docRef = await addDoc(collection(db, 'loans'), loanData);
+  
+  // Automated Journal Entry for Loan Disbursement
+  try {
+    const accounts = await getAccounts();
+    const loanPortfolioAccount = accounts.find(a => a.name === 'Loan Portfolio');
+    const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
+
+    if (!loanPortfolioAccount || !cashAccount) {
+      console.error("Critical accounting accounts are not set up. Could not create journal entry for loan disbursement.");
+      // We don't throw an error here to not block the loan creation itself. But we log it.
+    } else {
+        await addJournalEntry({
+            date: loanData.startDate,
+            description: `Loan disbursement for ${docRef.id}`,
+            lines: [
+                {
+                    accountId: loanPortfolioAccount.id,
+                    accountName: loanPortfolioAccount.name,
+                    type: 'debit',
+                    amount: loanData.principal,
+                },
+                {
+                    accountId: cashAccount.id,
+                    accountName: cashAccount.name,
+                    type: 'credit',
+                    amount: loanData.principal,
+                }
+            ]
+        });
+    }
+  } catch (error) {
+    console.error("Failed to create automated journal entry for loan disbursement:", error);
+  }
+
   return docRef.id;
 }
 
