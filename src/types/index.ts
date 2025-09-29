@@ -85,3 +85,22 @@ export type Message = {
   content: string;
   createdAt: string; // ISO string format
 };
+
+export type ChatMessage = {
+  id: string;
+  senderId: string; // Corresponds to UserProfile['uid']
+  senderEmail: string;
+  text: string;
+  timestamp: string; // ISO string format
+};
+
+export type Conversation = {
+  id: string;
+  participants: string[]; // Array of UserProfile['uid']
+  participantEmails: string[];
+  lastMessage?: {
+    text: string;
+    timestamp: string;
+  };
+};
+
