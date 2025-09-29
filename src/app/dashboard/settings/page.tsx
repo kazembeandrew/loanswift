@@ -161,7 +161,6 @@ export default function SettingsPage() {
     );
   }
 
-
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header title="Settings" />
@@ -211,7 +210,7 @@ export default function SettingsPage() {
                 <CardDescription>
                     Manage financial configurations for your business.
                 </CardDescription>
-            </Header>
+            </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="reserveAmount">Reserve Amount (MWK)</Label>
@@ -304,7 +303,6 @@ export default function SettingsPage() {
                 </AlertDialog>
             </CardContent>
         </Card>
-
       </main>
     </div>
   );

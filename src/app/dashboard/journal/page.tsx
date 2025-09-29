@@ -285,3 +285,4 @@ export default function JournalPage() {
       </main>
     </div>
   );
+}
