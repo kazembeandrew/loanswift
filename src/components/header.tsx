@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Search, PlusCircle, LogOut } from 'lucide-react';
+import { Bell, Search, PlusCircle, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import { GlobalSearch } from './global-search';
 import { useState } from 'react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useAuth } from '@/context/auth-context';
+import Link from 'next/link';
 
 type HeaderProps = {
   title: string;
@@ -25,10 +26,11 @@ type HeaderProps = {
 
 export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClick }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { userProfile, signOut } = useAuth();
   const userAvatar = getPlaceholderImage('user-avatar');
-  const userDisplayName = user?.email || 'Staff Admin';
+  const userDisplayName = userProfile?.email || 'Staff Admin';
   const userFallback = userDisplayName.substring(0, 2).toUpperCase();
+  const isAdmin = userProfile?.role === 'admin';
 
   return (
     <>
@@ -76,9 +78,16 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{userDisplayName}</DropdownMenuLabel>
+            <DropdownMenuLabel>{userDisplayName} ({userProfile?.role})</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            {isAdmin && (
+                <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings">
+                        <SettingsIcon className="mr-2 h-4 w-4" />
+                        Settings
+                    </Link>
+                </DropdownMenuItem>
+            )}
             <DropdownMenuItem>Support</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={signOut}>

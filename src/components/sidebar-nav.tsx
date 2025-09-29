@@ -17,6 +17,7 @@ import {
   PiggyBank,
   ChevronDown
 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 import { cn } from '@/lib/utils';
 import {
@@ -55,6 +56,8 @@ const utilityItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === 'admin';
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
@@ -110,28 +113,30 @@ export function SidebarNav() {
           </CollapsibleContent>
         </Collapsible>
         
-        <Collapsible defaultOpen={isFinancialsActive} className="mt-2">
-          <CollapsibleTrigger className="w-full">
-            <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
-              <span>Financials</span>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </div>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenu className="mt-2">
-              {financialItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
-                    <Link href={item.href}>
-                      <item.icon className="size-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </CollapsibleContent>
-        </Collapsible>
+        {isAdmin && (
+          <Collapsible defaultOpen={isFinancialsActive} className="mt-2">
+            <CollapsibleTrigger className="w-full">
+              <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
+                <span>Financials</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenu className="mt-2">
+                {financialItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
+                      <Link href={item.href}>
+                        <item.icon className="size-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
         
          <Collapsible defaultOpen={isUtilitiesActive} className="mt-2">
           <CollapsibleTrigger className="w-full">
@@ -159,23 +164,23 @@ export function SidebarNav() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={pathname === '/dashboard/settings'}
-              tooltip="Settings"
-              className="justify-start"
-            >
-              <Link href="/dashboard/settings">
-                <Settings className="size-4" />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+         {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === '/dashboard/settings'}
+                tooltip="Settings"
+                className="justify-start"
+              >
+                <Link href="/dashboard/settings">
+                  <Settings className="size-4" />
+                  <span>Settings</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
 }
-
-    

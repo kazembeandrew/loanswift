@@ -1,3 +1,10 @@
+
+export type UserProfile = {
+  uid: string;
+  email: string;
+  role: 'admin' | 'staff';
+};
+
 export type Borrower = {
   id: string;
   name: string;
