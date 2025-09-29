@@ -24,25 +24,26 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 
 export async function createUserProfile(user: {uid: string, email: string}, role: UserProfile['role'] = 'loan_officer'): Promise<UserProfile> {
     
-    // This is the new, robust seeding logic. If the user being created is the designated admin,
-    // their role is automatically elevated to 'admin'.
     let finalRole = role;
     if (user.email === 'kazembeandrew@gmail.com') {
         finalRole = 'admin';
     }
+
+    const docRef = doc(db, 'users', user.uid);
+    const docSnap = await getDoc(docRef);
 
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
         role: finalRole,
     };
-    
-    // Set custom claims for the user in Firebase Auth
+
+    // Set/update custom claims for the user in Firebase Auth. This is the source of truth.
     await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
     
-    // Store user profile in Firestore
-    const docRef = doc(db, 'users', user.uid);
-    await setDoc(docRef, userProfile);
+    // Create or update the user profile in Firestore to match the auth claims.
+    // This now handles both new user creation and syncing existing users' roles.
+    await setDoc(docRef, userProfile, { merge: true });
     
     return userProfile;
 }

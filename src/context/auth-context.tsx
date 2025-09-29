@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOutUser, signInWithEmail } from '@/services/auth-service';
-import { getUserProfile } from '@/services/user-service';
+import { createUserProfile, getUserProfile } from '@/services/user-service';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -32,26 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const tokenResult = await user.getIdTokenResult();
         const claims = tokenResult.claims;
         const userRole = claims.role as UserProfile['role'] || 'loan_officer';
-        
-        // Fetch profile from Firestore, but use the claim as the source of truth for the role
-        let profile = await getUserProfile(user.uid);
-        if (profile) {
-            profile.role = userRole; // Ensure role is consistent with claim
-            setUserProfile(profile);
-        } else {
-             // This case is for a user that exists in Auth but not Firestore.
-            // This can happen if the `users` document was manually deleted.
-            // We'll create a profile based on the Auth data.
-             const newProfileData: UserProfile = {
-                uid: user.uid,
-                email: user.email || '',
-                role: userRole,
-            };
-             const { setDoc, doc } = await import('firebase/firestore');
-            const { db } = await import('@/lib/firebase');
-            await setDoc(doc(db, 'users', user.uid), newProfileData);
-            setUserProfile(newProfileData);
-        }
+
+        // This server-side function now handles both creation and role synchronization.
+        const profile = await createUserProfile({ uid: user.uid, email: user.email! }, userRole);
+        setUserProfile(profile);
 
       } else {
         setUser(null);
