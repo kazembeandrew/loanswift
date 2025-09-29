@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { PlusCircle, Trash2, BookCopy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getAccounts } from '@/services/account-service';
@@ -284,4 +285,3 @@ export default function JournalPage() {
       </main>
     </div>
   );
-}
