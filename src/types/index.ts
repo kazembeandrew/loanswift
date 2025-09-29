@@ -80,13 +80,6 @@ export type BusinessSettings = {
   reserveAmount: number;
 };
 
-export type Message = {
-  id: string;
-  authorEmail: string;
-  content: string;
-  createdAt: string; // ISO string format
-};
-
 export type ChatMessage = {
   id: string;
   senderId: string; // Corresponds to UserProfile['uid']
@@ -126,4 +119,3 @@ export type JournalEntry = {
   description: string;
   lines: TransactionLine[];
 };
-

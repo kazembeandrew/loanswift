@@ -60,7 +60,6 @@ const financialItems = [
 
 const utilityItems = [
     { href: '/dashboard/reports', label: 'Reports', icon: FileText },
-    { href: '/dashboard/messages', label: 'Messages', icon: MessageSquare },
     { href: '/dashboard/chat', label: 'Chat', icon: MessageCircle },
 ]
 

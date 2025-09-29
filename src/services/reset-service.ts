@@ -7,7 +7,6 @@ const collectionsToDelete = [
     'drawings', 
     'expenses', 
     'income', 
-    'messages',
     'conversations',
     'settings', // also reset settings
 ];
