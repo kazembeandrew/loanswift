@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -24,10 +25,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 import { getSettings, updateSettings } from '@/services/settings-service';
 import { handleDeleteAllData } from '@/app/actions/reset';
 import type { BusinessSettings } from '@/types';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
@@ -35,6 +37,7 @@ export default function SettingsPage() {
   const [isSaving, startSavingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
   useEffect(() => {
     async function fetchSettings() {
@@ -43,8 +46,12 @@ export default function SettingsPage() {
       setSettings(settingsData);
       setIsLoading(false);
     }
-    fetchSettings();
-  }, []);
+    if (userProfile?.role === 'admin') {
+      fetchSettings();
+    } else {
+        setIsLoading(false);
+    }
+  }, [userProfile]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -111,6 +118,28 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  if (!userProfile || userProfile.role !== 'admin') {
+    return (
+        <div className="flex min-h-screen w-full flex-col">
+            <Header title="Settings" />
+            <main className="flex flex-1 items-center justify-center p-4 md:p-8">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                       <div className="flex justify-center">
+                         <ShieldAlert className="h-12 w-12 text-destructive" />
+                       </div>
+                        <CardTitle className="mt-4">Access Denied</CardTitle>
+                        <CardDescription>
+                            You do not have permission to view this page. Please contact an administrator.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            </main>
+        </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen w-full flex-col">

@@ -71,6 +71,7 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { userProfile, signOut } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
+  const isCeo = userProfile?.role === 'ceo';
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
@@ -127,7 +128,7 @@ export function SidebarNav() {
           </CollapsibleContent>
         </Collapsible>
         
-        {isAdmin && (
+        {(isAdmin || isCeo) && (
           <Collapsible defaultOpen={isFinancialsActive} className="mt-2">
             <CollapsibleTrigger className="w-full">
               <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">

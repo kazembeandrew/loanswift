@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
@@ -110,6 +111,17 @@ export default function StaffPage() {
         }
     });
   };
+
+  if (isLoading) {
+    return (
+        <div className="flex min-h-screen w-full flex-col">
+            <Header title="User Management" />
+            <main className="flex flex-1 items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </main>
+        </div>
+    );
+  }
 
   if (!userProfile || userProfile.role !== 'admin') {
     return (
