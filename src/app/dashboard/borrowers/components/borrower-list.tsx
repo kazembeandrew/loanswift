@@ -46,6 +46,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 import { addBorrower, getBorrowers, updateBorrower } from '@/services/borrower-service';
 import { addLoan, getLoans } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
@@ -122,6 +123,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const { toast } = useToast();
+  const { userProfile } = useAuth();
   const [addBorrowerStep, setAddBorrowerStep] = useState(1);
   const [receiptBalance, setReceiptBalance] = useState(0);
 
@@ -196,7 +198,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       loanId: selectedLoan.id,
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: 'Staff Admin',
+      recordedBy: userProfile?.email || 'Staff Admin',
       method: 'cash',
     };
 
@@ -255,10 +257,23 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
           interestRate: values.interestRate || 0,
           repaymentPeriod: values.repaymentPeriod,
           startDate: values.startDate,
-          outstandingBalance: values.loanAmount,
+          outstandingBalance: values.loanAmount * (1 + (values.interestRate || 0) / 100),
           collateral: values.collateral,
         };
-        await addLoan(newLoanData);
+        const newLoanId = await addLoan(newLoanData);
+
+        // After adding the borrower and loan, open the receipt dialog for a "payment" of 0
+        // which represents the loan disbursement. This is a bit of a workaround.
+        // A better UX might be a dedicated loan agreement generator.
+        const createdBorrower = await getBorrowers().then(b => b.find(br => br.id === newBorrowerId));
+        const createdLoan = await getLoans().then(l => l.find(ln => ln.id === newLoanId));
+        if (createdBorrower && createdLoan) {
+            setSelectedBorrower(createdBorrower);
+            setSelectedLoan(createdLoan);
+            setPaymentDetails({ amount: '0', date: newLoanData.startDate }); // Use 0 amount for disbursement
+            setReceiptBalance(newLoanData.outstandingBalance);
+            setReceiptGeneratorOpen(true);
+        }
     }
     
     await fetchData();
@@ -286,7 +301,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       interestRate: values.interestRate,
       repaymentPeriod: values.repaymentPeriod,
       startDate: values.startDate,
-      outstandingBalance: values.loanAmount,
+      outstandingBalance: values.loanAmount * (1 + values.interestRate / 100),
       collateral: values.collateral,
     };
     

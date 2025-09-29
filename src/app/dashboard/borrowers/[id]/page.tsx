@@ -22,6 +22,7 @@ import {
 import { Label } from '@/components/ui/label';
 import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
@@ -32,6 +33,7 @@ import { getBorrowerAvatar } from '@/lib/placeholder-images';
 export default function BorrowerDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { userProfile } = useAuth();
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
   const [allPayments, setAllPayments] = useState<(Payment & { loanId: string })[]>([]);
@@ -111,7 +113,7 @@ export default function BorrowerDetailPage() {
       loanId: selectedLoan.id,
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: 'Staff Admin',
+      recordedBy: userProfile?.email || 'Staff Admin',
       method: 'cash',
     };
 
@@ -121,7 +123,7 @@ export default function BorrowerDetailPage() {
     
     toast({
       title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
+      description: `Payment of MWK ${newPaymentData.amount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
     });
 
     setRecordPaymentOpen(false);
@@ -227,11 +229,11 @@ export default function BorrowerDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div>
-                    <p className="text-sm text-muted-foreground">Total Amount Loaned</p>
+                    <p className="text-sm text-muted-foreground">Total Loaned to Borrower</p>
                     <p className="text-2xl font-bold">MWK {totalAmountLoaned.toLocaleString()}</p>
                 </div>
                  <div>
-                    <p className="text-sm text-muted-foreground">Total Amount Repaid</p>
+                    <p className="text-sm text-muted-foreground">Total Repaid by Borrower</p>
                     <p className="text-2xl font-bold text-green-600">MWK {totalAmountRepaid.toLocaleString()}</p>
                 </div>
             </CardContent>

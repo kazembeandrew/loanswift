@@ -34,6 +34,7 @@ import {
 import type { Borrower, Loan, Payment } from '@/types';
 import ReceiptGenerator from '../borrowers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments, addPayment } from '@/services/payment-service';
@@ -48,7 +49,9 @@ export default function LoansPage() {
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  const [receiptBalance, setReceiptBalance] = useState(0);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -137,11 +140,13 @@ export default function LoansPage() {
       loanId: selectedLoan.id,
       amount: newPaymentAmount,
       date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: 'Staff Admin',
+      recordedBy: userProfile?.email || 'Staff Admin',
       method: 'cash',
     };
 
     await addPayment(selectedLoan.id, newPaymentData);
+
+    setReceiptBalance(balance - newPaymentAmount);
     
     toast({
       title: 'Payment Recorded',
@@ -267,6 +272,7 @@ export default function LoansPage() {
           loan={selectedLoan}
           paymentAmount={parseFloat(paymentDetails.amount) || 0}
           paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
+          balance={receiptBalance}
         />
       )}
 
