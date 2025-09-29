@@ -9,10 +9,10 @@ import { getAuth } from "firebase/auth";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  "projectId": "studio-3290000872-cc6d3",
+  "projectId": "info.ntchito-connect",
   "appId": "1:409607890089:web:fec8fb9f4369fcceec35b8",
   "apiKey": "AIzaSyC3oBGyyDowrbHQiZJxoV-_fH_49XvpqHA",
-  "authDomain": "studio-3290000872-cc6d3.firebaseapp.com",
+  "authDomain": "info.ntchito-connect.firebaseapp.com",
   "measurementId": "",
   "messagingSenderId": "409607890089"
 };
