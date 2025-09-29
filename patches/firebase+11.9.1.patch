@@ -1,70 +1,10 @@
-diff --git a/node_modules/firebase/package.json b/node_modules/firebase/package.json
-index 5449e7f..b7b4d13 100644
---- a/node_modules/firebase/package.json
-+++ b/node_modules/firebase/package.json
-@@ -107,6 +107,9 @@
-   "exports": {
-     ".": {
-       "types": "./dist/index.d.ts",
-+      "node": {
-+        "import": "./node/index.mjs"
-+      },
-       "default": "./dist/index.mjs"
-     },
-     "./app": {
-diff --git a/node_modules/firebase/app/package.json b/node_modules/firebase/app/package.json
-index e638706..e60c878 100644
---- a/node_modules/firebase/app/package.json
-+++ b/node_modules/firebase/app/package.json
-@@ -23,5 +23,8 @@
-   "sideEffects": false,
-   "main": "dist/index.cjs.js",
-   "module": "dist/index.mjs",
--  "typings": "dist/index.d.ts"
-+  "typings": "dist/index.d.ts",
-+  "exports": {
-+    "types": "./dist/index.d.ts"
-+  }
- }
-diff --git a/node_modules/firebase/auth/package.json b/node_modules/firebase/auth/package.json
-index 6112c28..741a7d6 100644
---- a/node_modules/firebase/auth/package.json
-+++ b/node_modules/firebase/auth/package.json
-@@ -23,5 +23,8 @@
-   "sideEffects": false,
-   "main": "dist/index.cjs.js",
-   "module": "dist/index.mjs",
--  "typings": "dist/index.d.ts"
-+  "typings": "dist/index.d.ts",
-+  "exports": {
-+    "types": "./dist/index.d.ts"
-+  }
- }
-diff --git a/node_modules/firebase/firestore/package.json b/node_modules/firebase/firestore/package.json
-index 03f0d0e..752d5b6 100644
---- a/node_modules/firebase/firestore/package.json
-+++ b/node_modules/firebase/firestore/package.json
-@@ -23,5 +23,8 @@
-   "sideEffects": false,
-   "main": "dist/index.cjs.js",
-   "module": "dist/index.mjs",
--  "typings": "dist/index.d.ts"
-+  "typings": "dist/index.d.ts",
-+  "exports": {
-+    "types": "./dist/index.d.ts"
-+  }
- }
-diff --git a/node_modules/firebase/storage/package.json b/node_modules/firebase/storage/package.json
-index e423235..4c718e4 100644
---- a/node_modules/firebase/storage/package.json
-+++ b/node_modules/firebase/storage/package.json
-@@ -23,5 +23,8 @@
-   "sideEffects": false,
-   "main": "dist/index.cjs.js",
-   "module": "dist/index.mjs",
--  "typings": "dist/index.d.ts"
-+  "typings": "dist/index.d.ts",
-+  "exports": {
-+    "types": "./dist/index.d.ts"
-+  }
- }
+diff --git a/node_modules/firebase/firestore/dist/memory/esm/index.js b/node_modules/firebase/firestore/dist/memory/esm/index.js
+index f30f146..082b4ac 100644
+--- a/node_modules/firebase/firestore/dist/memory/esm/index.js
++++ b/node_modules/firebase/firestore/dist/memory/esm/index.js
+@@ -1,4 +1,4 @@
+-import { registerVersion } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js';
++import { registerVersion } from '@firebase/app';
+ import { onLog, setLogLevel } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-util.js';
+ import 'https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-interop-types.js';
+ import { Component } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-component.js';
