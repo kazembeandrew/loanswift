@@ -47,7 +47,7 @@ export default function StaffPage() {
   const [isUpdating, startUpdatingTransition] = useTransition();
   const [isCreating, startCreatingTransition] = useTransition();
   const [isAddUserOpen, setAddUserOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ email: '', password: '' });
+  const [newUser, setNewUser] = useState({ email: '', password: '', role: 'loan_officer' as UserProfile['role'] });
   const { toast } = useToast();
   const { userProfile } = useAuth();
 
@@ -72,7 +72,7 @@ export default function StaffPage() {
     fetchData();
   }, [fetchData]);
   
-  const handleRoleChange = (uid: string, newRole: 'admin' | 'staff') => {
+  const handleRoleChange = (uid: string, newRole: UserProfile['role']) => {
     startUpdatingTransition(async () => {
       try {
         await updateUserRole(uid, newRole);
@@ -99,11 +99,11 @@ export default function StaffPage() {
         return;
     }
     startCreatingTransition(async () => {
-        const result = await handleCreateUser(newUser.email, newUser.password);
+        const result = await handleCreateUser(newUser.email, newUser.password, newUser.role);
         if (result.success) {
             toast({ title: "User Created", description: "The new user has been successfully created."});
             setAddUserOpen(false);
-            setNewUser({email: '', password: ''});
+            setNewUser({email: '', password: '', role: 'loan_officer'});
             await fetchData();
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive"});
@@ -114,7 +114,7 @@ export default function StaffPage() {
   if (!userProfile || userProfile.role !== 'admin') {
     return (
         <div className="flex min-h-screen w-full flex-col">
-            <Header title="Staff Management" />
+            <Header title="User Management" />
             <main className="flex flex-1 items-center justify-center p-4 md:p-8">
                 <Card className="w-full max-w-md">
                     <CardHeader className="text-center">
@@ -135,14 +135,14 @@ export default function StaffPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <Header title="Staff Management" />
+      <Header title="User Management" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <Card>
           <CardHeader className="flex flex-row items-center">
             <div className="grid gap-2">
                 <CardTitle>User Accounts</CardTitle>
                 <CardDescription>
-                Manage user roles and add new users.
+                Manage user roles and add new staff members.
                 </CardDescription>
             </div>
              <Dialog open={isAddUserOpen} onOpenChange={setAddUserOpen}>
@@ -156,7 +156,7 @@ export default function StaffPage() {
                     <DialogHeader>
                         <DialogTitle>Add New User</DialogTitle>
                         <DialogDescription>
-                            Create a new user account. They will be assigned the 'staff' role by default.
+                            Create a new user account and assign them a role.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddUserSubmit}>
@@ -168,6 +168,19 @@ export default function StaffPage() {
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="password" className="text-right">Password</Label>
                                 <Input id="password" type="password" className="col-span-3" value={newUser.password} onChange={(e) => setNewUser(u => ({ ...u, password: e.target.value }))} disabled={isCreating} />
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="role" className="text-right">Role</Label>
+                                <Select value={newUser.role} onValueChange={(value: UserProfile['role']) => setNewUser(u => ({ ...u, role: value}))} disabled={isCreating}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="loan_officer">Loan Officer</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="ceo">CEO</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <DialogFooter>
@@ -212,15 +225,16 @@ export default function StaffPage() {
                         <TableCell>
                           <Select
                             value={user.role}
-                            onValueChange={(newRole: 'admin' | 'staff') => handleRoleChange(user.uid, newRole)}
-                            disabled={isUpdating || user.uid === userProfile.uid}
+                            onValueChange={(newRole: UserProfile['role']) => handleRoleChange(user.uid, newRole)}
+                            disabled={isUpdating || user.uid === userProfile?.uid}
                           >
-                            <SelectTrigger className="w-28">
+                            <SelectTrigger className="w-36">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="loan_officer">Loan Officer</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="staff">Staff</SelectItem>
+                                <SelectItem value="ceo">CEO</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>

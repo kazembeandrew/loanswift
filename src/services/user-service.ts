@@ -2,6 +2,7 @@
 
 import { doc, getDoc, setDoc, getDocs, collection, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { adminAuth } from '@/lib/firebase-admin';
 import type { UserProfile } from '@/types';
 import type { User } from 'firebase/auth';
 
@@ -21,18 +22,28 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     return snapshot.docs.map(doc => doc.data() as UserProfile);
 }
 
-export async function createUserProfile(user: User): Promise<UserProfile> {
+export async function createUserProfile(user: {uid: string, email: string}, role: UserProfile['role'] = 'loan_officer'): Promise<UserProfile> {
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
-        role: 'staff', // Default role for new users
+        role,
     };
+    
+    // Set custom claims for the user in Firebase Auth
+    await adminAuth.setCustomUserClaims(user.uid, { role });
+    
+    // Store user profile in Firestore
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, userProfile);
+    
     return userProfile;
 }
 
-export async function updateUserRole(uid: string, role: 'admin' | 'staff'): Promise<void> {
+export async function updateUserRole(uid: string, role: UserProfile['role']): Promise<void> {
+    // Update the custom claim in Firebase Auth first
+    await adminAuth.setCustomUserClaims(uid, { role });
+
+    // Then, update the role in the Firestore document
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
 }

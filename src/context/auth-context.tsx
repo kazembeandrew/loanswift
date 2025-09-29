@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOutUser, signInWithEmail } from '@/services/auth-service';
-import { getUserProfile, createUserProfile } from '@/services/user-service';
+import { getUserProfile } from '@/services/user-service';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -26,16 +26,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(async (user) => {
       if (user) {
         setUser(user);
+        
+        // Force refresh the token to get custom claims
+        const tokenResult = await user.getIdTokenResult(true);
+        const claims = tokenResult.claims;
+        const userRole = claims.role as UserProfile['role'] || 'loan_officer';
+
+        // Fetch profile from Firestore, but use the claim as the source of truth for the role
         let profile = await getUserProfile(user.uid);
-        if (!profile) {
-            // If the user exists in Auth but not in Firestore, create their profile.
-            // This handles the case for the very first admin user or other pre-existing auth users.
-            profile = await createUserProfile(user);
-            // For the very first user, we can make them an admin.
-            // This logic can be more sophisticated, e.g., checking if it's the first document.
-            // For now, we'll keep it simple. The role can be changed in Firestore manually.
+        if (profile) {
+            profile.role = userRole; // Ensure role is consistent with claim
+            setUserProfile(profile);
+        } else {
+            // This case is for a user that exists in Auth but not Firestore.
+            // This shouldn't happen in normal flow with our new user creation logic.
+            // But as a fallback, create a profile.
+            const newProfileData: UserProfile = {
+                uid: user.uid,
+                email: user.email || '',
+                role: userRole,
+            };
+            // This doesn't call the full createUserProfile service to avoid a server-to-server loop
+            // on claims. We assume claims are set by an admin action.
+            const { setDoc, doc } = await import('firebase/firestore');
+            const { db } = await import('@/lib/firebase');
+            await setDoc(doc(db, 'users', user.uid), newProfileData);
+            setUserProfile(newProfileData);
         }
-        setUserProfile(profile);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -49,9 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const userCredential = await signInWithEmail(email, password);
         const user = userCredential;
-        const profile = await getUserProfile(user.uid);
-        setUser(user);
-        setUserProfile(profile);
+        // The onAuthStateChanged listener will handle setting user and userProfile state
         router.push('/dashboard');
         return user;
     } catch (error) {
