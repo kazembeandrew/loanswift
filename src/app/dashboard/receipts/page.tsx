@@ -1,15 +1,17 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Borrower, Loan, Payment } from '@/types';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
+import ReceiptGenerator from '../borrowers/components/receipt-generator';
 
 
 const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { loanId: string })[], loans: Loan[], borrowers: Borrower[] }) => {
@@ -71,6 +73,8 @@ export default function ReceiptsPage() {
     const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
     const [loans, setLoans] = useState<Loan[]>([]);
     const [borrowers, setBorrowers] = useState<Borrower[]>([]);
+    const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
     const fetchData = useCallback(async () => {
       const [paymentsData, loansData, borrowersData] = await Promise.all([
@@ -87,11 +91,34 @@ export default function ReceiptsPage() {
       fetchData();
     }, [fetchData]);
 
-    const getBorrowerByLoanId = (loanId: string) => {
+    const getBorrowerByLoanId = (loanId: string): Borrower | undefined => {
         const loan = loans.find(l => l.id === loanId);
-        if (!loan) return null;
+        if (!loan) return undefined;
         return borrowers.find(c => c.id === loan.borrowerId);
     };
+
+    const handleViewReceipt = (payment: Payment) => {
+        setSelectedPayment(payment);
+        setReceiptGeneratorOpen(true);
+    };
+
+    const selectedLoan = selectedPayment ? loans.find(l => l.id === selectedPayment.loanId) : null;
+    const selectedBorrower = selectedLoan ? borrowers.find(b => b.id === selectedLoan.borrowerId) : null;
+    
+    // This is a simplified balance calculation for receipt viewing purposes.
+    // It might not be perfectly accurate if payments aren't ordered, but it's good for a preview.
+    const getBalanceForReceipt = (payment: Payment | null): number => {
+        if (!payment || !selectedLoan) return 0;
+        const totalOwed = selectedLoan.principal * (1 + selectedLoan.interestRate / 100);
+        const paymentsForLoan = payments
+            .filter(p => p.loanId === payment.loanId && new Date(p.date) <= new Date(payment.date))
+            .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        const totalPaidUpToThisPayment = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
+        
+        return totalOwed - totalPaidUpToThisPayment;
+    }
+
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -116,6 +143,7 @@ export default function ReceiptsPage() {
                   <TableHead>Amount</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Recorded By</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,6 +157,11 @@ export default function ReceiptsPage() {
                       <TableCell>MWK {payment.amount.toLocaleString()}</TableCell>
                       <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                       <TableCell>{payment.recordedBy}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleViewReceipt(payment)}>
+                           <Eye className="mr-2 h-4 w-4"/> View
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   )
                 })}
@@ -148,6 +181,19 @@ export default function ReceiptsPage() {
           )}
         </div>
       </main>
+
+       {selectedBorrower && selectedLoan && selectedPayment && (
+        <ReceiptGenerator 
+          isOpen={isReceiptGeneratorOpen}
+          setIsOpen={setReceiptGeneratorOpen}
+          borrower={selectedBorrower}
+          loan={selectedLoan}
+          paymentAmount={selectedPayment.amount}
+          paymentDate={selectedPayment.date}
+          balance={getBalanceForReceipt(selectedPayment)}
+        />
+      )}
     </div>
   );
 }
+
