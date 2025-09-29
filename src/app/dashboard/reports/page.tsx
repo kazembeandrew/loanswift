@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { handleSummarizeArrears } from '@/app/actions/summarize';
+import IncomeStatement from './components/income-statement';
 
 export default function ReportsPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -66,47 +67,51 @@ export default function ReportsPage() {
     <div className="flex min-h-screen w-full flex-col">
       <Header title="Reports" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Arrears Summarization</CardTitle>
-            <CardDescription>
-              Upload your loan portfolio report (Excel file) to automatically generate an arrears and portfolio summary.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Input id="excel-file" type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <UploadCloud className="mr-2 h-4 w-4" />
-                  )}
-                  Generate Summary
-                </Button>
-              </div>
-            </form>
+        <div className="grid gap-6">
+            <IncomeStatement />
 
-            {isLoading && (
-              <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-dashed p-10">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Analyzing data and generating summary...</p>
-              </div>
-            )}
+            <Card>
+            <CardHeader>
+                <CardTitle>Arrears Summarization</CardTitle>
+                <CardDescription>
+                Upload your loan portfolio report (Excel file) to automatically generate an arrears and portfolio summary.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex items-center gap-4">
+                    <Input id="excel-file" type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
+                    <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                    )}
+                    Generate Summary
+                    </Button>
+                </div>
+                </form>
 
-            {summary && (
-              <Card className="mt-6">
-                <CardHeader>
-                  <CardTitle>Generated Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="whitespace-pre-wrap font-body text-sm">{summary}</pre>
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
+                {isLoading && (
+                <div className="mt-6 flex flex-col items-center justify-center rounded-lg border border-dashed p-10">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="mt-4 text-muted-foreground">Analyzing data and generating summary...</p>
+                </div>
+                )}
+
+                {summary && (
+                <Card className="mt-6">
+                    <CardHeader>
+                    <CardTitle>Generated Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                    <pre className="whitespace-pre-wrap font-body text-sm">{summary}</pre>
+                    </CardContent>
+                </Card>
+                )}
+            </CardContent>
+            </Card>
+        </div>
       </main>
     </div>
   );
