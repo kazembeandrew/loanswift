@@ -1,4 +1,8 @@
 import admin from 'firebase-admin';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config();
 
 if (!admin.apps.length) {
   try {
