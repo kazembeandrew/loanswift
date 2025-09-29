@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Bell, Search, PlusCircle, LogOut, Settings as SettingsIcon } from 'lucide-react';
