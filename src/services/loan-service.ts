@@ -35,8 +35,9 @@ export async function addLoan(loanData: Omit<Loan, 'id'>): Promise<string> {
     const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
 
     if (!loanPortfolioAccount || !cashAccount) {
-      console.error("Critical accounting accounts are not set up. Could not create journal entry for loan disbursement.");
-      // We don't throw an error here to not block the loan creation itself. But we log it.
+      // Log an error to the console but do not block loan creation.
+      // This makes the system more resilient if accounting isn't fully configured.
+      console.error("Could not create journal entry for loan disbursement: Critical accounting accounts ('Loan Portfolio', 'Cash on Hand') are not set up.");
     } else {
         await addJournalEntry({
             date: loanData.startDate,

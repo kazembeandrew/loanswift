@@ -34,16 +34,21 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
 
     const interestOwedTotal = totalOwed - loan.principal;
     
-    // Find previously recorded interest income for this loan via journal entries now.
     const allAccounts = await getAccounts();
     const interestIncomeAccount = allAccounts.find(a => a.name === 'Interest Income');
-    if (!interestIncomeAccount) {
-         throw new Error("Interest Income account not found. Cannot accurately calculate interest portions.");
+    // We check for all critical accounts at once to provide a single, clear error message.
+    const loanPortfolioAccount = allAccounts.find(a => a.name === 'Loan Portfolio');
+    const cashAccount = allAccounts.find(a => a.name === 'Cash on Hand');
+
+    if (!interestIncomeAccount || !loanPortfolioAccount || !cashAccount) {
+        let missingAccounts = [];
+        if (!interestIncomeAccount) missingAccounts.push('"Interest Income" (type: Income)');
+        if (!loanPortfolioAccount) missingAccounts.push('"Loan Portfolio" (type: Asset)');
+        if (!cashAccount) missingAccounts.push('"Cash on Hand" (type: Asset)');
+        throw new Error(`Cannot record payment. The following critical accounts are missing from your Chart of Accounts: ${missingAccounts.join(', ')}. Please create them on the Accounts page.`);
     }
-    // This is a simplification. A real system would need to trace journal entries for the specific loan.
-    // For now, we will rely on a simpler calculation.
-    // TODO: Implement a more robust interest tracking mechanism.
     
+    // This is a simplification for calculating previously paid interest.
     const allPayments = (await getAllPayments()).filter(p => p.loanId === loanId);
     const interestPaidPreviously = allPayments.reduce((acc, p) => {
         const remainingInterest = (loan.principal * (loan.interestRate / 100)) - acc.totalInterestPaid;
@@ -58,15 +63,6 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const remainingInterestToPay = interestOwedTotal - interestPaidPreviously;
     const interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
     const principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
-
-    // Automated Journal Entry Logic
-    const accounts = await getAccounts();
-    const loanPortfolioAccount = accounts.find(a => a.name === 'Loan Portfolio');
-    const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
-
-    if (!loanPortfolioAccount || !cashAccount || !interestIncomeAccount) {
-        throw new Error("Critical accounting accounts ('Loan Portfolio', 'Cash on Hand', 'Interest Income') are not set up. Cannot record payment.");
-    }
     
     const batch = writeBatch(db);
 
@@ -80,7 +76,8 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const loanRef = doc(db, 'loans', loanId);
     batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
     
-    // 3. Create the automated Journal Entry via a separate call (not in batch, as it's a transaction)
+    // 3. Create the automated Journal Entry
+    // This is wrapped in a transaction inside addJournalEntry, so it's safe to call here.
     try {
         await addJournalEntry({
             date: paymentData.date,
@@ -108,10 +105,9 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         });
     } catch (journalError) {
         console.error("CRITICAL: Failed to create automated journal entry for payment. Financial records may be inconsistent.", journalError);
-        // We throw here because failing to record the accounting is a major issue.
-        throw new Error("Payment recorded, but failed to create the corresponding journal entry. Please check system configuration.");
+        // Throw a specific error if accounting fails, as it's a critical step.
+        throw new Error("Payment data was saved, but the accounting entry failed. Please review your account setup and the journal entry logs.");
     }
-
 
     await batch.commit();
     return newPaymentRef.id;
