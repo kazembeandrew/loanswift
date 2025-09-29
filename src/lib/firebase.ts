@@ -22,6 +22,7 @@ const apps = getApps();
 const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
 
 let db;
+
 // On the server, we need to use initializeFirestore with long polling enabled.
 // On the client, we can use the regular getFirestore.
 if (typeof window === "undefined") {
