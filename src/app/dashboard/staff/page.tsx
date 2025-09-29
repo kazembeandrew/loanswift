@@ -83,6 +83,8 @@ export default function StaffPage() {
   useEffect(() => {
     if (userProfile?.role === 'admin') {
       fetchData();
+    } else {
+      setIsLoading(false);
     }
   }, [fetchData, userProfile]);
   
@@ -232,12 +234,7 @@ export default function StaffPage() {
             </Dialog>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center items-center h-48">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            ) : (
-              <div className="rounded-lg border">
+            <div className="rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -307,7 +304,6 @@ export default function StaffPage() {
                   </TableBody>
                 </Table>
               </div>
-            )}
           </CardContent>
         </Card>
       </main>
