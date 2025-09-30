@@ -1,4 +1,5 @@
 
+
 import { collection, addDoc, getDocs, query, where, doc, getDoc, collectionGroup, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Payment, Account, Loan } from '@/types';
@@ -50,33 +51,19 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     
     // This is a simplification for calculating previously paid interest.
     const allPayments = (await getAllPayments()).filter(p => p.loanId === loanId);
-    const interestPaidPreviously = allPayments.reduce((acc, p) => {
-        const remainingInterest = (loan.principal * (loan.interestRate / 100)) - acc.totalInterestPaid;
+    let interestPaidPreviously = 0;
+    for (const p of allPayments) {
+        const remainingInterest = interestOwedTotal - interestPaidPreviously;
         const interestForThisPayment = Math.min(p.amount, remainingInterest);
-        return {
-            ...acc,
-            totalInterestPaid: acc.totalInterestPaid + interestForThisPayment
-        }
-    }, { totalInterestPaid: 0 }).totalInterestPaid;
+        interestPaidPreviously += interestForThisPayment;
+    }
 
 
     const remainingInterestToPay = interestOwedTotal - interestPaidPreviously;
     const interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
     const principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
     
-    const batch = writeBatch(db);
-
-    // 1. Record the payment in the loan's subcollection
-    const paymentsCollection = collection(db, `loans/${loanId}/payments`);
-    const newPaymentRef = doc(paymentsCollection);
-    batch.set(newPaymentRef, paymentData);
-    
-    // 2. Update the loan's outstanding balance
-    const newOutstandingBalance = outstandingBalance - paymentData.amount;
-    const loanRef = doc(db, 'loans', loanId);
-    batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
-    
-    // 3. Create the automated Journal Entry
+    // Create the automated Journal Entry
     // This is wrapped in a transaction inside addJournalEntry, so it's safe to call here.
     try {
         await addJournalEntry({
@@ -109,6 +96,18 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         throw new Error("Payment data was saved, but the accounting entry failed. Please review your account setup and the journal entry logs.");
     }
 
+    const batch = writeBatch(db);
+
+    // 1. Record the payment in the loan's subcollection
+    const paymentsCollection = collection(db, `loans/${loanId}/payments`);
+    const newPaymentRef = doc(paymentsCollection);
+    batch.set(newPaymentRef, paymentData);
+    
+    // 2. Update the loan's outstanding balance
+    const newOutstandingBalance = outstandingBalance - paymentData.amount;
+    const loanRef = doc(db, 'loans', loanId);
+    batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
+    
     await batch.commit();
     return newPaymentRef.id;
 }
@@ -126,3 +125,4 @@ export async function getAllPayments(): Promise<(Payment & {loanId: string})[]> 
     });
     return payments;
 }
+
