@@ -28,6 +28,9 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     if (user.email === 'kazembeandrew@gmail.com') {
         finalRole = 'admin';
     }
+    if (user.email === 'Jackkazembe@gmail.com') {
+        finalRole = 'ceo';
+    }
 
     const docRef = doc(db, 'users', user.uid);
     
