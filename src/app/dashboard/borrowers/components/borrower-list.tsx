@@ -500,7 +500,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                           {newLoanCollateralFields.map((field, index) => (
                             <div key={field.id} className="flex items-center gap-2 mt-2">
                                <FormField control={newLoanForm.control} name={`collateral.${index}.name`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input placeholder="Item Name" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={newLoanForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                               <FormField control={newLoanForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                               <Button type="button" variant="ghost" size="icon" onClick={() => removeNewLoanCollateral(index)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           ))}

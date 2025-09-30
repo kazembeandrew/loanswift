@@ -195,7 +195,7 @@ export default function JournalPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <FormField control={form.control} name={`lines.${index}.amount`} render={({ field }) => (
-                                                            <FormItem><FormControl><Input type="number" {...field} disabled={watchLines[index].type === 'credit'} onChange={e => {
+                                                            <FormItem><FormControl><Input type="number" {...field} value={field.value || ''} disabled={watchLines[index].type === 'credit'} onChange={e => {
                                                                 field.onChange(e.target.valueAsNumber);
                                                                 form.setValue(`lines.${index}.type`, 'debit');
                                                             }} /></FormControl><FormMessage /></FormItem>
@@ -203,7 +203,7 @@ export default function JournalPage() {
                                                     </TableCell>
                                                      <TableCell>
                                                         <FormField control={form.control} name={`lines.${index}.amount`} render={({ field }) => (
-                                                            <FormItem><FormControl><Input type="number" {...field} disabled={watchLines[index].type === 'debit'} onChange={e => {
+                                                            <FormItem><FormControl><Input type="number" {...field} value={field.value || ''} disabled={watchLines[index].type === 'debit'} onChange={e => {
                                                                 field.onChange(e.target.valueAsNumber);
                                                                 form.setValue(`lines.${index}.type`, 'credit');
                                                             }} /></FormControl><FormMessage /></FormItem>
