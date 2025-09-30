@@ -27,7 +27,6 @@ import { useAuth } from '@/context/auth-context';
 import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
-import { uploadFile, getFiles } from '@/services/storage-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 
 
@@ -38,30 +37,25 @@ export default function BorrowerDetailPage() {
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
   const [allPayments, setAllPayments] = useState<(Payment & { loanId: string })[]>([]);
-  const [attachments, setAttachments] = useState<{name: string, url: string}[]>([]);
-  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
-  const [isUploading, setIsUploading] = useState(false);
   const [receiptBalance, setReceiptBalance] = useState(0);
 
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [borrowerData, loansData, paymentsData, filesData] = await Promise.all([
+    const [borrowerData, loansData, paymentsData] = await Promise.all([
       getBorrowerById(id),
       getLoansByBorrowerId(id),
       getAllPayments(), // Fetch all payments to calculate balances correctly
-      getFiles(`borrowers/${id}/attachments`)
     ]);
     setBorrower(borrowerData);
     setBorrowerLoans(loansData);
     setAllPayments(paymentsData);
-    setAttachments(filesData);
   }, [id]);
 
   useEffect(() => {
@@ -166,36 +160,6 @@ export default function BorrowerDetailPage() {
 
   const avatarFallback = borrower.name.split(' ').map(n => n[0]).join('');
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const filesToUpload = Array.from(event.target.files);
-      setIsUploading(true);
-      try {
-        await Promise.all(
-          filesToUpload.map(file => uploadFile(file, `borrowers/${id}/attachments/${file.name}`))
-        );
-        toast({
-          title: 'Upload Successful',
-          description: `${filesToUpload.length} file(s) have been uploaded.`,
-        });
-        await fetchData(); // Refresh attachments
-      } catch (error) {
-        console.error("File upload error:", error);
-        toast({
-          title: 'Upload Failed',
-          description: 'There was an error uploading your files. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
-  const handleUploadClick = () => {
-    fileInput?.click();
-  };
-
   const totalAmountLoaned = borrowerLoans.reduce((sum, loan) => sum + loan.principal, 0);
   const totalAmountRepaid = allPayments
     .filter(p => borrowerLoans.some(l => l.id === p.loanId))
@@ -242,40 +206,6 @@ export default function BorrowerDetailPage() {
                     <p className="text-sm text-muted-foreground">Total Repaid by Borrower</p>
                     <p className="text-2xl font-bold text-green-600">MWK {totalAmountRepaid.toLocaleString()}</p>
                 </div>
-            </CardContent>
-          </Card>
-          <Card className="md:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Paperclip className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="font-headline">Attachments</CardTitle>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleUploadClick} disabled={isUploading}>
-                 {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Upload
-              </Button>
-              <Input 
-                type="file" 
-                className="hidden" 
-                ref={setFileInput} 
-                onChange={handleFileChange}
-                multiple
-              />
-            </CardHeader>
-            <CardContent>
-              {attachments.length > 0 ? (
-                <ul className="space-y-2">
-                  {attachments.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between text-sm p-2 bg-muted rounded-md">
-                      <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
-                      <p className="text-muted-foreground">No attachments.</p>
-                  </div>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -408,5 +338,3 @@ export default function BorrowerDetailPage() {
     </div>
   );
 }
-
-    
