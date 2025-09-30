@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
@@ -198,7 +199,6 @@ export default function ChatPage() {
                                 {allUsers.map(u => (
                                     <div key={u.uid} onClick={() => handleStartNewConversation(u)} className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer">
                                         <Avatar>
-                                            <AvatarImage src={getBorrowerAvatar(u.email)} data-ai-hint="user avatar" />
                                             <AvatarFallback>{u.email.substring(0, 2).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <p>{u.email}</p>
@@ -226,7 +226,6 @@ export default function ChatPage() {
                 <CardHeader className="flex flex-row items-center border-b">
                     <div className="flex items-center gap-2">
                         <Avatar>
-                            <AvatarImage src={getBorrowerAvatar(otherParticipantEmail || '')} data-ai-hint="user avatar" />
                             <AvatarFallback>{otherParticipantEmail?.substring(0, 2).toUpperCase() || '??'}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -246,7 +245,6 @@ export default function ChatPage() {
                       >
                          {msg.senderId !== user?.uid && (
                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={getBorrowerAvatar(msg.senderEmail)} data-ai-hint="user avatar" />
                                 <AvatarFallback>{msg.senderEmail.substring(0, 2).toUpperCase()}</AvatarFallback>
                              </Avatar>
                          )}

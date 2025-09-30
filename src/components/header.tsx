@@ -28,7 +28,6 @@ type HeaderProps = {
 export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClick }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
   const { userProfile, signOut } = useAuth();
-  const userAvatar = getPlaceholderImage('user-avatar');
   const userDisplayName = userProfile?.email || 'Staff Admin';
   const userFallback = userDisplayName.substring(0, 2).toUpperCase();
   const isAdmin = userProfile?.role === 'admin';
@@ -69,11 +68,6 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Avatar className="h-8 w-8">
-                {userAvatar && <AvatarImage
-                  src={userAvatar.imageUrl}
-                  alt={userAvatar.description}
-                  data-ai-hint={userAvatar.imageHint}
-                />}
                 <AvatarFallback>{userFallback}</AvatarFallback>
               </Avatar>
             </Button>
