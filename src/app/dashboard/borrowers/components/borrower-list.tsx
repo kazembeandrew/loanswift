@@ -177,28 +177,34 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       return;
     }
 
-    const newPaymentData: Omit<Payment, 'id'> = {
-      loanId: selectedLoan.id,
-      amount: newPaymentAmount,
-      date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: userProfile?.email || 'Staff Admin',
-      method: 'cash',
-    };
+    try {
+        await addPayment(selectedLoan.id, {
+            loanId: selectedLoan.id,
+            amount: newPaymentAmount,
+            date: paymentDetails.date || new Date().toISOString().split('T')[0],
+            recordedBy: userProfile?.email || 'Staff Admin',
+            method: 'cash',
+        });
 
-    await addPayment(selectedLoan.id, newPaymentData);
-    
-    setReceiptBalance(balance - newPaymentAmount);
+        setReceiptBalance(balance - newPaymentAmount);
+        
+        toast({
+          title: 'Payment Recorded',
+          description: `Payment of MWK ${newPaymentAmount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+        });
 
-    toast({
-      title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
-    });
+        setRecordPaymentOpen(false);
+        setReceiptGeneratorOpen(true);
 
-    setRecordPaymentOpen(false);
-    setReceiptGeneratorOpen(true);
-    
-    await fetchData();
-  }
+        await fetchData();
+    } catch(error: any) {
+         toast({
+            title: 'Payment Failed',
+            description: error.message || 'An unexpected error occurred while recording the payment.',
+            variant: 'destructive',
+        });
+    }
+  };
 
   const handleEditBorrowerClick = (borrower: Borrower) => {
     setSelectedBorrower(borrower);
