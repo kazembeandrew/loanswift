@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
@@ -250,7 +251,6 @@ export default function StaffPage() {
                         <TableCell>
                            <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9">
-                                    <AvatarImage src={getBorrowerAvatar(user.uid)} alt="Avatar" data-ai-hint="user avatar" />
                                     <AvatarFallback>{user.email.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <span className="font-medium">{user.email.split('@')[0]}</span>

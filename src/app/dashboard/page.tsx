@@ -245,7 +245,6 @@ export default function DashboardPage() {
                     return (
                         <div className="flex items-center" key={payment.id}>
                         <Avatar className="h-9 w-9">
-                            <AvatarImage src={getBorrowerAvatar(borrower.id)} alt="Avatar" data-ai-hint="user avatar" />
                             <AvatarFallback>{avatarFallback}</AvatarFallback>
                         </Avatar>
                         <div className="ml-4 space-y-1">
