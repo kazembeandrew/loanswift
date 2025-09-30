@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -109,28 +110,33 @@ export default function BorrowerDetailPage() {
       return;
     }
 
-    const newPaymentData: Omit<Payment, 'id'> = {
-      loanId: selectedLoan.id,
-      amount: newPaymentAmount,
-      date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: userProfile?.email || 'Staff Admin',
-      method: 'cash',
-    };
+    try {
+        await addPayment(selectedLoan.id, {
+            loanId: selectedLoan.id,
+            amount: newPaymentAmount,
+            date: paymentDetails.date || new Date().toISOString().split('T')[0],
+            recordedBy: userProfile?.email || 'Staff Admin',
+            method: 'cash',
+        });
 
-    await addPayment(selectedLoan.id, newPaymentData);
+        setReceiptBalance(balance - newPaymentAmount);
+        
+        toast({
+          title: 'Payment Recorded',
+          description: `Payment of MWK ${newPaymentAmount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+        });
 
-    setReceiptBalance(balance - newPaymentAmount);
-    
-    toast({
-      title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
-    });
+        setRecordPaymentOpen(false);
+        setReceiptGeneratorOpen(true);
 
-    setRecordPaymentOpen(false);
-    setReceiptGeneratorOpen(true);
-
-    // Fetch data again after a successful payment
-    await fetchData();
+        await fetchData();
+    } catch(error: any) {
+         toast({
+            title: 'Payment Failed',
+            description: error.message || 'An unexpected error occurred while recording the payment.',
+            variant: 'destructive',
+        });
+    }
   };
 
   const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
@@ -402,3 +408,5 @@ export default function BorrowerDetailPage() {
     </div>
   );
 }
+
+    
