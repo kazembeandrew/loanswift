@@ -1,9 +1,7 @@
 
-
 'use server';
 
 import { adminAuth } from './firebase-admin';
-import fetch from 'node-fetch';
 
 const usersToSeed = [
   {
@@ -18,47 +16,7 @@ const usersToSeed = [
   },
 ];
 
-async function userExists(uid: string): Promise<boolean> {
-    try {
-        await adminAuth.getUser(uid);
-        return true;
-    } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-            return false;
-        }
-        throw error;
-    }
-}
-
-// We use the REST API for user creation from the server to avoid client-side auth state conflicts
-async function createUserWithRest(email: string, password: string, apiKey: string) {
-    const response = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email,
-                password,
-                returnSecureToken: true,
-            }),
-        }
-    );
-
-    const data = await response.json();
-    if (!response.ok) {
-        // If user already exists, that's okay for our seeding purpose.
-        if (data.error && data.error.message === 'EMAIL_EXISTS') {
-            const user = await adminAuth.getUserByEmail(email);
-            return user.uid;
-        }
-        throw new Error(data.error?.message || 'Failed to create user via REST API');
-    }
-    return data.localId;
-}
-
-
-export async function seedInitialUsers(apiKey: string): Promise<void> {
+export async function seedInitialUsers(): Promise<void> {
   console.log('Seeding initial users...');
   for (const userData of usersToSeed) {
     try {
@@ -70,9 +28,10 @@ export async function seedInitialUsers(apiKey: string): Promise<void> {
         if (error.code === 'auth/user-not-found') {
            console.log(`User ${userData.email} not found, creating...`);
            
-           // Use REST API to create user to get a UID, because admin.createUser doesn't sign the user in.
-           const uid = await createUserWithRest(userData.email, userData.password, apiKey);
-           userRecord = await adminAuth.getUser(uid);
+           userRecord = await adminAuth.createUser({
+               email: userData.email,
+               password: userData.password,
+           });
            
            console.log(`Successfully created user: ${userData.email}`);
         } else {
