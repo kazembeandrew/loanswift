@@ -9,12 +9,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { handleGenerateReceipt, handleGenerateReceiptImage } from '@/app/actions/receipt';
+import { handleGenerateReceipt } from '@/app/actions/receipt';
 import type { Borrower, Loan, BusinessSettings } from '@/types';
-import { Loader2, Printer, Share2, Download, RefreshCw } from 'lucide-react';
+import { Loader2, Printer, Download } from 'lucide-react';
 import ReceiptPreview from '@/components/receipt-preview';
-import Image from 'next/image';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { getSettings } from '@/services/settings-service';
 
 type ReceiptGeneratorProps = {
@@ -37,14 +35,11 @@ export default function ReceiptGenerator({
   balance = 0,
 }: ReceiptGeneratorProps) {
   const [receiptText, setReceiptText] = useState<string | null>(null);
-  const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [isGeneratingText, setIsGeneratingText] = useState(false);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const { toast } = useToast();
   
-  const businessLogo = getPlaceholderImage('business-logo-small');
   
   useEffect(() => {
     if (isOpen) {
@@ -60,7 +55,6 @@ export default function ReceiptGenerator({
     }
     setIsGeneratingText(true);
     setReceiptText(null);
-    setReceiptImageUrl(null);
     const newReceiptId = `RCPT-${Date.now()}`;
     setReceiptId(newReceiptId);
     try {
@@ -95,45 +89,11 @@ export default function ReceiptGenerator({
     }
   }, [isOpen, settings, receiptText, isGeneratingText, generateReceiptText]);
 
-  const generateImage = async () => {
-    if (!receiptText || !receiptId || !settings) {
-      toast({ title: 'Error', description: 'Receipt text or settings not available yet.', variant: 'destructive'});
-      return;
-    }
-    setIsGeneratingImage(true);
-    setReceiptImageUrl(null);
-    try {
-        const input = {
-            receiptText,
-            receiptId,
-            paymentDate: new Date(paymentDate).toLocaleDateString(),
-            paymentAmount,
-            businessName: settings.businessName,
-            businessAddress: settings.businessAddress,
-            businessPhone: settings.businessPhone,
-            businessLogoDataUri: businessLogo?.imageUrl,
-        };
-        const result = await handleGenerateReceiptImage(input);
-        setReceiptImageUrl(result.imageUrl);
-
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: 'Error Generating Receipt Image',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-        setIsGeneratingImage(false);
-    }
-  };
-
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setReceiptText(null);
       setReceiptId(null);
-      setReceiptImageUrl(null);
     }
     setIsOpen(open);
   };
@@ -143,58 +103,46 @@ export default function ReceiptGenerator({
     if (printWindow) {
       const receiptElement = document.getElementById('receipt-preview');
       if (receiptElement) {
-        printWindow.document.write(receiptElement.innerHTML);
+        const printableContent = `
+            <html>
+                <head>
+                    <title>Print Receipt</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..900;1,400..900&family=Belleza&display=swap" rel="stylesheet">
+                    <script src="https://cdn.tailwindcss.com"></script>
+                    <style>
+                        body { 
+                            font-family: 'Alegreya', serif;
+                            -webkit-print-color-adjust: exact;
+                        }
+                        @page {
+                            size: A5;
+                            margin: 0;
+                        }
+                    </style>
+                </head>
+                <body onload="window.print(); window.close();">
+                    ${receiptElement.innerHTML}
+                </body>
+            </html>
+        `;
+        printWindow.document.write(printableContent);
         printWindow.document.close();
-        printWindow.print();
       }
     }
   };
 
-  const handleShare = async () => {
-    if (!receiptImageUrl) {
-      toast({ title: 'No Image', description: 'Please generate an image first.', variant: 'destructive' });
-      return;
-    }
-    try {
-      // Convert data URI to blob for sharing
-      const response = await fetch(receiptImageUrl);
-      const blob = await response.blob();
-      const file = new File([blob], `receipt-${receiptId}.png`, { type: 'image/png' });
 
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Payment Receipt ${receiptId}`,
-          text: `Here is the receipt for your payment of MWK ${paymentAmount.toLocaleString()}.`,
-          files: [file],
-        });
-      } else {
-        // Fallback for browsers that don't support navigator.share with files
-        const newWindow = window.open();
-        newWindow?.document.write(`
-          <html>
-            <head><title>Receipt ${receiptId}</title></head>
-            <body style="margin:0; background: #333; display:flex; justify-content:center; align-items:center;">
-              <img src="${receiptImageUrl}" alt="Receipt" style="max-width:100%; max-height:100%;" />
-            </body>
-          </html>
-        `);
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-      toast({ title: 'Sharing Failed', description: 'Could not share the receipt image.', variant: 'destructive' });
-    }
-  };
-
-
-  const isLoading = isGeneratingText || isGeneratingImage || !settings;
+  const isLoading = isGeneratingText || !settings;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md md:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Generate Payment Receipt</DialogTitle>
+          <DialogTitle>Payment Receipt</DialogTitle>
           <DialogDescription>
-            A receipt will be generated for the payment of MWK {paymentAmount.toFixed(2)}.
+            A receipt has been generated for the payment of MWK {paymentAmount.toFixed(2)}.
           </DialogDescription>
         </DialogHeader>
 
@@ -202,12 +150,12 @@ export default function ReceiptGenerator({
           <div className="flex flex-col items-center justify-center h-48 gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">
-                {isGeneratingText ? 'Generating receipt text...' : isGeneratingImage ? 'Generating receipt image...' : 'Loading settings...'}
+                {isGeneratingText ? 'Generating receipt content...' : 'Loading settings...'}
             </p>
           </div>
         )}
         
-        <div style={{ display: !isLoading && receiptText && !receiptImageUrl ? 'block' : 'none' }}>
+        <div style={{ display: !isLoading && receiptText ? 'block' : 'none' }}>
            {receiptText && receiptId && settings && (
              <ReceiptPreview 
                 receiptText={receiptText} 
@@ -215,52 +163,14 @@ export default function ReceiptGenerator({
                 paymentDate={paymentDate}
                 paymentAmount={paymentAmount}
                 businessInfo={settings}
+                borrower={borrower}
+                loan={loan}
              />
            )}
         </div>
 
 
-        {!isLoading && receiptText && receiptId && !receiptImageUrl && (
-            <div className="flex justify-center items-center mt-4">
-              <Button onClick={generateImage} disabled={isGeneratingImage}>
-                  {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Generate Image for Sharing
-              </Button>
-            </div>
-        )}
-        
-        {isGeneratingImage && !receiptImageUrl && (
-            <div className="flex flex-col items-center justify-center h-96 gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">Generating receipt image...</p>
-                <p className="text-sm text-muted-foreground">This can take up to 30 seconds.</p>
-            </div>
-        )}
-
-
-        {receiptImageUrl && (
-          <div className="space-y-4">
-            <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                <Image src={receiptImageUrl} alt="Generated Receipt" layout="fill" objectFit="contain" />
-            </div>
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-               <Button variant="outline" onClick={generateImage} disabled={isGeneratingImage}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Regenerate
-              </Button>
-              <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'PDF download will be available soon.'})}>
-                <Download className="mr-2 h-4 w-4" /> Download
-              </Button>
-               <Button variant="outline" onClick={handleShare}>
-                <Share2 className="mr-2 h-4 w-4" /> Share
-              </Button>
-              <Button onClick={() => setReceiptImageUrl(null)}>
-                View Original
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {!isLoading && !receiptImageUrl && receiptText && (
+        {!isLoading && receiptText && (
              <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'PDF download will be available soon.'})}>
                 <Download className="mr-2 h-4 w-4" /> Download PDF
