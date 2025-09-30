@@ -1,10 +1,12 @@
+
 import admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
 
+let adminAuth: admin.auth.Auth;
+
 if (!admin.apps.length) {
   try {
-    // Construct the path to the service account key file relative to the project root
     const serviceAccountPath = path.resolve(process.cwd(), 'serviceAccountKey.json');
     
     if (!fs.existsSync(serviceAccountPath)) {
@@ -16,10 +18,14 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
-    
   } catch (error) {
-    console.error('Firebase admin initialization error:', error);
+    console.error('CRITICAL: Firebase admin initialization failed.', error);
+    // In a production environment, you might want to handle this more gracefully.
+    // For this development context, we will throw to make the problem obvious.
+    throw new Error('Firebase admin initialization failed. Check server logs for details.');
   }
 }
 
-export const adminAuth = admin.auth();
+adminAuth = admin.auth();
+
+export { adminAuth };
