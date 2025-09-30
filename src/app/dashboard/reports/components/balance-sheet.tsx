@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -82,7 +81,7 @@ export default function BalanceSheet() {
                 </Table>
             </div>
             <div>
-                 <h3 className="font-semibold mb-2">Liabilities & Equity</h3>
+                 <h3 className="font-semibold mb-2">Liabilities &amp; Equity</h3>
                  <Table>
                     <TableBody>
                         {liabilities.length > 0 && <TableRow className="font-semibold"><TableCell colSpan={2}>Liabilities</TableCell></TableRow>}
@@ -106,11 +105,10 @@ export default function BalanceSheet() {
                         ))}
                          <TableRow className="font-semibold border-t">
                             <TableCell>Total Equity</TableCell>
-                            <TableCell className="text-right">MWK {totalEquity.toLocaleString()}</TableCell>
-                        </TableRow>
+                            <TableCell className="text-right">MWK {totalEquity.toLocaleString()}</TableCell>                        </TableRow>
                         
                          <TableRow className="font-bold border-t-2">
-                            <TableCell>Total Liabilities & Equity</TableCell>
+                            <TableCell>Total Liabilities &amp; Equity</TableCell>
                             <TableCell className="text-right">MWK {totalLiabilitiesAndEquity.toLocaleString()}</TableCell>
                         </TableRow>
                     </TableBody>

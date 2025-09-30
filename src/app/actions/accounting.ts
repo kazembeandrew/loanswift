@@ -1,4 +1,3 @@
-
 'use server';
 
 import { collection, runTransaction, getDocs, doc, writeBatch } from 'firebase/firestore';
@@ -110,4 +109,3 @@ export async function performMonthEndClose(): Promise<Omit<JournalEntry, 'id'>> 
 
   return closingEntry;
 }
-
