@@ -3,6 +3,7 @@ import { getApps, initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
+import { seedInitialUsers } from "./seed";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -21,6 +22,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const apps = getApps();
 const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
+
+if (typeof window === 'undefined') {
+  // Run seed function on the server-side
+  seedInitialUsers(firebaseConfig.apiKey).catch(console.error);
+}
+
 
 const db = getFirestore(app);
 export const storage = getStorage(app);
