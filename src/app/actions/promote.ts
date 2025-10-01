@@ -16,6 +16,11 @@ const usersToSeed = [
     password: 'Naloga',
     role: 'ceo',
   },
+  {
+    email: 'loanofficer@example.com',
+    password: 'password',
+    role: 'loan_officer',
+  }
 ];
 
 async function seedInitialUsers(): Promise<void> {
