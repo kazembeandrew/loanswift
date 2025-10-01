@@ -6,12 +6,12 @@ if (!admin.apps.length) {
   try {
     const serviceAccount = {
       projectId: firebaseConfig.projectId,
-      clientEmail: `firebase-adminsdk-1y90q@${firebaseConfig.projectId}.iam.gserviceaccount.com`, // Standard service account email format
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     };
 
-    if (!serviceAccount.privateKey) {
-        throw new Error('FIREBASE_PRIVATE_KEY environment variable is not set. Please check your .env file.');
+    if (!serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        throw new Error('FIREBASE_CLIENT_EMAIL or FIREBASE_PRIVATE_KEY environment variable is not set. Please check your .env file.');
     }
 
     admin.initializeApp({
