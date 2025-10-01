@@ -54,11 +54,7 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     };
 
     // Using setDoc with merge:true is equivalent to an upsert.
-    await setDoc(docRef, {
-        ...userProfile,
-        name: user.email?.split('@')[0] || '',
-        createdAt: new Date().toISOString()
-    }, { merge: true });
+    await setDoc(docRef, userProfile, { merge: true });
     
     const docSnap = await getDoc(docRef);
     return docSnap.data() as UserProfile;
@@ -73,4 +69,5 @@ export async function updateUserRole(uid: string, role: UserProfile['role']): Pr
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
 }
+
 
