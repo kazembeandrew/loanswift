@@ -1,26 +1,27 @@
 
 import admin from 'firebase-admin';
-import * as fs from 'fs';
-import * as path from 'path';
 
 let adminAuth: admin.auth.Auth;
 
 if (!admin.apps.length) {
   try {
-    const serviceAccountPath = path.resolve(process.cwd(), 'serviceAccountKey.json');
-    
-    if (!fs.existsSync(serviceAccountPath)) {
-        throw new Error("serviceAccountKey.json not found in the project root. Please download it from your Firebase project settings and place it in the root directory.");
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    };
+
+    if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
+        throw new Error('Firebase credentials are not set in the environment variables. Please check your .env file.');
     }
-    
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
+
   } catch (error) {
     console.error('CRITICAL: Firebase admin initialization failed.', error);
-    // In a production environment, you might want to handle this more gracefully.
+    // In a production environment, this should be handled more gracefully.
     // For this development context, we will throw to make the problem obvious.
     throw new Error('Firebase admin initialization failed. Check server logs for details.');
   }
