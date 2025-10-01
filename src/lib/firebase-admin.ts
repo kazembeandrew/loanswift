@@ -1,18 +1,17 @@
 
 import admin from 'firebase-admin';
-
-let adminAuth: admin.auth.Auth;
+import { firebaseConfig } from './firebase';
 
 if (!admin.apps.length) {
   try {
     const serviceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      projectId: firebaseConfig.projectId,
+      clientEmail: `firebase-adminsdk-1y90q@${firebaseConfig.projectId}.iam.gserviceaccount.com`, // Standard service account email format
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     };
 
-    if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
-        throw new Error('Firebase credentials are not set in the environment variables. Please check your .env file.');
+    if (!serviceAccount.privateKey) {
+        throw new Error('FIREBASE_PRIVATE_KEY environment variable is not set. Please check your .env file.');
     }
 
     admin.initializeApp({
@@ -27,6 +26,4 @@ if (!admin.apps.length) {
   }
 }
 
-adminAuth = admin.auth();
-
-export { adminAuth };
+export const adminAuth = admin.auth();
