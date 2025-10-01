@@ -1,66 +1,9 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Default Deny: By default, no one can access any document.
-    // We must explicitly grant access below.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Admins can manage user roles and profiles.
-    match /users/{userId} {
-      allow read, write: if request.auth.token.role == 'admin';
-    }
-
-    // Settings can only be read and modified by Admins.
-    match /settings/{settingId} {
-        allow read, write: if request.auth.token.role == 'admin';
-    }
-    
-    // CEO and Admins can view financial accounts. Only Admins can modify them.
-    match /accounts/{accountId} {
-      allow read: if request.auth.token.role in ['admin', 'ceo'];
+    match /users/{uid} {
+      allow read: if request.auth != null;
       allow write: if request.auth.token.role == 'admin';
-    }
-
-    // CEO and Admins can view journal entries. Only Admins can create them.
-    match /journal/{entryId} {
-      allow read: if request.auth.token.role in ['admin', 'ceo'];
-      allow create: if request.auth.token.role == 'admin'; // Journal entries are immutable
-    }
-
-    // Loan Officers and Admins can manage borrowers. CEOs can view them.
-    match /borrowers/{borrowerId} {
-      allow read: if request.auth.token.role in ['admin', 'loan_officer', 'ceo'];
-      allow write: if request.auth.token.role in ['admin', 'loan_officer'];
-    }
-
-    // Loan Officers and Admins can manage loans. CEOs can view them.
-    match /loans/{loanId} {
-      allow read: if request.auth.token.role in ['admin', 'loan_officer', 'ceo'];
-      allow write: if request.auth.token.role in ['admin', 'loan_officer'];
-
-      // Payments subcollection inherits permissions from the loan, but with stricter rules.
-      match /payments/{paymentId} {
-          allow read, create: if request.auth.token.role in ['admin', 'loan_officer'];
-          // Payments should be immutable, so no update or delete.
-          allow update, delete: if false;
-      }
-    }
-    
-    // Users can only read/write conversations they are a part of.
-    match /conversations/{conversationId} {
-      allow read, write: if request.auth.uid in resource.data.participants;
-
-      // Messages can be created by participants, and read by participants.
-      match /messages/{messageId} {
-          allow create: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-          allow read: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-          allow update, delete: if false; // Messages are immutable
-      }
     }
   }
 }
