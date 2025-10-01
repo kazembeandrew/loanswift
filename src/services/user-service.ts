@@ -1,10 +1,10 @@
+
 'use server';
 
 import { doc, getDoc, setDoc, getDocs, collection, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { adminAuth } from '@/lib/firebase-admin';
 import type { UserProfile } from '@/types';
-import type { User } from 'firebase/auth';
 
 const usersCollectionRef = collection(db, 'users');
 
@@ -23,7 +23,14 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 }
 
 export async function createUserProfile(user: {uid: string, email: string}, role: UserProfile['role'] = 'loan_officer'): Promise<UserProfile> {
-    
+    if (!adminAuth) {
+      console.error("Cannot create user profile. Firebase Admin is not initialized.");
+      const tempProfile: UserProfile = { uid: user.uid, email: user.email, role: 'loan_officer' };
+      // Still write a temporary profile to Firestore so the app doesn't completely break.
+      await setDoc(doc(db, 'users', user.uid), tempProfile, { merge: true });
+      return tempProfile;
+    }
+
     let finalRole = role;
     if (user.email === 'kazembeandrew@gmail.com') {
         finalRole = 'admin';
@@ -38,8 +45,6 @@ export async function createUserProfile(user: {uid: string, email: string}, role
         await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
     } catch (error) {
         console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
-        // Do not re-throw the error, allow profile creation to continue.
-        // The role will be based on the parameter, which is a safe fallback.
     }
     
     const userProfile: UserProfile = {
@@ -48,17 +53,17 @@ export async function createUserProfile(user: {uid: string, email: string}, role
         role: finalRole,
     };
 
-    // Create or update the user profile in Firestore to match the auth claims.
     await setDoc(docRef, userProfile, { merge: true });
     
     return userProfile;
 }
 
 export async function updateUserRole(uid: string, role: UserProfile['role']): Promise<void> {
-    // Update the custom claim in Firebase Auth first
+    if (!adminAuth) {
+      throw new Error("Cannot update user role. Firebase Admin is not initialized.");
+    }
     await adminAuth.setCustomUserClaims(uid, { role });
 
-    // Then, update the role in the Firestore document
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
 }

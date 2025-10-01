@@ -1,9 +1,65 @@
+
 'use server';
 
 import { adminAuth } from '@/lib/firebase-admin';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { seedInitialUsers } from '@/lib/seed';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
+
+const usersToSeed = [
+  {
+    email: 'kazembeandrew@gmail.com',
+    password: 'Password',
+    role: 'admin',
+  },
+  {
+    email: 'Jackkazembe@gmail.com',
+    password: 'Naloga',
+    role: 'ceo',
+  },
+];
+
+async function seedInitialUsers(): Promise<void> {
+  if (!adminAuth) {
+    console.error("Skipping user seeding: Firebase Admin not initialized.");
+    return;
+  }
+  console.log('Seeding initial users...');
+  for (const userData of usersToSeed) {
+    try {
+      let userRecord;
+      try {
+        userRecord = await adminAuth.getUserByEmail(userData.email);
+        console.log(`User ${userData.email} already exists. Skipping creation.`);
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+           console.log(`User ${userData.email} not found, creating...`);
+           
+           userRecord = await adminAuth.createUser({
+               email: userData.email,
+               password: userData.password,
+           });
+           
+           console.log(`Successfully created user: ${userData.email}`);
+        } else {
+          throw error; // Re-throw other errors
+        }
+      }
+
+      // Ensure custom claims are set
+      if (userRecord && (!userRecord.customClaims || userRecord.customClaims.role !== userData.role)) {
+        await adminAuth.setCustomUserClaims(userRecord.uid, { role: userData.role });
+        const userDocRef = doc(db, 'users', userRecord.uid);
+        await setDoc(userDocRef, { role: userData.role }, { merge: true });
+        console.log(`Set custom claim 'role: ${userData.role}' for ${userData.email}`);
+      }
+      
+    } catch (error) {
+      console.error(`Error seeding user ${userData.email}:`, error);
+    }
+  }
+  console.log('User seeding process finished.');
+}
+
 
 /**
  * Promotes a user to the 'admin' role by setting their custom claims.
@@ -18,20 +74,24 @@ export async function promoteUserToAdmin(email: string): Promise<{
   timestamp: string;
 }> {
   const timestamp = new Date().toISOString();
+  if (!adminAuth) {
+    return {
+      status: 'error',
+      message: 'Firebase Admin not configured on the server.',
+      user_email: email,
+      assigned_role: null,
+      timestamp,
+    };
+  }
+
   try {
-    // As a one-time setup, we can trigger seeding here safely.
-    // This will create the default admin/ceo users if they don't exist.
-    // In a real production app, this would be a separate, one-off script.
     await seedInitialUsers();
 
-    // 1. Look up the user by email
     const userRecord = await adminAuth.getUserByEmail(email);
     const uid = userRecord.uid;
 
-    // 2. Assign the custom claim
     await adminAuth.setCustomUserClaims(uid, { role: 'admin' });
 
-    // 3. Update the user's document in Firestore to keep it in sync
     const userDocRef = doc(db, 'users', uid);
     await updateDoc(userDocRef, { role: 'admin' });
     
