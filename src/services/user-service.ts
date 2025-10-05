@@ -30,30 +30,21 @@ export async function createUserProfile(user: {uid: string, email: string}, role
       await setDoc(doc(db, 'users', user.uid), tempProfile, { merge: true });
       return tempProfile;
     }
-
-    let finalRole = role;
-    if (user.email === 'kazembeandrew@gmail.com') {
-        finalRole = 'admin';
-    }
-    if (user.email === 'Jackkazembe@gmail.com') {
-        finalRole = 'ceo';
-    }
-
-    const docRef = doc(db, 'users', user.uid);
-    
-    try {
-        await adminAuth.setCustomUserClaims(user.uid, { role: finalRole });
-    } catch (error) {
-        console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
-    }
     
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
-        role: finalRole,
+        role: role,
     };
 
+    try {
+        await adminAuth.setCustomUserClaims(user.uid, { role: userProfile.role });
+    } catch (error) {
+        console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
+    }
+
     // Using setDoc with merge:true is equivalent to an upsert.
+    const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, userProfile, { merge: true });
     
     const docSnap = await getDoc(docRef);
@@ -69,6 +60,3 @@ export async function updateUserRole(uid: string, role: UserProfile['role']): Pr
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
 }
-
-
-

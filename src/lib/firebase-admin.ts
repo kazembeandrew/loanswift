@@ -15,9 +15,6 @@ if (!admin.apps.length) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
-        console.log('Firebase Admin SDK initialized successfully.');
-    } else {
-        console.log('Firebase Admin SDK not initialized because environment variables are missing.');
     }
 
   } catch (error) {
