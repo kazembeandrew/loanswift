@@ -9,8 +9,8 @@
     {
       "id": "business-logo-small",
       "description": "Small logo for the business, used in receipts.",
-      "imageUrl": "https://images.unsplash.com/photo-1755586258247-67f5148d76c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhYnN0cmFjdCUyMGxvZ298ZW58MHx8fHwxNzU5Njc0NzgwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "abstract logo"
+      "imageUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIj4KPHBhdGggZD0iTTM2LjcyNzMgNDRDMzMuOTg5MSA0NCAzMS42MDQzIDM5LjgzODYgMzAuMzYzNiAzMy42OUMyOS4xMjMgMzkuODM4NiAyNi43MzgyIDQ0IDI0IDQ0QzIxLjI2MTggNDQgMTguODc3IDM5LjgzODYgMTcuNjM2NCAzMy42OUMxNi4zOTU3IDM5LjgzODYgMTQuMDEwOSA0NCAxMS4yNzI3IDQ0QzcuMjU2MTEgNDQgNCAzNS4wNDU3IDQgMjRDNCAxMi45NTQzIDcuMjU2MTEgNCAxMS4yNzI3IDRDMTQuMDEwOSA0IDE2LjM5NTcgOC4xNjE0NCAxNy42MzY0IDE0LjMxQzE4Ljg3NyA4LjE2MTQ0IDIxLjI2MTggNCAyNCA0QzI2LjczODIgNCAyOS4xMjMgOC4xNjE0NCAzMC4zNjM2IDE0LjMxQzMxLjYwNDMgOC4xNjE0NCAzMy45ODkxIDQgMzYuNzI3MyA0QzQwLjc0MzkgNCA0NCAxMi45NTQzIDQ0IDI0QzQ0IDM1LjA0NTcgNDAuNzQzOSA0NCAzNi4yNzI3IDQ0WiIgZmlsbD0iIzQ2ODJCNCIvPgo8L3N2Zz4=",
+      "imageHint": "company logo"
     }
   ]
 }
