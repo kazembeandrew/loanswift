@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Header } from '@/components/header';
 import CeoDashboard from './components/ceo-dashboard';
@@ -65,3 +65,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

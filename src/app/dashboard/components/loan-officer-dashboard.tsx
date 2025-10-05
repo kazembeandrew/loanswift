@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -109,7 +110,9 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
-          <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
+          <CardContent className="p-0">
+            <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
+          </CardContent>
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
@@ -148,3 +151,5 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
     </div>
   );
 }
+
+    

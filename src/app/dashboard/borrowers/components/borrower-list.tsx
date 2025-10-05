@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -50,6 +51,7 @@ import { useAuth } from '@/context/auth-context';
 import { addBorrower, getBorrowers, updateBorrower } from '@/services/borrower-service';
 import { addLoan, getLoans } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
+import { Card, CardHeader } from '@/components/ui/card';
 
 const collateralSchema = z.object({
   name: z.string().min(1, 'Collateral name is required'),
@@ -324,8 +326,8 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   }, [isAddNewLoanOpen, newLoanForm]);
 
   return (
-    <>
-      <div className="flex items-center justify-between">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
         <h1 className="font-headline text-2xl font-semibold">Borrowers</h1>
         <Dialog open={isAddBorrowerOpen} onOpenChange={setAddBorrowerOpen}>
           <DialogTrigger asChild>
@@ -358,8 +360,8 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
-      <div className="rounded-lg border shadow-sm mt-4">
+      </CardHeader>
+      <div className="rounded-lg border-t">
         <Table>
           <TableHeader>
             <TableRow>
@@ -444,7 +446,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                  <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                  <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                  <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>)} />
                 <DialogFooter>
                   <Button type="submit">Save Changes</Button>
                 </DialogFooter>
@@ -529,6 +531,8 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
           balance={receiptBalance}
         />
       )}
-    </>
+    </Card>
   );
 }
+
+    

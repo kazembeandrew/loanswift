@@ -15,7 +15,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from './ui/sidebar';
 import { GlobalSearch } from './global-search';
 import { useState } from 'react';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useAuth } from '@/context/auth-context';
 import Link from 'next/link';
 
@@ -97,3 +96,5 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
     </>
   );
 }
+
+    
