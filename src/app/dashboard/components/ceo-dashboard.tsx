@@ -5,6 +5,7 @@ import {
   Briefcase,
   TrendingDown,
   Wallet,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Card,
@@ -29,7 +30,7 @@ import {
 import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Borrower, Loan, Payment, Account, BusinessSettings } from '@/types';
-import { format, subMonths, getMonth, getYear } from 'date-fns';
+import { format, subMonths, getMonth, getYear, differenceInDays } from 'date-fns';
 import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from '../borrowers/components/borrower-list';
 import { getBorrowers } from '@/services/borrower-service';
@@ -91,7 +92,6 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
   };
   
   const activeLoans = loans.filter(loan => getLoanBalance(loan) > 0);
-  const overdueLoansValue = activeLoans.reduce((sum, l) => sum + getLoanBalance(l), 0);
   
   const totalRevenue = accounts
     .filter(a => a.type === 'income')
@@ -128,6 +128,34 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
     const collectionMonth = monthlyCollectionsData.find(m => m.monthIndex === paymentMonthIndex && m.year === paymentYear);
     if (collectionMonth) {
       collectionMonth.collected += payment.amount;
+    }
+  });
+
+  // PAR Calculation
+  const par = { thirty: 0, sixty: 0, ninety: 0 };
+  activeLoans.forEach(loan => {
+    const loanBalance = getLoanBalance(loan);
+    if (loanBalance <= 0 || !loan.repaymentSchedule) return;
+
+    const totalPaid = payments
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    let cumulativeDue = 0;
+    for (const installment of loan.repaymentSchedule) {
+      cumulativeDue += installment.amountDue;
+      if (totalPaid < cumulativeDue) {
+        const daysOverdue = differenceInDays(now, new Date(installment.dueDate));
+        if (daysOverdue > 90) {
+          par.ninety += loanBalance;
+        } else if (daysOverdue > 60) {
+          par.sixty += loanBalance;
+        } else if (daysOverdue > 30) {
+          par.thirty += loanBalance;
+        }
+        // Once the first overdue installment is found, we categorize the whole loan and stop.
+        return;
+      }
     }
   });
 
@@ -173,13 +201,36 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
           </Card>
            <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Portfolio at Risk</CardTitle>
-                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold text-destructive">MWK {overdueLoansValue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Total outstanding on active loans.</p>
+                <div className="text-2xl font-bold">{activeLoans.length}</div>
+                <p className="text-xs text-muted-foreground">Total loans with an outstanding balance.</p>
             </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4">
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive"/> Portfolio at Risk (PAR)</CardTitle>
+                  <CardDescription>Outstanding balance of loans with payments overdue by more than 30, 60, or 90 days.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-lg bg-destructive/10 p-4">
+                      <p className="text-sm font-medium text-destructive">PAR &gt;30 Days</p>
+                      <p className="text-2xl font-bold text-destructive">MWK {par.thirty.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-destructive/20 p-4">
+                      <p className="text-sm font-medium text-destructive">PAR &gt;60 Days</p>
+                      <p className="text-2xl font-bold text-destructive">MWK {par.sixty.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-destructive/30 p-4">
+                      <p className="text-sm font-medium text-destructive">PAR &gt;90 Days</p>
+                      <p className="text-2xl font-bold text-destructive">MWK {par.ninety.toLocaleString()}</p>
+                  </div>
+              </CardContent>
           </Card>
         </div>
 
