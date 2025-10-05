@@ -58,7 +58,7 @@ export default function LoginPage() {
                     <img src={businessLogo.imageUrl} alt="Business Logo" className="h-12 w-12" data-ai-hint={businessLogo.imageHint} />
                  )}
                 <h1 className="text-4xl font-bold text-slate-900 dark:text-white">
-                  {settings?.businessName || 'Connect'}
+                  {settings?.businessName || 'Welcome'}
                 </h1>
             </div>
           <CardTitle className="text-2xl">Login</CardTitle>
