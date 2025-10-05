@@ -45,20 +45,19 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
         <h1 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h1>
       </div>
       <div className="flex items-center gap-4">
-        <div className="relative hidden md:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400"> search </span>
-            <input onClick={() => setSearchOpen(true)} className="w-64 cursor-pointer rounded bg-slate-100 dark:bg-slate-900/50 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Search" type="text"/>
-        </div>
-        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSearchOpen(true)}>
-             <span className="material-symbols-outlined text-slate-600 dark:text-slate-400"> search </span>
+        <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)}>
+          <Search className="h-5 w-5" />
+          <span className="sr-only">Search</span>
         </Button>
-        <button className="relative rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-800">
-            <span className="material-symbols-outlined text-slate-600 dark:text-slate-400"> notifications </span>
-            <span className="absolute right-1 top-1 flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
-            </span>
-        </button>
+        {showAddBorrowerButton && onAddBorrowerClick && (
+            <Button size="sm" onClick={onAddBorrowerClick}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Borrower
+            </Button>
+        )}
+        <Button variant="ghost" size="icon">
+          <Bell className="h-5 w-5" />
+          <span className="sr-only">Notifications</span>
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
