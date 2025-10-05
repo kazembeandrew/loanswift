@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -71,6 +72,11 @@ export function SidebarNav() {
   const { userProfile, signOut } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
   const isCeo = userProfile?.role === 'ceo';
+  const isCfo = userProfile?.role === 'cfo';
+  const isHr = userProfile?.role === 'hr';
+
+  const showFinancials = isAdmin || isCeo || isCfo;
+  const showPortfolio = !isHr; // Everyone except HR sees this
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
@@ -104,30 +110,32 @@ export function SidebarNav() {
             </SidebarMenuItem>
         </SidebarMenu>
 
-        <Collapsible defaultOpen={isPortfolioActive}>
-          <CollapsibleTrigger className="w-full">
-            <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
-              <span>Portfolio</span>
-              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </div>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenu className="mt-2">
-              {portfolioItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
-                    <Link href={item.href}>
-                      <item.icon className="size-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </CollapsibleContent>
-        </Collapsible>
+        {showPortfolio && (
+            <Collapsible defaultOpen={isPortfolioActive}>
+            <CollapsibleTrigger className="w-full">
+                <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
+                <span>Portfolio</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <SidebarMenu className="mt-2">
+                {portfolioItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
+                        <Link href={item.href}>
+                        <item.icon className="size-4" />
+                        <span>{item.label}</span>
+                        </Link>
+                    </SidebarMenuButton>
+                    </SidebarMenuItem>
+                ))}
+                </SidebarMenu>
+            </CollapsibleContent>
+            </Collapsible>
+        )}
         
-        {(isAdmin || isCeo) && (
+        {showFinancials && (
           <Collapsible defaultOpen={isFinancialsActive} className="mt-2">
             <CollapsibleTrigger className="w-full">
               <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
@@ -175,8 +183,8 @@ export function SidebarNav() {
           </CollapsibleContent>
         </Collapsible>
 
-        {isAdmin && (
-          <Collapsible defaultOpen={isAdminActive} className="mt-2">
+        {(isAdmin || isHr) && (
+          <Collapsible defaultOpen={isAdminActive || isHr} className="mt-2">
             <CollapsibleTrigger className="w-full">
               <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
                 <span>Admin</span>

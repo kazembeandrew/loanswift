@@ -2,7 +2,7 @@
 export type UserProfile = {
   uid: string;
   email: string;
-  role: 'admin' | 'ceo' | 'loan_officer';
+  role: 'admin' | 'ceo' | 'loan_officer' | 'cfo' | 'hr';
 };
 
 export type Borrower = {

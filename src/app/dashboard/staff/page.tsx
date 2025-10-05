@@ -82,7 +82,7 @@ export default function StaffPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (userProfile?.role === 'admin') {
+    if (userProfile?.role === 'admin' || userProfile?.role === 'hr') {
       fetchData();
     } else {
       setIsLoading(false);
@@ -152,7 +152,7 @@ export default function StaffPage() {
     );
   }
 
-  if (!userProfile || userProfile.role !== 'admin') {
+  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'hr')) {
     return (
         <div className="flex min-h-screen w-full flex-col">
             <Header title="User Management" />
@@ -218,6 +218,8 @@ export default function StaffPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="loan_officer">Loan Officer</SelectItem>
+                                        <SelectItem value="hr">HR</SelectItem>
+                                        <SelectItem value="cfo">CFO</SelectItem>
                                         <SelectItem value="admin">Admin</SelectItem>
                                         <SelectItem value="ceo">CEO</SelectItem>
                                     </SelectContent>
@@ -261,20 +263,22 @@ export default function StaffPage() {
                           <Select
                             value={user.role}
                             onValueChange={(newRole: UserProfile['role']) => handleRoleChange(user.uid, newRole)}
-                            disabled={isUpdating || user.uid === userProfile?.uid}
+                            disabled={isUpdating || user.uid === userProfile?.uid || userProfile?.role !== 'admin'}
                           >
-                            <SelectTrigger className="w-36">
+                            <SelectTrigger className="w-40">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="loan_officer">Loan Officer</SelectItem>
+                                <SelectItem value="hr">HR</SelectItem>
+                                <SelectItem value="cfo">CFO</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
                                 <SelectItem value="ceo">CEO</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
                         <TableCell className="text-right">
-                          {user.role !== 'admin' && (
+                          {user.role !== 'admin' && userProfile?.role === 'admin' && (
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline" size="sm" disabled={isPromoting}>
