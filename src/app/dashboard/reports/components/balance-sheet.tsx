@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,12 +22,12 @@ export default function BalanceSheet() {
   }, []);
 
   useEffect(() => {
-    if (userProfile?.role === 'admin' || userProfile?.role === 'ceo') {
+    if (userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo') {
       fetchData();
     }
   }, [fetchData, userProfile]);
 
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo')) {
+  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo' && userProfile.role !== 'cfo')) {
     return null;
   }
 

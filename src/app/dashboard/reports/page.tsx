@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -18,7 +19,7 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { userProfile } = useAuth();
-  const showFinancialReports = userProfile?.role === 'admin' || userProfile?.role === 'ceo';
+  const showFinancialReports = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -94,8 +94,3 @@ export type JournalEntry = {
   description: string;
   lines: TransactionLine[];
 };
-
-
-
-
-    

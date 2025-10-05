@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -23,12 +24,12 @@ export default function IncomeStatement() {
   }, []);
 
   useEffect(() => {
-    if (userProfile?.role === 'admin' || userProfile?.role === 'ceo') {
+    if (userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo') {
       fetchData();
     }
   }, [fetchData, userProfile]);
 
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo')) {
+  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo' && userProfile.role !== 'cfo')) {
     return null; 
   }
 
@@ -86,7 +87,7 @@ export default function IncomeStatement() {
             ))}
             <TableRow className="font-semibold border-t">
               <TableCell>Total Expenses</TableCell>
-              <TableCell className="text-right">MWK {totalExpenses.toLocaleString()}</TableCell>
+              <TableCell className="text-right">MWK {totalExpenses.toLocaleString()}</TableCell>SAP
             </TableRow>
 
             <TableRow className="font-bold text-lg border-t-2 border-primary">
