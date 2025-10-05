@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -24,6 +23,7 @@ import {
   CreditCard,
   BookUser,
   BookCopy,
+  Calculator,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -55,6 +55,7 @@ const financialItems = [
     { href: '/dashboard/banking', label: 'Banking', icon: Landmark },
     { href: '/dashboard/accounts', label: 'Chart of Accounts', icon: BookUser },
     { href: '/dashboard/journal', label: 'Journal', icon: BookCopy },
+    { href: '/dashboard/accounting', label: 'Accounting', icon: Calculator },
 ]
 
 const utilityItems = [
