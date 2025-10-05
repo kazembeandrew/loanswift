@@ -14,6 +14,8 @@ import type { Borrower, Loan, BusinessSettings } from '@/types';
 import { Loader2, Printer, Download } from 'lucide-react';
 import ReceiptPreview from '@/components/receipt-preview';
 import { getSettings } from '@/services/settings-service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type ReceiptGeneratorProps = {
   isOpen: boolean;
@@ -37,6 +39,7 @@ export default function ReceiptGenerator({
   const [receiptText, setReceiptText] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [isGeneratingText, setIsGeneratingText] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const { toast } = useToast();
   
@@ -133,6 +136,46 @@ export default function ReceiptGenerator({
     }
   };
 
+  const handleDownloadPdf = async () => {
+    const receiptElement = document.getElementById('receipt-preview');
+    if (!receiptElement || !receiptId) {
+        toast({title: "Error", description: "Receipt element not found for PDF generation.", variant: "destructive"});
+        return;
+    }
+
+    setIsDownloadingPdf(true);
+
+    try {
+        const canvas = await html2canvas(receiptElement, {
+            scale: 2, // Higher scale for better quality
+            useCORS: true,
+            backgroundColor: '#ffffff',
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        
+        // A5 size in mm is 148 x 210. We'll use landscape.
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a5',
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`receipt-${receiptId}.pdf`);
+
+        toast({title: "Download Started", description: "Your receipt PDF is downloading."});
+    } catch(error) {
+        console.error("PDF generation error:", error);
+        toast({title: "PDF Error", description: "Failed to generate PDF.", variant: "destructive"});
+    } finally {
+        setIsDownloadingPdf(false);
+    }
+  };
+
 
   const isLoading = isGeneratingText || !settings;
 
@@ -172,8 +215,13 @@ export default function ReceiptGenerator({
 
         {!isLoading && receiptText && (
              <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => toast({ title: 'Coming Soon!', description: 'PDF download will be available soon.'})}>
-                <Download className="mr-2 h-4 w-4" /> Download PDF
+              <Button variant="outline" onClick={handleDownloadPdf} disabled={isDownloadingPdf}>
+                {isDownloadingPdf ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                )}
+                 Download PDF
               </Button>
               <Button onClick={handlePrint}>
                 <Printer className="mr-2 h-4 w-4" /> Print
