@@ -6,12 +6,13 @@ import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale } from 'lucide-react';
+import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import type { Borrower, Loan, Payment } from '@/types';
+import type { Borrower, Loan, Payment, RepaymentScheduleItem } from '@/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,9 @@ import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 
 export default function BorrowerDetailPage() {
@@ -142,6 +146,31 @@ export default function BorrowerDetailPage() {
 
       return 'approved';
   }
+  
+  const getRepaymentScheduleWithStatus = (loan: Loan): RepaymentScheduleItem[] => {
+      if (!loan.repaymentSchedule) return [];
+      
+      const paymentsForLoan = allPayments
+          .filter(p => p.loanId === loan.id)
+          .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          
+      let cumulativePaid = 0;
+      
+      return loan.repaymentSchedule.map(item => {
+          cumulativePaid += item.amountDue;
+          const totalPaidToDate = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
+
+          let status: 'paid' | 'pending' | 'overdue' = 'pending';
+
+          if (totalPaidToDate >= cumulativePaid) {
+              status = 'paid';
+          } else if (new Date() > new Date(item.dueDate)) {
+              status = 'overdue';
+          }
+
+          return { ...item, status };
+      });
+  }
 
   const getLoanStatusVariant = (
     status: 'approved' | 'active' | 'closed'
@@ -157,6 +186,21 @@ export default function BorrowerDetailPage() {
           return 'default';
     }
   };
+  
+  const getScheduleStatusVariant = (
+    status: 'paid' | 'pending' | 'overdue'
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
+     switch (status) {
+      case 'paid':
+        return 'default';
+      case 'pending':
+        return 'outline';
+      case 'overdue':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  }
 
   const avatarFallback = borrower.name.split(' ').map(n => n[0]).join('');
 
@@ -213,35 +257,76 @@ export default function BorrowerDetailPage() {
         <Card>
             <CardHeader>
               <CardTitle>Loan History</CardTitle>
+              <CardDescription>Select a loan to view its details and repayment schedule.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {borrowerLoans.length > 0 ? (
-                borrowerLoans.map(loan => {
-                  const balance = getLoanBalance(loan);
-                  const status = getLoanStatus(loan);
-                  return (
-                    <div key={loan.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md bg-muted gap-4">
-                      <div className="flex-1">
-                        <p className="font-semibold">{loan.id}</p>
-                        <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
-                        <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : 'text-destructive'}`}>
-                          Balance: MWK {balance.toLocaleString()}
-                        </p>
-                      </div>
-                       <div className="flex items-center gap-2 w-full sm:w-auto">
-                         <Badge variant={getLoanStatusVariant(status)} className="w-full sm:w-auto justify-center">{status}</Badge>
-                         {status !== 'closed' && (
-                          <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)} className="w-full sm:w-auto">
-                            <CircleDollarSign className="mr-2 h-4 w-4" />
-                            Record Payment
-                          </Button>
-                         )}
-                      </div>
-                    </div>
-                  );
-                })
+                <Tabs defaultValue={borrowerLoans[0]?.id}>
+                    <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        {borrowerLoans.map(loan => (
+                            <TabsTrigger key={loan.id} value={loan.id}>{loan.id}</TabsTrigger>
+                        ))}
+                    </TabsList>
+                    {borrowerLoans.map(loan => {
+                        const balance = getLoanBalance(loan);
+                        const status = getLoanStatus(loan);
+                        const schedule = getRepaymentScheduleWithStatus(loan);
+                        
+                        return (
+                            <TabsContent key={loan.id} value={loan.id}>
+                                <div className="mt-4 p-4 border rounded-lg">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                      <div className="flex-1">
+                                        <p className="font-semibold">{loan.id}</p>
+                                        <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
+                                        <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : 'text-destructive'}`}>
+                                          Balance: MWK {balance.toLocaleString()}
+                                        </p>
+                                      </div>
+                                       <div className="flex items-center gap-2 w-full sm:w-auto">
+                                         <Badge variant={getLoanStatusVariant(status)} className="w-full sm:w-auto justify-center">{status}</Badge>
+                                         {status !== 'closed' && (
+                                          <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)} className="w-full sm:w-auto">
+                                            <CircleDollarSign className="mr-2 h-4 w-4" />
+                                            Record Payment
+                                          </Button>
+                                         )}
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="mt-6">
+                                        <h4 className="font-semibold flex items-center gap-2 mb-2"><CalendarDays className="h-4 w-4" />Repayment Schedule</h4>
+                                        <div className="rounded-md border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Due Date</TableHead>
+                                                    <TableHead>Amount Due</TableHead>
+                                                    <TableHead className="text-right">Status</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {schedule.map((item, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell>{format(new Date(item.dueDate), 'PPP')}</TableCell>
+                                                        <TableCell>MWK {item.amountDue.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Badge variant={getScheduleStatusVariant(item.status)}>{item.status}</Badge>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </TabsContent>
+                        )
+                    })}
+                </Tabs>
               ) : (
-                <p className="text-muted-foreground">No loans found for this borrower.</p>
+                <p className="text-muted-foreground text-center py-10">No loans found for this borrower.</p>
               )}
             </CardContent>
           </Card>

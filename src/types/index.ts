@@ -21,6 +21,12 @@ export type CollateralItem = {
   value: number;
 };
 
+export type RepaymentScheduleItem = {
+  dueDate: string;
+  amountDue: number;
+  status: 'paid' | 'pending' | 'overdue';
+};
+
 export type Loan = {
   id:string;
   borrowerId: string;
@@ -30,6 +36,7 @@ export type Loan = {
   startDate: string;
   outstandingBalance: number;
   collateral?: CollateralItem[];
+  repaymentSchedule: RepaymentScheduleItem[];
 };
 
 export type Payment = {
@@ -88,4 +95,5 @@ export type JournalEntry = {
   description: string;
   lines: TransactionLine[];
 };
+
 

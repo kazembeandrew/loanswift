@@ -1,8 +1,9 @@
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Loan } from '@/types';
+import type { Loan, RepaymentScheduleItem } from '@/types';
 import { addJournalEntry } from './journal-service';
 import { getAccounts } from './account-service';
+import { addMonths } from 'date-fns';
 
 
 export async function getLoans(): Promise<Loan[]> {
@@ -25,8 +26,33 @@ export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> 
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
 }
 
-export async function addLoan(loanData: Omit<Loan, 'id'>): Promise<string> {
-  const docRef = await addDoc(collection(db, 'loans'), loanData);
+function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>): RepaymentScheduleItem[] {
+  const schedule: RepaymentScheduleItem[] = [];
+  const { principal, interestRate, repaymentPeriod, startDate } = loan;
+  const totalInterest = principal * (interestRate / 100);
+  const totalOwed = principal + totalInterest;
+  const monthlyPayment = totalOwed / repaymentPeriod;
+  
+  const loanStartDate = new Date(startDate);
+
+  for (let i = 1; i <= repaymentPeriod; i++) {
+    const dueDate = addMonths(loanStartDate, i);
+    schedule.push({
+      dueDate: dueDate.toISOString(),
+      amountDue: monthlyPayment,
+      status: 'pending',
+    });
+  }
+
+  return schedule;
+}
+
+
+export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
+  const repaymentSchedule = generateRepaymentSchedule(loanData);
+  const loanWithSchedule = { ...loanData, repaymentSchedule };
+
+  const docRef = await addDoc(collection(db, 'loans'), loanWithSchedule);
   
   // Automated Journal Entry for Loan Disbursement
   try {

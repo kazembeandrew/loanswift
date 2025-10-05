@@ -250,14 +250,17 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
 
   const handleAddNewLoanClick = (borrower: Borrower) => {
     setSelectedBorrower(borrower);
-    newLoanForm.reset(newLoanFormDefaultValues);
+    newLoanForm.reset({
+        ...newLoanFormDefaultValues,
+        startDate: new Date().toISOString().split('T')[0]
+    });
     setAddNewLoanOpen(true);
   };
   
   const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>) => {
     if (!selectedBorrower) return;
     
-    const newLoanData: Omit<Loan, 'id'> = {
+    const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
       borrowerId: selectedBorrower.id,
       principal: values.loanAmount,
       interestRate: values.interestRate,
