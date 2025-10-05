@@ -57,7 +57,7 @@ export default function LoginPage() {
                  {businessLogo && (
                     <img src={businessLogo.imageUrl} alt="Business Logo" className="h-12 w-12" data-ai-hint={businessLogo.imageHint} />
                  )}
-                <h1 className="text-4xl font-bold text-slate-900 dark:text-white">
+                <h1 className="text-4xl font-bold text-slate-900 dark:text-white font-headline">
                   {settings?.businessName || 'Welcome'}
                 </h1>
             </div>

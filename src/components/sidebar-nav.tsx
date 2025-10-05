@@ -87,7 +87,7 @@ export function SidebarNav() {
             </svg>
             </div>
           <h1 className="font-headline text-2xl font-semibold text-primary">
-            Connect
+            LoanSwift
           </h1>
         </Link>
       </SidebarHeader>

@@ -11,11 +11,12 @@ export default {
     extend: {
       fontFamily: {
         display: ['Inter', 'sans-serif'],
-        body: ['Noto Sans', 'sans-serif'],
+        body: ['Alegreya', 'serif'],
+        headline: ['Belleza', 'sans-serif'],
       },
        colors: {
-        'background-light': 'var(--background-light)',
-        'background-dark': 'var(--background-dark)',
+        'background-light': '#E5E8E8',
+        'background-dark': '#101922',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
