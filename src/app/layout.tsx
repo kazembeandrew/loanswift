@@ -5,8 +5,8 @@ import { AuthProvider } from '@/context/auth-context';
 
 
 export const metadata: Metadata = {
-  title: 'Janalo Enterprises',
-  description: 'Internal loan management system',
+  title: 'Connect',
+  description: 'Internal team collaboration tool',
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -23,12 +23,13 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
         <link
-          href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..900;1,400..900&family=Belleza&display=swap"
+          href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@400;500;700;900&family=Noto+Sans:wght@400;500;700;900"
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased">
+      <body className="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-200">
         <AuthProvider>
           {children}
         </AuthProvider>

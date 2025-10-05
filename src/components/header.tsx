@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Bell, Search, PlusCircle, LogOut, Settings as SettingsIcon } from 'lucide-react';
@@ -33,40 +32,38 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
 
   return (
     <>
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-card px-4 md:px-6">
-      <div className="md:hidden">
-        <SidebarTrigger />
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6">
+      <div className="flex items-center gap-3">
+        <div className="md:hidden">
+            <SidebarTrigger />
+        </div>
+        <div className="text-primary h-8 w-8 md:hidden">
+            <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z" fill="currentColor"></path>
+            </svg>
+        </div>
+        <h1 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h1>
       </div>
-      <h1 className="font-headline text-xl font-semibold md:text-2xl">
-        {title}
-      </h1>
-      <div className="ml-auto flex items-center gap-4">
-        {showAddBorrowerButton && (
-          <Button onClick={onAddBorrowerClick} className="hidden sm:flex">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Borrower
-          </Button>
-        )}
-        <Button variant="outline" className="hidden md:flex gap-2 items-center text-muted-foreground pr-8" onClick={() => setSearchOpen(true)}>
-            <Search className="h-4 w-4" />
-            <span>Search...</span>
-             <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-              <span className="text-xs">⌘</span>K
-            </kbd>
+      <div className="flex items-center gap-4">
+        <div className="relative hidden md:block">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400"> search </span>
+            <input onClick={() => setSearchOpen(true)} className="w-64 cursor-pointer rounded bg-slate-100 dark:bg-slate-900/50 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Search" type="text"/>
+        </div>
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSearchOpen(true)}>
+             <span className="material-symbols-outlined text-slate-600 dark:text-slate-400"> search </span>
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full md:hidden" onClick={() => setSearchOpen(true)}>
-            <Search className="h-5 w-5" />
-            <span className="sr-only">Search</span>
-        </Button>
-
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Bell className="h-5 w-5" />
-          <span className="sr-only">Toggle notifications</span>
-        </Button>
+        <button className="relative rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-800">
+            <span className="material-symbols-outlined text-slate-600 dark:text-slate-400"> notifications </span>
+            <span className="absolute right-1 top-1 flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+            </span>
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Avatar className="h-8 w-8">
+                 <AvatarImage src={`https://picsum.photos/seed/${userProfile?.uid}/40/40`} />
                 <AvatarFallback>{userFallback}</AvatarFallback>
               </Avatar>
             </Button>
@@ -96,5 +93,3 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
     </>
   );
 }
-
-    

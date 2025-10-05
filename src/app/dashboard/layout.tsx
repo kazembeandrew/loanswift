@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Header } from '@/components/header';
+
 
 const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 
@@ -62,7 +64,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -70,12 +72,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
-        <SidebarNav />
-        <SidebarInset>
-          <div className="flex flex-1 flex-col">{children}</div>
-        </SidebarInset>
-      </div>
+        <div className="flex h-screen">
+            <SidebarNav />
+            <div className="flex flex-1 flex-col">
+                <Header title="Dashboard" />
+                {children}
+            </div>
+        </div>
     </SidebarProvider>
   );
 }

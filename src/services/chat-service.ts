@@ -1,4 +1,3 @@
-
 import {
   collection,
   addDoc,
@@ -50,8 +49,8 @@ export async function sendMessage(
   const conversationRef = doc(db, 'conversations', conversationId);
   const messagesCollection = collection(conversationRef, 'messages');
   
+  // Create a new message document
   const newMessageRef = doc(messagesCollection);
-  
   const timestamp = new Date().toISOString();
   
   const messageData = {
@@ -64,12 +63,30 @@ export async function sendMessage(
   batch.set(newMessageRef, messageData);
   
   // Update the last message on the conversation
-  batch.update(conversationRef, {
-    lastMessage: {
-      text,
-      timestamp,
-    },
-  });
+  // We need to ensure the conversation document exists first.
+  const convoSnap = await getDoc(conversationRef);
+  if (convoSnap.exists()) {
+      batch.update(conversationRef, {
+        lastMessage: {
+          text,
+          timestamp,
+        },
+      });
+  } else {
+      // If it doesn't exist (e.g. for the hardcoded 'project_alpha_team'), create it.
+      const allUsers = (await getDocs(collection(db, 'users'))).docs.map(d => d.id);
+      const allUserEmails = (await getDocs(collection(db, 'users'))).docs.map(d => d.data().email as string);
+
+      batch.set(conversationRef, {
+        participants: allUsers,
+        participantEmails: allUserEmails,
+        createdAt: timestamp,
+        lastMessage: {
+          text,
+          timestamp,
+        },
+      });
+  }
   
   await batch.commit();
   
