@@ -94,3 +94,16 @@ export type JournalEntry = {
   description: string;
   lines: TransactionLine[];
 };
+
+export type SituationReport = {
+  id: string;
+  borrowerId: string;
+  loanId?: string;
+  reportedBy: string; // UID of the loan officer
+  reportDate: string; // ISO string
+  situationType: 'Client Dispute' | 'Business Disruption' | 'Collateral Issue' | 'Personal Emergency' | 'Fraud Concern' | 'Other';
+  summary: string;
+  details: string;
+  resolutionPlan: string;
+  status: 'Open' | 'Under Review' | 'Resolved';
+};

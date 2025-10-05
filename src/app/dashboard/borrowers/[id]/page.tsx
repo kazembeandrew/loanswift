@@ -6,12 +6,12 @@ import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays } from 'lucide-react';
+import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import type { Borrower, Loan, Payment, RepaymentScheduleItem } from '@/types';
+import type { Borrower, Loan, Payment, RepaymentScheduleItem, SituationReport } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Dialog,
@@ -32,34 +32,60 @@ import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getSituationReportsByBorrower, addSituationReport } from '@/services/situation-report-service';
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
+const situationReportSchema = z.object({
+  situationType: z.enum(['Client Dispute', 'Business Disruption', 'Collateral Issue', 'Personal Emergency', 'Fraud Concern', 'Other']),
+  summary: z.string().min(1, "Summary is required").max(100, "Summary must be 100 characters or less"),
+  details: z.string().min(1, "Details are required"),
+  resolutionPlan: z.string().min(1, "Resolution plan is required"),
+  loanId: z.string().optional(),
+});
 
 export default function BorrowerDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
   const [allPayments, setAllPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [isFileReportOpen, setFileReportOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [receiptBalance, setReceiptBalance] = useState(0);
 
   const { toast } = useToast();
 
+  const reportForm = useForm<z.infer<typeof situationReportSchema>>({
+    resolver: zodResolver(situationReportSchema),
+    defaultValues: {
+      summary: "",
+      details: "",
+      resolutionPlan: "",
+    },
+  });
+
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [borrowerData, loansData, paymentsData] = await Promise.all([
+    const [borrowerData, loansData, paymentsData, reportsData] = await Promise.all([
       getBorrowerById(id),
       getLoansByBorrowerId(id),
-      getAllPayments(), // Fetch all payments to calculate balances correctly
+      getAllPayments(),
+      getSituationReportsByBorrower(id),
     ]);
     setBorrower(borrowerData);
     setBorrowerLoans(loansData);
     setAllPayments(paymentsData);
+    setSituationReports(reportsData);
   }, [id]);
 
   useEffect(() => {
@@ -137,6 +163,30 @@ export default function BorrowerDetailPage() {
     }
   };
 
+  const handleFileReportSubmit = async (values: z.infer<typeof situationReportSchema>) => {
+    if (!user || !borrower) return;
+    try {
+      await addSituationReport({
+        ...values,
+        borrowerId: borrower.id,
+        reportedBy: user.uid,
+      });
+      toast({
+        title: "Report Filed",
+        description: "The situation report has been successfully filed.",
+      });
+      setFileReportOpen(false);
+      reportForm.reset();
+      await fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Failed to File Report",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
       const balance = getLoanBalance(loan);
       if (balance <= 0) return 'closed';
@@ -153,7 +203,6 @@ export default function BorrowerDetailPage() {
     const paymentsForLoan = allPayments.filter(p => p.loanId === loan.id);
     const totalPaid = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
 
-    let cumulativePaid = 0;
     let cumulativeDue = 0;
 
     return loan.repaymentSchedule.map(item => {
@@ -224,6 +273,10 @@ export default function BorrowerDetailPage() {
             <h1 className="font-headline text-3xl font-semibold">{borrower.name}</h1>
             <p className="text-muted-foreground">{borrower.idNumber}</p>
           </div>
+           <Button variant="outline" className="ml-auto" onClick={() => setFileReportOpen(true)}>
+            <Flag className="mr-2 h-4 w-4" />
+            File Situation Report
+          </Button>
         </div>
 
         <div className="grid gap-6 mt-6 md:grid-cols-2 lg:grid-cols-3">
@@ -255,82 +308,124 @@ export default function BorrowerDetailPage() {
           </Card>
         </div>
 
-        <Card>
-            <CardHeader>
-              <CardTitle>Loan History</CardTitle>
-              <CardDescription>Select a loan to view its details and repayment schedule.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {borrowerLoans.length > 0 ? (
-                <Tabs defaultValue={borrowerLoans[0]?.id}>
-                    <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                        {borrowerLoans.map(loan => (
-                            <TabsTrigger key={loan.id} value={loan.id}>{loan.id}</TabsTrigger>
-                        ))}
-                    </TabsList>
-                    {borrowerLoans.map(loan => {
-                        const balance = getLoanBalance(loan);
-                        const status = getLoanStatus(loan);
-                        const schedule = getRepaymentScheduleWithStatus(loan);
-                        
-                        return (
-                            <TabsContent key={loan.id} value={loan.id}>
-                                <div className="mt-4 p-4 border rounded-lg">
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                      <div className="flex-1">
-                                        <p className="font-semibold">{loan.id}</p>
-                                        <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
-                                        <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : 'text-destructive'}`}>
-                                          Balance: MWK {balance.toLocaleString()}
-                                        </p>
-                                      </div>
-                                       <div className="flex items-center gap-2 w-full sm:w-auto">
-                                         <Badge variant={getLoanStatusVariant(status)} className="w-full sm:w-auto justify-center">{status}</Badge>
-                                         {status !== 'closed' && (
-                                          <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)} className="w-full sm:w-auto">
-                                            <CircleDollarSign className="mr-2 h-4 w-4" />
-                                            Record Payment
-                                          </Button>
-                                         )}
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="mt-6">
-                                        <h4 className="font-semibold flex items-center gap-2 mb-2"><CalendarDays className="h-4 w-4" />Repayment Schedule</h4>
-                                        <div className="rounded-md border">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Due Date</TableHead>
-                                                    <TableHead>Amount Due</TableHead>
-                                                    <TableHead className="text-right">Status</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {schedule.map((item, index) => (
-                                                    <TableRow key={index}>
-                                                        <TableCell>{format(new Date(item.dueDate), 'PPP')}</TableCell>
-                                                        <TableCell>MWK {item.amountDue.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Badge variant={getScheduleStatusVariant(item.status)}>{item.status}</Badge>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
+        <Tabs defaultValue="loans">
+          <TabsList>
+            <TabsTrigger value="loans">Loan History</TabsTrigger>
+            <TabsTrigger value="reports">Situation Reports</TabsTrigger>
+          </TabsList>
+          <TabsContent value="loans">
+            <Card>
+              <CardHeader>
+                <CardTitle>Loan History</CardTitle>
+                <CardDescription>Select a loan to view its details and repayment schedule.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {borrowerLoans.length > 0 ? (
+                  <Tabs defaultValue={borrowerLoans[0]?.id}>
+                      <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                          {borrowerLoans.map(loan => (
+                              <TabsTrigger key={loan.id} value={loan.id}>{loan.id}</TabsTrigger>
+                          ))}
+                      </TabsList>
+                      {borrowerLoans.map(loan => {
+                          const balance = getLoanBalance(loan);
+                          const status = getLoanStatus(loan);
+                          const schedule = getRepaymentScheduleWithStatus(loan);
+                          
+                          return (
+                              <TabsContent key={loan.id} value={loan.id}>
+                                  <div className="mt-4 p-4 border rounded-lg">
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div className="flex-1">
+                                          <p className="font-semibold">{loan.id}</p>
+                                          <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
+                                          <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : 'text-destructive'}`}>
+                                            Balance: MWK {balance.toLocaleString()}
+                                          </p>
                                         </div>
-                                    </div>
+                                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                                          <Badge variant={getLoanStatusVariant(status)} className="w-full sm:w-auto justify-center">{status}</Badge>
+                                          {status !== 'closed' && (
+                                            <Button variant="outline" size="sm" onClick={() => handleRecordPaymentClick(loan)} className="w-full sm:w-auto">
+                                              <CircleDollarSign className="mr-2 h-4 w-4" />
+                                              Record Payment
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="mt-6">
+                                          <h4 className="font-semibold flex items-center gap-2 mb-2"><CalendarDays className="h-4 w-4" />Repayment Schedule</h4>
+                                          <div className="rounded-md border">
+                                          <Table>
+                                              <TableHeader>
+                                                  <TableRow>
+                                                      <TableHead>Due Date</TableHead>
+                                                      <TableHead>Amount Due</TableHead>
+                                                      <TableHead className="text-right">Status</TableHead>
+                                                  </TableRow>
+                                              </TableHeader>
+                                              <TableBody>
+                                                  {schedule.map((item, index) => (
+                                                      <TableRow key={index}>
+                                                          <TableCell>{format(new Date(item.dueDate), 'PPP')}</TableCell>
+                                                          <TableCell>MWK {item.amountDue.toLocaleString()}</TableCell>
+                                                          <TableCell className="text-right">
+                                                              <Badge variant={getScheduleStatusVariant(item.status)}>{item.status}</Badge>
+                                                          </TableCell>
+                                                      </TableRow>
+                                                  ))}
+                                              </TableBody>
+                                          </Table>
+                                          </div>
+                                      </div>
 
-                                </div>
-                            </TabsContent>
-                        )
-                    })}
-                </Tabs>
-              ) : (
-                <p className="text-muted-foreground text-center py-10">No loans found for this borrower.</p>
-              )}
-            </CardContent>
-          </Card>
+                                  </div>
+                              </TabsContent>
+                          )
+                      })}
+                  </Tabs>
+                ) : (
+                  <p className="text-muted-foreground text-center py-10">No loans found for this borrower.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="reports">
+             <Card>
+                <CardHeader>
+                  <CardTitle>Situation Reports</CardTitle>
+                  <CardDescription>A log of all qualitative reports filed for this borrower.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {situationReports.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Summary</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {situationReports.map(report => (
+                          <TableRow key={report.id}>
+                            <TableCell>{format(new Date(report.reportDate), 'PPP')}</TableCell>
+                            <TableCell><Badge variant="secondary">{report.situationType}</Badge></TableCell>
+                            <TableCell>{report.summary}</TableCell>
+                            <TableCell><Badge>{report.status}</Badge></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-10">No situation reports filed for this borrower.</p>
+                  )}
+                </CardContent>
+              </Card>
+          </TabsContent>
+        </Tabs>
         
         {borrowerLoans.some(loan => loan.collateral && loan.collateral.length > 0) && (
             <Card>
@@ -421,8 +516,94 @@ export default function BorrowerDetailPage() {
         />
       )}
 
+      <Dialog open={isFileReportOpen} onOpenChange={setFileReportOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>File Situation Report</DialogTitle>
+            <DialogDescription>
+              Document a specific situation regarding {borrower.name}. This will be visible to management.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={reportForm.handleSubmit(handleFileReportSubmit)}>
+            <div className="grid gap-4 py-4">
+              <Controller
+                name="situationType"
+                control={reportForm.control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Situation Type</Label>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Client Dispute">Client Dispute</SelectItem>
+                        <SelectItem value="Business Disruption">Business Disruption</SelectItem>
+                        <SelectItem value="Collateral Issue">Collateral Issue</SelectItem>
+                        <SelectItem value="Personal Emergency">Personal Emergency</SelectItem>
+                        <SelectItem value="Fraud Concern">Fraud Concern</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              />
+              <Controller
+                name="loanId"
+                control={reportForm.control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Related Loan (Optional)</Label>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a related loan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {borrowerLoans.map(loan => (
+                          <SelectItem key={loan.id} value={loan.id}>{loan.id}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              />
+              <Controller
+                name="summary"
+                control={reportForm.control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="summary" className="text-right">Summary</Label>
+                    <Input id="summary" className="col-span-3" {...field} />
+                  </div>
+                )}
+              />
+               <Controller
+                name="details"
+                control={reportForm.control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label htmlFor="details" className="text-right pt-2">Details</Label>
+                    <Textarea id="details" className="col-span-3" {...field} />
+                  </div>
+                )}
+              />
+               <Controller
+                name="resolutionPlan"
+                control={reportForm.control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label htmlFor="resolutionPlan" className="text-right pt-2">Resolution Plan</Label>
+                    <Textarea id="resolutionPlan" className="col-span-3" {...field} />
+                  </div>
+                )}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit">File Report</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    
