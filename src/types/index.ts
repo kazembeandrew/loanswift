@@ -99,8 +99,8 @@ export type SituationReport = {
   id: string;
   borrowerId: string;
   loanId?: string;
-  reportedBy: string; // UID of the loan officer
   reportDate: string; // ISO string
+  reportedBy: string; // UID of the loan officer
   situationType: 'Client Dispute' | 'Business Disruption' | 'Collateral Issue' | 'Personal Emergency' | 'Fraud Concern' | 'Other';
   summary: string;
   details: string;

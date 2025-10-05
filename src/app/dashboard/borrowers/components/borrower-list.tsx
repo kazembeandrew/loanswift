@@ -534,5 +534,3 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
     </Card>
   );
 }
-
-    
