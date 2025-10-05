@@ -8,6 +8,52 @@ import type { UserProfile } from '@/types';
 
 const usersCollectionRef = collection(db, 'users');
 
+async function seedInitialUsers() {
+    if (!adminAuth) return;
+
+    const usersToSeed = [
+        { email: 'kazembeandrew@gmail.com', password: 'Jackliness@2', role: 'ceo' as const },
+        { email: 'info.ntchito@gmail.com', password: 'Jackliness@2', role: 'admin' as const },
+        { email: 'jackkazembe@gmail.com', password: 'Naloga', role: 'cfo' as const },
+    ];
+
+    for (const userData of usersToSeed) {
+        try {
+            // Check if user already exists
+            await adminAuth.getUserByEmail(userData.email);
+            // console.log(`User ${userData.email} already exists. Skipping.`);
+        } catch (error: any) {
+            if (error.code === 'auth/user-not-found') {
+                // User does not exist, create them
+                console.log(`Creating user: ${userData.email}`);
+                const userRecord = await adminAuth.createUser({
+                    email: userData.email,
+                    password: userData.password,
+                    emailVerified: true,
+                });
+                
+                const userProfile: UserProfile = {
+                    uid: userRecord.uid,
+                    email: userRecord.email || '',
+                    role: userData.role,
+                };
+                
+                await adminAuth.setCustomUserClaims(userRecord.uid, { role: userData.role });
+                await setDoc(doc(db, 'users', userRecord.uid), userProfile);
+                console.log(`Successfully created and configured user: ${userData.email} with role ${userData.role}`);
+            } else {
+                // Another error occurred
+                console.error(`Error checking user ${userData.email}:`, error);
+            }
+        }
+    }
+}
+
+// Call the seeding function. This will run on server startup.
+// In a real production scenario, this might be a separate, one-time script.
+seedInitialUsers().catch(console.error);
+
+
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const docRef = doc(db, 'users', uid);
     const docSnap = await getDoc(docRef);
@@ -23,6 +69,16 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 }
 
 export async function createUserProfile(user: {uid: string, email: string}, role: UserProfile['role'] = 'loan_officer'): Promise<UserProfile> {
+    
+    const docRef = doc(db, 'users', user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+        // If the document exists, return the existing profile.
+        // This prevents overwriting roles set by an admin.
+        return docSnap.data() as UserProfile;
+    }
+
     if (!adminAuth) {
       console.error("Cannot create user profile. Firebase Admin is not initialized.");
       const tempProfile: UserProfile = { uid: user.uid, email: user.email, role: 'loan_officer' };
@@ -44,11 +100,10 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     }
 
     // Using setDoc with merge:true is equivalent to an upsert.
-    const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, userProfile, { merge: true });
     
-    const docSnap = await getDoc(docRef);
-    return docSnap.data() as UserProfile;
+    const finalDocSnap = await getDoc(docRef);
+    return finalDocSnap.data() as UserProfile;
 }
 
 export async function updateUserRole(uid: string, role: UserProfile['role']): Promise<void> {
