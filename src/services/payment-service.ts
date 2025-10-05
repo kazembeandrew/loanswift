@@ -47,10 +47,8 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         throw new Error(`Cannot record payment. The following critical accounts are missing from your Chart of Accounts: ${missingAccounts.join(', ')}. Please create them on the Accounts page.`);
     }
     
-    // This is a simplification for calculating previously paid interest.
-    const allPayments = (await getAllPayments()).filter(p => p.loanId === loanId);
     let interestPaidPreviously = 0;
-    for (const p of allPayments) {
+    for (const p of allPaymentsForLoan) {
         const remainingInterest = interestOwedTotal - interestPaidPreviously;
         const interestForThisPayment = Math.min(p.amount, remainingInterest);
         interestPaidPreviously += interestForThisPayment;
