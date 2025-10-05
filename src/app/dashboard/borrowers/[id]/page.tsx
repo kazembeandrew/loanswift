@@ -147,29 +147,30 @@ export default function BorrowerDetailPage() {
       return 'approved';
   }
   
-  const getRepaymentScheduleWithStatus = (loan: Loan): RepaymentScheduleItem[] => {
-      if (!loan.repaymentSchedule) return [];
+  const getRepaymentScheduleWithStatus = (loan: Loan): (RepaymentScheduleItem & { status: 'paid' | 'pending' | 'overdue' })[] => {
+    if (!loan.repaymentSchedule) return [];
       
-      const paymentsForLoan = allPayments
-          .filter(p => p.loanId === loan.id)
-          .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          
-      let cumulativePaid = 0;
-      
-      return loan.repaymentSchedule.map(item => {
-          cumulativePaid += item.amountDue;
-          const totalPaidToDate = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
+    const paymentsForLoan = allPayments.filter(p => p.loanId === loan.id);
+    const totalPaid = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
 
-          let status: 'paid' | 'pending' | 'overdue' = 'pending';
+    let cumulativePaid = 0;
+    let cumulativeDue = 0;
 
-          if (totalPaidToDate >= cumulativePaid) {
-              status = 'paid';
-          } else if (new Date() > new Date(item.dueDate)) {
-              status = 'overdue';
-          }
+    return loan.repaymentSchedule.map(item => {
+        cumulativeDue += item.amountDue;
+        
+        let status: 'paid' | 'pending' | 'overdue';
 
-          return { ...item, status };
-      });
+        if (totalPaid >= cumulativeDue) {
+            status = 'paid';
+        } else if (new Date() > new Date(item.dueDate) && totalPaid < cumulativeDue) {
+            status = 'overdue';
+        } else {
+            status = 'pending';
+        }
+
+        return { ...item, status };
+    });
   }
 
   const getLoanStatusVariant = (
@@ -423,3 +424,5 @@ export default function BorrowerDetailPage() {
     </div>
   );
 }
+
+    
