@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/auth-context';
-import type { Borrower, Loan, Payment } from '@/types';
+import type { Borrower, Loan, Payment, RepaymentScheduleItem } from '@/types';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
@@ -10,11 +10,19 @@ import DashboardMetrics from './dashboard-metrics';
 import BorrowerList from '../borrowers/components/borrower-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { subDays, isAfter, format } from 'date-fns';
+import { isAfter, format } from 'date-fns';
 
 type LoanOfficerDashboardProps = {
     isAddBorrowerOpen: boolean;
     setAddBorrowerOpen: (isOpen: boolean) => void;
+};
+
+type UpcomingPayment = {
+    loanId: string;
+    borrowerName: string;
+    amountDue: number;
+    dueDate: Date;
+    balance: number;
 };
 
 export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: LoanOfficerDashboardProps) {
@@ -52,25 +60,43 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
     return totalOwed - totalPaid;
   };
   
-  const upcomingPayments = myLoans.map(loan => {
-    const lastPayment = payments.filter(p => p.loanId === loan.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    const balance = getLoanBalance(loan);
-    if (balance <= 0) return null;
+  const getUpcomingPayments = (): UpcomingPayment[] => {
+    const upcoming: UpcomingPayment[] = [];
+    const now = new Date();
 
-    const lastPaymentDate = lastPayment ? new Date(lastPayment.date) : new Date(loan.startDate);
-    const dueDate = new Date(lastPaymentDate.setMonth(lastPaymentDate.getMonth() + 1));
-    const borrower = myBorrowers.find(b => b.id === loan.borrowerId);
+    myLoans.forEach(loan => {
+        const balance = getLoanBalance(loan);
+        if (balance <= 0 || !loan.repaymentSchedule) return;
 
-    return {
-        loanId: loan.id,
-        borrowerName: borrower?.name || 'Unknown',
-        amountDue: loan.principal / loan.repaymentPeriod, // simplified
-        dueDate: dueDate,
-        balance: balance,
-    }
-  }).filter(p => p !== null && isAfter(p.dueDate, subDays(new Date(), 7)))
-    .sort((a,b) => a!.dueDate.getTime() - b!.dueDate.getTime())
-    .slice(0, 5);
+        const totalPaid = payments
+            .filter(p => p.loanId === loan.id)
+            .reduce((sum, p) => sum + p.amount, 0);
+
+        let cumulativeDue = 0;
+        for (const installment of loan.repaymentSchedule) {
+            cumulativeDue += installment.amountDue;
+            // Find the first installment where the amount paid is less than the cumulative amount due
+            if (totalPaid < cumulativeDue) {
+                const borrower = myBorrowers.find(b => b.id === loan.borrowerId);
+                upcoming.push({
+                    loanId: loan.id,
+                    borrowerName: borrower?.name || 'Unknown',
+                    amountDue: installment.amountDue,
+                    dueDate: new Date(installment.dueDate),
+                    balance: balance,
+                });
+                // We only want the very next upcoming payment for each loan
+                return; 
+            }
+        }
+    });
+
+    return upcoming
+        .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+        .slice(0, 5);
+  };
+  
+  const upcomingPayments = getUpcomingPayments();
 
 
   return (
@@ -88,7 +114,7 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Upcoming Payments</CardTitle>
-            <CardDescription>Next 5 payments due for your clients.</CardDescription>
+            <CardDescription>Next 5 scheduled payments due from your clients.</CardDescription>
           </CardHeader>
           <CardContent>
              {upcomingPayments.length > 0 ? (
@@ -105,7 +131,7 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
                             <TableRow key={p.loanId}>
                                 <TableCell>{p.borrowerName}</TableCell>
                                 <TableCell>{format(p.dueDate, 'PPP')}</TableCell>
-                                <TableCell className="text-right">MWK {p.amountDue.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">MWK {p.amountDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
