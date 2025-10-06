@@ -85,31 +85,32 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-        return docSnap.data() as UserProfile;
+        const existingProfile = docSnap.data() as UserProfile;
+        // If the role in the token (from claims) is different from Firestore, update Firestore.
+        if (adminAuth && existingProfile.role !== role) {
+            await updateDoc(docRef, { role: role });
+            return { ...existingProfile, role: role };
+        }
+        return existingProfile;
     }
 
-    if (!adminAuth) {
-      const tempProfile: UserProfile = { uid: user.uid, email: user.email, role: 'loan_officer' };
-      await setDoc(doc(db, 'users', user.uid), tempProfile, { merge: true });
-      return tempProfile;
-    }
-    
+    // If the profile doesn't exist, create it.
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
         role: role,
     };
 
-    try {
-        await adminAuth.setCustomUserClaims(user.uid, { role: userProfile.role });
-    } catch (error) {
-        console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
+    if (adminAuth) {
+        try {
+            await adminAuth.setCustomUserClaims(user.uid, { role: userProfile.role });
+        } catch (error) {
+            console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
+        }
     }
-
-    await setDoc(docRef, userProfile, { merge: true });
     
-    const finalDocSnap = await getDoc(docRef);
-    return finalDocSnap.data() as UserProfile;
+    await setDoc(docRef, userProfile, { merge: true });
+    return userProfile;
 }
 
 export async function updateUserRole(uid: string, role: UserProfile['role']): Promise<void> {

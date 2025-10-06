@@ -3,54 +3,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function isAdmin() {
-      return request.auth.token.role in ['admin', 'ceo'];
+    function isRole(role) {
+      return request.auth.token.role == role;
     }
 
-    function isCfo() {
-      return request.auth.token.role in ['admin', 'ceo', 'cfo'];
+    function isOneOfRoles(roles) {
+      return request.auth.token.role in roles;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
     
-    function isLoanOfficerOrAdmin() {
-      return request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
-    }
-
-    function isHrOrAdmin() {
-      return request.auth.token.role in ['hr', 'admin', 'ceo'];
-    }
-
-    function isAnyStaff() {
-      return request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo', 'hr'];
-    }
-
     // User profile documents
     match /users/{userId} {
       allow read: if request.auth != null; // Any authenticated user can read profiles (for chat, etc.)
-      allow create: if request.auth.uid == userId; // A user can create their own profile document
-      allow update: if request.auth.uid == userId || isAdmin();
+      allow create: if isOwner(userId); // A user can create their own profile document
+      allow update: if isOwner(userId) || isOneOfRoles(['admin', 'hr']);
     }
 
-    // Settings can only be read by any user, but only modified by admin/ceo
+    // Settings can only be read by any user, but only modified by admin
     match /settings/{docId} {
         allow read: if request.auth != null;
-        allow write: if isAdmin();
+        allow write: if isOneOfRoles(['admin']);
     }
 
-    // Loans and Borrowers can be managed by officers, admins, and ceo
+    // Loans and Borrowers can be managed by officers, admins, and ceo/cfo
     match /borrowers/{borrowerId} {
-        allow read, write: if isAnyStaff();
+        allow read, write: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo']);
     }
     match /loans/{loanId} {
-        allow read, write: if isLoanOfficerOrAdmin();
+        allow read, write: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo']);
     }
     match /loans/{loanId}/payments/{paymentId} {
-        allow read, write: if isLoanOfficerOrAdmin();
+        allow read, write: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo']);
     }
 
     // Situation Reports
     match /situationReports/{reportId} {
-        allow read, create: if isAnyStaff();
-        allow update: if isLoanOfficerOrAdmin();
+      allow create: if request.auth != null; // Any authenticated user can create a report
+      allow read: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo', 'hr']); // All staff can read reports
+      allow update: if isOneOfRoles(['admin', 'ceo', 'cfo']); // Only management can update/resolve reports
     }
 
     // Chat functionality
@@ -58,20 +51,16 @@ service cloud.firestore {
         allow read, write: if request.auth.uid in resource.data.participants;
     }
     match /conversations/{conversationId}/messages/{messageId} {
-        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow read, write: if get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[0] == request.auth.uid || 
+                     get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[1] == request.auth.uid;
     }
     
     // Accounting documents can only be accessed by finance-related roles
     match /accounts/{accountId} {
-        allow read, write: if isCfo();
+        allow read, write: if isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
     match /journal/{entryId} {
-        allow read, write: if isCfo();
-    }
-    
-    // Deletion requests are not used in the app, so we can restrict them.
-    match /deletionRequests/{requestId} {
-        allow read, write: if false;
+        allow read, write: if isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
     
   }
