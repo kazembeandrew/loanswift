@@ -1,11 +1,35 @@
 'use server';
 
-import { initializeAdminApp } from '@/lib/firebase-admin';
 import { addAuditLog } from '@/services/audit-log-service';
 import type { UserProfile } from '@/types';
 import { doc, updateDoc, getFirestore, setDoc } from 'firebase/firestore';
 import { getFirebase } from '@/lib/firebase';
 import admin from 'firebase-admin';
+
+// This function ensures the Firebase Admin SDK is initialized, but only once.
+function initializeAdminApp() {
+  if (admin.apps.length > 0) {
+    return admin.app();
+  }
+
+  try {
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
+
+    if (serviceAccount.clientEmail && serviceAccount.privateKey && serviceAccount.projectId) {
+      return admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
+}
 
 export async function handleCreateUser(email: string, password: string, role: UserProfile['role']): Promise<{ success: boolean; error?: string }> {
   const adminApp = initializeAdminApp();

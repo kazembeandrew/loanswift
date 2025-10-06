@@ -6,7 +6,31 @@ import type { Account, JournalEntry, TransactionLine, MonthEndClosure } from '@/
 import { format } from 'date-fns';
 import { addAuditLog } from '@/services/audit-log-service';
 import admin from 'firebase-admin';
-import { initializeAdminApp } from '@/lib/firebase-admin';
+
+// This function ensures the Firebase Admin SDK is initialized, but only once.
+function initializeAdminApp() {
+  if (admin.apps.length > 0) {
+    return admin.app();
+  }
+
+  try {
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
+
+    if (serviceAccount.clientEmail && serviceAccount.privateKey && serviceAccount.projectId) {
+      return admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
+}
 
 async function getUserEmail(uid: string): Promise<string> {
     const adminApp = initializeAdminApp();
