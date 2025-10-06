@@ -1,11 +1,11 @@
-
 'use server';
 
-import { collection, runTransaction, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, runTransaction, getDocs, doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
+import { getFirebase } from '@/lib/firebase';
 import type { Account, JournalEntry, TransactionLine, MonthEndClosure } from '@/types';
 import { format } from 'date-fns';
 
+const db = getFirestore(getFirebase());
 /**
  * @description Initiates the month-end closing process by creating a closure request document.
  * This can only be done by a CFO.

@@ -13,18 +13,18 @@ import {
   serverTimestamp,
   getDoc,
   arrayUnion,
-  limit
+  limit,
+  type Firestore
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import type { Conversation, ChatMessage, UserProfile } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
 
-const conversationsCollection = collection(db, 'conversations');
 
 // Get all conversations for a specific user
-export async function getConversationsForUser(userId: string): Promise<Conversation[]> {
+export async function getConversationsForUser(db: Firestore, userId: string): Promise<Conversation[]> {
+  const conversationsCollection = collection(db, 'conversations');
   const q = query(conversationsCollection, where('participants', 'array-contains', userId));
   
   const snapshot = await getDocs(q).catch(async (serverError) => {
@@ -47,7 +47,7 @@ export async function getConversationsForUser(userId: string): Promise<Conversat
 }
 
 // Get all messages for a specific conversation
-export async function getMessagesForConversation(conversationId: string): Promise<ChatMessage[]> {
+export async function getMessagesForConversation(db: Firestore, conversationId: string): Promise<ChatMessage[]> {
   const messagesCollection = collection(db, `conversations/${conversationId}/messages`);
   const q = query(messagesCollection, orderBy('timestamp', 'asc'));
 
@@ -67,6 +67,7 @@ export async function getMessagesForConversation(conversationId: string): Promis
 
 // Send a new message in a conversation
 export async function sendMessage(
+  db: Firestore,
   conversationId: string,
   senderId: string,
   senderEmail: string,
@@ -114,7 +115,8 @@ export async function sendMessage(
 
 
 // Start a new conversation or get an existing one
-export async function findOrCreateConversation(currentUser: UserProfile, otherUser: UserProfile): Promise<string> {
+export async function findOrCreateConversation(db: Firestore, currentUser: UserProfile, otherUser: UserProfile): Promise<string> {
+  const conversationsCollection = collection(db, 'conversations');
   // Ensure participants are always in a consistent order to find existing conversations.
   const participants = [currentUser.uid, otherUser.uid].sort();
   

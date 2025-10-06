@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
@@ -34,6 +33,7 @@ import { useAuth } from '@/context/auth-context';
 import type { MonthEndClosure } from '@/types';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { useDB } from '@/lib/firebase-provider';
 
 export default function AccountingPage() {
   const [isProcessing, startTransition] = useTransition();
@@ -42,6 +42,7 @@ export default function AccountingPage() {
 
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
+  const db = useDB();
 
   const isCfo = userProfile?.role === 'cfo';
   const isCeo = userProfile?.role === 'ceo';

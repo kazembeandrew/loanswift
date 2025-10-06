@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Card } from '@/components/ui/card';
 import { Header } from '@/components/header';
+import { useDB } from '@/lib/firebase-provider';
 
 export default function ChatPage() {
   const { user, userProfile } = useAuth();
@@ -28,11 +29,12 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [isSending, startSending] = useTransition();
+  const db = useDB();
 
   const fetchConversations = useCallback(async () => {
     if (!user) return;
     try {
-      const convos = await getConversationsForUser(user.uid);
+      const convos = await getConversationsForUser(db, user.uid);
       setConversations(convos);
       if (!activeConversation && convos.length > 0) {
         setActiveConversation(convos[0]);
@@ -42,25 +44,25 @@ export default function ChatPage() {
         console.error("Error fetching conversations:", error);
         toast({ title: 'Error', description: 'Could not load conversations.', variant: 'destructive' });
     }
-  }, [user, activeConversation, toast]);
+  }, [user, activeConversation, toast, db]);
 
   const fetchMessages = useCallback(async () => {
     if (!activeConversation) return;
     try {
-        const msgs = await getMessagesForConversation(activeConversation.id);
+        const msgs = await getMessagesForConversation(db, activeConversation.id);
         setMessages(msgs);
     } catch(error) {
         console.error("Error fetching messages:", error);
         toast({ title: 'Error', description: 'Could not load messages for this conversation.', variant: 'destructive' });
     }
-  }, [activeConversation, toast]);
+  }, [activeConversation, toast, db]);
 
   useEffect(() => {
     if(userProfile) {
         fetchConversations();
-        getAllUsers().then(setAllUsers);
+        getAllUsers(db).then(setAllUsers);
     }
-  }, [fetchConversations, userProfile]);
+  }, [fetchConversations, userProfile, db]);
 
   useEffect(() => {
     if (activeConversation) {
@@ -75,7 +77,7 @@ export default function ChatPage() {
 
     startSending(async () => {
       try {
-        await sendMessage(activeConversation.id, user.uid, userProfile.email, newMessage);
+        await sendMessage(db, activeConversation.id, user.uid, userProfile.email, newMessage);
         setNewMessage('');
         await fetchMessages(); // Immediately fetch after sending
         await fetchConversations(); // Refresh conversation list to show latest message
@@ -92,7 +94,7 @@ export default function ChatPage() {
     // When a conversation is selected, immediately fetch its messages.
     if (conversation) {
         try {
-            const msgs = await getMessagesForConversation(conversation.id);
+            const msgs = await getMessagesForConversation(db, conversation.id);
             setMessages(msgs);
         } catch (error) {
             console.error("Error fetching messages:", error);
@@ -105,8 +107,8 @@ export default function ChatPage() {
   const startNewConversation = async (otherUser: UserProfile) => {
     if (!userProfile) return;
     try {
-        const conversationId = await findOrCreateConversation(userProfile, otherUser);
-        const convos = await getConversationsForUser(userProfile.uid);
+        const conversationId = await findOrCreateConversation(db, userProfile, otherUser);
+        const convos = await getConversationsForUser(db, userProfile.uid);
         setConversations(convos);
         const newActiveConvo = convos.find(c => c.id === conversationId);
         if (newActiveConvo) {

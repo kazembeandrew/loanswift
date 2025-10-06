@@ -1,14 +1,13 @@
 'use client';
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, type Firestore } from 'firebase/firestore';
 import type { BusinessSettings } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
 // There will only be one document in this collection, with a fixed ID.
 const SETTINGS_DOC_ID = 'business_config';
-const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
+
 
 const defaultSettings: Omit<BusinessSettings, 'id'> = {
     businessName: 'Janalo Enterprises',
@@ -17,7 +16,8 @@ const defaultSettings: Omit<BusinessSettings, 'id'> = {
     reserveAmount: 0,
 };
 
-export async function getSettings(): Promise<BusinessSettings> {
+export async function getSettings(db: Firestore): Promise<BusinessSettings> {
+    const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     try {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
@@ -47,7 +47,8 @@ export async function getSettings(): Promise<BusinessSettings> {
     }
 }
 
-export async function updateSettings(settings: Omit<BusinessSettings, 'id'>): Promise<void> {
+export async function updateSettings(db: Firestore, settings: Omit<BusinessSettings, 'id'>): Promise<void> {
+    const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     // The 'id' is not stored in the document itself.
     const { id, ...settingsData } = settings as BusinessSettings;
     await setDoc(settingsDocRef, settingsData, { merge: true })

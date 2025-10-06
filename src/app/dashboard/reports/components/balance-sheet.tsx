@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,18 +7,20 @@ import { Loader2, AlertTriangle } from 'lucide-react';
 import { getAccounts } from '@/services/account-service';
 import type { Account } from '@/types';
 import { useAuth } from '@/context/auth-context';
+import { useDB } from '@/lib/firebase-provider';
 
 export default function BalanceSheet() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { userProfile } = useAuth();
+  const db = useDB();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-    const allAccounts = await getAccounts();
+    const allAccounts = await getAccounts(db);
     setAccounts(allAccounts);
     setIsLoading(false);
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     if (userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo') {

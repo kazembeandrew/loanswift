@@ -1,7 +1,6 @@
 'use client';
 
-import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, type Firestore } from 'firebase/firestore';
 import type { Loan, RepaymentScheduleItem } from '@/types';
 import { addJournalEntry } from './journal-service';
 import { getAccounts } from './account-service';
@@ -9,9 +8,9 @@ import { addMonths } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
-const loansCollection = collection(db, 'loans');
 
-export async function getLoans(): Promise<Loan[]> {
+export async function getLoans(db: Firestore): Promise<Loan[]> {
+  const loansCollection = collection(db, 'loans');
   try {
     const snapshot = await getDocs(loansCollection);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
@@ -27,7 +26,7 @@ export async function getLoans(): Promise<Loan[]> {
   }
 }
 
-export async function getLoanById(id: string): Promise<Loan | null> {
+export async function getLoanById(db: Firestore, id: string): Promise<Loan | null> {
     const docRef = doc(db, 'loans', id);
     try {
         const docSnap = await getDoc(docRef);
@@ -47,7 +46,7 @@ export async function getLoanById(id: string): Promise<Loan | null> {
     }
 }
 
-export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> {
+export async function getLoansByBorrowerId(db: Firestore, borrowerId: string): Promise<Loan[]> {
     const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId));
     try {
         const snapshot = await getDocs(q);
@@ -85,7 +84,8 @@ function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>)
 }
 
 
-export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
+export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
+  const loansCollection = collection(db, 'loans');
   const repaymentSchedule = generateRepaymentSchedule(loanData);
   const loanWithSchedule = { ...loanData, repaymentSchedule };
 
@@ -103,7 +103,7 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
   
   // Automated Journal Entry for Loan Disbursement
   try {
-    const accounts = await getAccounts();
+    const accounts = await getAccounts(db);
     const loanPortfolioAccount = accounts.find(a => a.name === 'Loan Portfolio');
     const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
 
@@ -112,7 +112,7 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
       // This makes the system more resilient if accounting isn't fully configured.
       console.error("Could not create journal entry for loan disbursement: Critical accounting accounts ('Loan Portfolio', 'Cash on Hand') are not set up.");
     } else {
-        await addJournalEntry({
+        await addJournalEntry(db, {
             date: loanData.startDate,
             description: `Loan disbursement for ${docRef.id}`,
             lines: [
@@ -139,7 +139,7 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
   return docRef.id;
 }
 
-export async function updateLoan(id: string, updates: Partial<Loan>): Promise<void> {
+export async function updateLoan(db: Firestore, id: string, updates: Partial<Loan>): Promise<void> {
     const docRef = doc(db, 'loans', id);
     await updateDoc(docRef, updates)
     .catch(async (serverError) => {

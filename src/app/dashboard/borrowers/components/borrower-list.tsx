@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -52,6 +51,7 @@ import { addBorrower, getBorrowers, updateBorrower } from '@/services/borrower-s
 import { addLoan, getLoans } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
 import { Card, CardHeader } from '@/components/ui/card';
+import { useDB } from '@/lib/firebase-provider';
 
 const collateralSchema = z.object({
   name: z.string().min(1, 'Collateral name is required'),
@@ -118,6 +118,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const { toast } = useToast();
   const { userProfile } = useAuth();
   const [receiptBalance, setReceiptBalance] = useState(0);
+  const db = useDB();
 
   const borrowerForm = useForm<z.infer<typeof borrowerFormSchema>>({
     resolver: zodResolver(borrowerFormSchema),
@@ -166,7 +167,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
     }
 
     try {
-        await addPayment(selectedLoan.id, {
+        await addPayment(db, selectedLoan.id, {
             loanId: selectedLoan.id,
             amount: newPaymentAmount,
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
@@ -203,7 +204,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const handleEditBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
     if (!selectedBorrower) return;
 
-    await updateBorrower(selectedBorrower.id, values);
+    await updateBorrower(db, selectedBorrower.id, values);
     
     setEditBorrowerOpen(false);
     borrowerForm.reset(borrowerFormDefaultValues);
@@ -225,7 +226,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       loanOfficerId: userProfile.uid,
     };
     
-    await addBorrower(newBorrowerData);
+    await addBorrower(db, newBorrowerData);
     
     await fetchData();
     setAddBorrowerOpen(false);
@@ -258,7 +259,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       collateral: values.collateral,
     };
     
-    await addLoan(newLoanData);
+    await addLoan(db, newLoanData);
     await fetchData();
     setAddNewLoanOpen(false);
     newLoanForm.reset(newLoanFormDefaultValues);

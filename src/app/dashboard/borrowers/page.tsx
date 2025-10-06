@@ -7,22 +7,24 @@ import type { Borrower, Loan, Payment } from '@/types';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
+import { useDB } from '@/lib/firebase-provider';
 
 export default function BorrowersPage() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const db = useDB();
 
   const fetchData = useCallback(async () => {
     const [borrowersData, loansData, paymentsData] = await Promise.all([
-      getBorrowers(),
-      getLoans(),
-      getAllPayments(),
+      getBorrowers(db),
+      getLoans(db),
+      getAllPayments(db),
     ]);
     setBorrowers(borrowersData);
     setLoans(loansData);
     setPayments(paymentsData);
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     fetchData();

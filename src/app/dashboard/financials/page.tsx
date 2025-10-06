@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,6 +17,7 @@ import type { Loan, Payment, Account } from '@/types';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { getAccounts } from '@/services/account-service';
+import { useDB } from '@/lib/firebase-provider';
 
 type FinancialSummary = {
     capitalAnalysis: string;
@@ -35,12 +35,13 @@ export default function FinancialsPage() {
   const [analysisInput, setAnalysisInput] = useState<any>(null);
 
   const { toast } = useToast();
+  const db = useDB();
 
   const prepareAnalysisData = useCallback(async () => {
     const [loans, payments, accounts] = await Promise.all([
-      getLoans(),
-      getAllPayments(),
-      getAccounts(),
+      getLoans(db),
+      getAllPayments(db),
+      getAccounts(db),
     ]);
 
     if (loans.length === 0 && payments.length === 0) {
@@ -82,7 +83,7 @@ export default function FinancialsPage() {
         totalDrawings,
       });
 
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     prepareAnalysisData();

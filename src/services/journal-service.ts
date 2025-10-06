@@ -1,14 +1,13 @@
 'use client';
 
-import { collection, addDoc, getDocs, doc, writeBatch, runTransaction, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, doc, writeBatch, runTransaction, query, type Firestore } from 'firebase/firestore';
 import type { JournalEntry, TransactionLine } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors';
 
-const journalCollection = collection(db, 'journal');
 
-export async function getJournalEntries(): Promise<JournalEntry[]> {
+export async function getJournalEntries(db: Firestore): Promise<JournalEntry[]> {
+    const journalCollection = collection(db, 'journal');
     try {
         const snapshot = await getDocs(journalCollection);
         return snapshot.docs
@@ -26,7 +25,8 @@ export async function getJournalEntries(): Promise<JournalEntry[]> {
     }
 }
 
-export async function addJournalEntry(entryData: Omit<JournalEntry, 'id'>): Promise<string> {
+export async function addJournalEntry(db: Firestore, entryData: Omit<JournalEntry, 'id'>): Promise<string> {
+  const journalCollection = collection(db, 'journal');
   const totalDebits = entryData.lines.filter(l => l.type === 'debit').reduce((sum, l) => sum + l.amount, 0);
   const totalCredits = entryData.lines.filter(l => l.type === 'credit').reduce((sum, l) => sum + l.amount, 0);
 

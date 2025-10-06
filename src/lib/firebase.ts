@@ -13,22 +13,15 @@ const firebaseConfig = {
 };
 
 function getFirebase() {
-    let app: FirebaseApp;
-    let auth: Auth;
-    let db: Firestore;
+    return getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+}
 
-    if (getApps().length === 0) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApps()[0];
-    }
-
-    auth = getAuth(app);
-    db = getFirestore(app);
-
+function getFirebaseServices() {
+    const app = getFirebase();
+    const auth = getAuth(app);
+    const db = getFirestore(app);
     return { app, auth, db };
 }
 
-const { app, auth, db } = getFirebase();
 
-export { app, auth, db, firebaseConfig, getFirebase };
+export { getFirebaseServices as getFirebase, firebaseConfig };

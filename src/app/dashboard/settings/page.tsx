@@ -29,6 +29,7 @@ import { getSettings, updateSettings } from '@/services/settings-service';
 import { handleDeleteAllData } from '@/app/actions/reset';
 import type { BusinessSettings } from '@/types';
 import { Loader2, Trash2, ShieldAlert, BookLock } from 'lucide-react';
+import { useDB } from '@/lib/firebase-provider';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
@@ -37,11 +38,12 @@ export default function SettingsPage() {
   const [isDeleting, startDeletingTransition] = useTransition();
   const { toast } = useToast();
   const { userProfile } = useAuth();
+  const db = useDB();
 
   useEffect(() => {
     async function fetchSettings() {
       setIsLoading(true);
-      const settingsData = await getSettings();
+      const settingsData = await getSettings(db);
       setSettings(settingsData);
       setIsLoading(false);
     }
@@ -50,7 +52,7 @@ export default function SettingsPage() {
     } else {
         setIsLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile, db]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -68,7 +70,7 @@ export default function SettingsPage() {
 
     startSavingTransition(async () => {
       try {
-        await updateSettings(settings);
+        await updateSettings(db, settings);
         toast({
           title: 'Settings Saved',
           description: 'Your business information has been updated.',

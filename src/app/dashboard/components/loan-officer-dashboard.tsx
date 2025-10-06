@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +11,7 @@ import BorrowerList from '../borrowers/components/borrower-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { isAfter, format } from 'date-fns';
+import { useDB } from '@/lib/firebase-provider';
 
 type LoanOfficerDashboardProps = {
     isAddBorrowerOpen: boolean;
@@ -31,15 +31,16 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const db = useDB();
 
   const fetchData = useCallback(async () => {
     // Admins/CEOs see all data, Loan Officers only see their own.
     const isAdminOrCeo = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
     
     const [allBorrowers, allLoans, allPayments] = await Promise.all([
-      getBorrowers(),
-      getLoans(),
-      getAllPayments(),
+      getBorrowers(db),
+      getLoans(db),
+      getAllPayments(db),
     ]);
 
     if (isAdminOrCeo) {
@@ -52,7 +53,7 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
         setLoans(allLoans.filter(l => myLoanIds.includes(l.id)));
     }
     setPayments(allPayments);
-  }, [userProfile]);
+  }, [userProfile, db]);
 
   useEffect(() => {
     if(userProfile) {

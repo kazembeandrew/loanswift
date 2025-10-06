@@ -1,4 +1,3 @@
-
 'use client';
 import {
   CircleDollarSign,
@@ -39,6 +38,7 @@ import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { getAccounts } from '@/services/account-service';
 import { getSettings } from '@/services/settings-service';
+import { useDB } from '@/lib/firebase-provider';
 
 
 const monthlyCollectionsChartConfig = {
@@ -59,22 +59,23 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const db = useDB();
 
   
   const fetchData = useCallback(async () => {
     const [borrowersData, loansData, paymentsData, accountsData, settingsData] = await Promise.all([
-      getBorrowers(),
-      getLoans(),
-      getAllPayments(),
-      getAccounts(),
-      getSettings(),
+      getBorrowers(db),
+      getLoans(db),
+      getAllPayments(db),
+      getAccounts(db),
+      getSettings(db),
     ]);
     setBorrowers(borrowersData);
     setLoans(loansData);
     setPayments(paymentsData);
     setAccounts(accountsData);
     setSettings(settingsData);
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     fetchData();

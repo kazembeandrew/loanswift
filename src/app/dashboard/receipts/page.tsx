@@ -11,6 +11,7 @@ import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import ReceiptGenerator from '../borrowers/components/receipt-generator';
+import { useDB } from '@/lib/firebase-provider';
 
 
 const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { loanId: string })[], loans: Loan[], borrowers: Borrower[] }) => {
@@ -74,17 +75,18 @@ export default function ReceiptsPage() {
     const [borrowers, setBorrowers] = useState<Borrower[]>([]);
     const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState<Payment & {loanId: string} | null>(null);
+    const db = useDB();
 
     const fetchData = useCallback(async () => {
       const [paymentsData, loansData, borrowersData] = await Promise.all([
-        getAllPayments(),
-        getLoans(),
-        getBorrowers(),
+        getAllPayments(db),
+        getLoans(db),
+        getBorrowers(db),
       ]);
       setPayments(paymentsData);
       setLoans(loansData);
       setBorrowers(borrowersData);
-    }, []);
+    }, [db]);
 
     useEffect(() => {
       fetchData();

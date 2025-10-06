@@ -17,6 +17,7 @@ import { getSettings } from '@/services/settings-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/context/auth-context';
+import { useDB } from '@/lib/firebase-provider';
 
 type ReceiptGeneratorProps = {
   isOpen: boolean;
@@ -44,13 +45,14 @@ export default function ReceiptGenerator({
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const { toast } = useToast();
   const { userProfile } = useAuth();
+  const db = useDB();
   
   
   useEffect(() => {
     if (isOpen) {
-        getSettings().then(setSettings);
+        getSettings(db).then(setSettings);
     }
-  }, [isOpen]);
+  }, [isOpen, db]);
 
 
   const generateReceiptText = useCallback(async () => {

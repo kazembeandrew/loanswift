@@ -18,6 +18,7 @@ import { getAccounts } from '@/services/account-service';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import { useDB } from '@/lib/firebase-provider';
 
 type CashTransaction = {
   date: string;
@@ -31,12 +32,13 @@ export default function BankingPage() {
   const [transactions, setTransactions] = useState<CashTransaction[]>([]);
   const [cashBalance, setCashBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const db = useDB();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     const [journalEntriesData, accountsData] = await Promise.all([
-      getJournalEntries(),
-      getAccounts(),
+      getJournalEntries(db),
+      getAccounts(db),
     ]);
 
     const cashAccount = accountsData.find(a => a.name === 'Cash on Hand');
@@ -69,7 +71,7 @@ export default function BankingPage() {
     
     setTransactions(sortedTransactions);
     setIsLoading(false);
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     fetchData();

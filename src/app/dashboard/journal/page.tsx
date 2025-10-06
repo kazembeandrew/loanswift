@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -46,6 +45,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { useDB } from '@/lib/firebase-provider';
 
 const transactionLineSchema = z.object({
   accountId: z.string().min(1, 'Account is required'),
@@ -72,6 +72,7 @@ export default function JournalPage() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [isAddDialogOpen, setAddDialogOpen] = useState(false);
     const { toast } = useToast();
+    const db = useDB();
 
     const form = useForm<z.infer<typeof journalFormSchema>>({
         resolver: zodResolver(journalFormSchema),
@@ -92,12 +93,12 @@ export default function JournalPage() {
 
     const fetchData = useCallback(async () => {
         const [entriesData, accountsData] = await Promise.all([
-            getJournalEntries(),
-            getAccounts()
+            getJournalEntries(db),
+            getAccounts(db)
         ]);
         setJournalEntries(entriesData);
         setAccounts(accountsData);
-    }, []);
+    }, [db]);
 
     useEffect(() => {
         fetchData();
@@ -116,7 +117,7 @@ export default function JournalPage() {
         });
 
         try {
-            await addJournalEntry({ ...values, lines: linesWithNames });
+            await addJournalEntry(db, { ...values, lines: linesWithNames });
             toast({
                 title: 'Journal Entry Created',
                 description: `The entry "${values.description}" has been posted.`,

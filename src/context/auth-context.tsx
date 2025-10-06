@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
 import { ensureUserDocument, type UserProfile } from '@/services/user-service';
 import { useRouter } from 'next/navigation';
-import { useFirebaseAuth } from '@/lib/firebase-provider';
+import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
 
 
 interface AuthContextType {
@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const auth = useFirebaseAuth();
+  const db = useDB();
 
   useEffect(() => {
     let mounted = true;
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         setUser(user);
         try {
-          const userDoc = await ensureUserDocument(user);
+          const userDoc = await ensureUserDocument(db, user);
           if (mounted) {
             setUserProfile(userDoc);
           }
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [auth]);
+  }, [auth, db]);
 
   const signIn = async (email: string, password: string) => {
     return signInWithEmailAndPassword(auth, email, password);

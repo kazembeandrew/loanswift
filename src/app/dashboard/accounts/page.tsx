@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -50,6 +49,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { useDB } from '@/lib/firebase-provider';
 
 const accountFormSchema = z.object({
   name: z.string().min(1, 'Account name is required'),
@@ -64,6 +64,7 @@ export default function AccountsPage() {
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
     const { toast } = useToast();
+    const db = useDB();
 
     const form = useForm<z.infer<typeof accountFormSchema>>({
         resolver: zodResolver(accountFormSchema),
@@ -74,16 +75,16 @@ export default function AccountsPage() {
     });
 
     const fetchData = useCallback(async () => {
-        const data = await getAccounts();
+        const data = await getAccounts(db);
         setAccounts(data);
-    }, []);
+    }, [db]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
     const handleAddAccount = async (values: z.infer<typeof accountFormSchema>) => {
-        await addAccount(values);
+        await addAccount(db, values);
         toast({
             title: 'Account Created',
             description: `The account "${values.name}" has been added.`,
@@ -96,7 +97,7 @@ export default function AccountsPage() {
     const handleUpdateAccount = async (values: z.infer<typeof accountFormSchema>) => {
         if (!selectedAccount) return;
         
-        await updateAccount(selectedAccount.id, values);
+        await updateAccount(db, selectedAccount.id, values);
         toast({
             title: 'Account Updated',
             description: `The account "${values.name}" has been updated.`,

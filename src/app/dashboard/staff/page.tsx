@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
@@ -51,6 +50,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDB } from '@/lib/firebase-provider';
 
 
 export default function StaffPage() {
@@ -63,11 +63,12 @@ export default function StaffPage() {
   const [newUser, setNewUser] = useState({ email: '', password: '', role: 'loan_officer' as UserProfile['role'] });
   const { toast } = useToast();
   const { userProfile } = useAuth();
+  const db = useDB();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await getAllUsers();
+      const data = await getAllUsers(db);
       setUsers(data);
     } catch (error) {
       console.error(error);
@@ -79,7 +80,7 @@ export default function StaffPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, db]);
 
   useEffect(() => {
     if (userProfile?.role === 'admin' || userProfile?.role === 'hr') {

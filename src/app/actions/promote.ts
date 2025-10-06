@@ -1,9 +1,8 @@
-
 'use server';
 
 import { initializeAdminApp } from '@/lib/firebase-admin';
-import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { getFirebase } from '@/lib/firebase';
+import { doc, updateDoc, getFirestore } from 'firebase/firestore';
 import admin from 'firebase-admin';
 
 /**
@@ -23,6 +22,7 @@ export async function promoteUserToAdmin(email: string): Promise<{
     };
   }
   const adminAuth = admin.auth(adminApp);
+  const db = getFirestore(getFirebase());
 
   try {
     const userRecord = await adminAuth.getUserByEmail(email);

@@ -1,9 +1,8 @@
-import { doc, setDoc, getDoc, updateDoc, getDocs, collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc, setDoc, getDoc, updateDoc, getDocs, collection, type Firestore } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 
-export const createUserDocument = async (user: User, additionalData?: Partial<UserProfile>): Promise<UserProfile | null> => {
+export const createUserDocument = async (db: Firestore, user: User, additionalData?: Partial<UserProfile>): Promise<UserProfile | null> => {
   if (!user) return null;
 
   const userRef = doc(db, 'users', user.uid);
@@ -36,11 +35,11 @@ export const createUserDocument = async (user: User, additionalData?: Partial<Us
   return userSnap.data() as UserProfile;
 };
 
-export const ensureUserDocument = async (user: User | null): Promise<UserProfile | null> => {
+export const ensureUserDocument = async (db: Firestore, user: User | null): Promise<UserProfile | null> => {
   if (!user) return null;
   
   try {
-    const userDoc = await createUserDocument(user);
+    const userDoc = await createUserDocument(db, user);
     return userDoc;
   } catch (error) {
     console.error('Error ensuring user document:', error);
@@ -49,7 +48,7 @@ export const ensureUserDocument = async (user: User | null): Promise<UserProfile
 };
 
 
-export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+export async function getUserProfile(db: Firestore, uid: string): Promise<UserProfile | null> {
     try {
         const docRef = doc(db, 'users', uid);
         const docSnap = await getDoc(docRef);
@@ -63,13 +62,13 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     }
 }
 
-export async function getAllUsers(): Promise<UserProfile[]> {
+export async function getAllUsers(db: Firestore): Promise<UserProfile[]> {
     const snapshot = await getDocs(collection(db, 'users'));
     return snapshot.docs.map(doc => doc.data() as UserProfile);
 }
 
 // This function now only updates the Firestore document. The custom claim is set in a server action.
-export async function updateUserRoleInFirestore(uid: string, role: UserProfile['role']): Promise<void> {
+export async function updateUserRoleInFirestore(db: Firestore, uid: string, role: UserProfile['role']): Promise<void> {
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role, updatedAt: new Date().toISOString() });
 }

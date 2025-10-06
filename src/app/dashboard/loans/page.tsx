@@ -38,6 +38,7 @@ import { useAuth } from '@/context/auth-context';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments, addPayment } from '@/services/payment-service';
+import { useDB } from '@/lib/firebase-provider';
 
 
 export default function LoansPage() {
@@ -53,17 +54,18 @@ export default function LoansPage() {
   const { toast } = useToast();
   const { userProfile } = useAuth();
   const router = useRouter();
+  const db = useDB();
 
   const fetchData = useCallback(async () => {
     const [loansData, borrowersData, paymentsData] = await Promise.all([
-      getLoans(),
-      getBorrowers(),
-      getAllPayments(),
+      getLoans(db),
+      getBorrowers(db),
+      getAllPayments(db),
     ]);
     setLoans(loansData);
     setBorrowers(borrowersData);
     setPayments(paymentsData);
-  }, []);
+  }, [db]);
 
   useEffect(() => {
     fetchData();
@@ -144,7 +146,7 @@ export default function LoansPage() {
       method: 'cash',
     };
 
-    await addPayment(selectedLoan.id, newPaymentData);
+    await addPayment(db, selectedLoan.id, newPaymentData);
 
     setReceiptBalance(balance - newPaymentAmount);
     

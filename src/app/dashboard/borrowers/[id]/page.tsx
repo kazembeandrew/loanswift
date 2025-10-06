@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -38,6 +37,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useDB } from '@/lib/firebase-provider';
 
 const situationReportSchema = z.object({
   situationType: z.enum(['Client Dispute', 'Business Disruption', 'Collateral Issue', 'Personal Emergency', 'Fraud Concern', 'Other']),
@@ -67,6 +67,7 @@ export default function BorrowerDetailPage() {
 
   const { toast } = useToast();
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
+  const db = useDB();
 
   const reportForm = useForm<z.infer<typeof situationReportSchema>>({
     resolver: zodResolver(situationReportSchema),
@@ -80,16 +81,16 @@ export default function BorrowerDetailPage() {
   const fetchData = useCallback(async () => {
     if (!id) return;
     const [borrowerData, loansData, paymentsData, reportsData] = await Promise.all([
-      getBorrowerById(id),
-      getLoansByBorrowerId(id),
-      getAllPayments(),
-      getSituationReportsByBorrower(id),
+      getBorrowerById(db, id),
+      getLoansByBorrowerId(db, id),
+      getAllPayments(db),
+      getSituationReportsByBorrower(db, id),
     ]);
     setBorrower(borrowerData);
     setBorrowerLoans(loansData);
     setAllPayments(paymentsData);
     setSituationReports(reportsData);
-  }, [id]);
+  }, [id, db]);
 
   useEffect(() => {
     if (userProfile) {
@@ -140,7 +141,7 @@ export default function BorrowerDetailPage() {
     }
 
     try {
-        await addPayment(selectedLoan.id, {
+        await addPayment(db, selectedLoan.id, {
             loanId: selectedLoan.id,
             amount: newPaymentAmount,
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
@@ -171,7 +172,7 @@ export default function BorrowerDetailPage() {
   const handleFileReportSubmit = async (values: z.infer<typeof situationReportSchema>) => {
     if (!user || !borrower) return;
     try {
-      await addSituationReport({
+      await addSituationReport(db, {
         ...values,
         borrowerId: borrower.id,
         reportedBy: user.uid,
@@ -207,7 +208,7 @@ export default function BorrowerDetailPage() {
       return;
     }
     try {
-      await updateSituationReportStatus(reportId, status);
+      await updateSituationReportStatus(db, reportId, status);
       toast({ title: 'Status Updated', description: `Report status changed to ${status}.` });
       await fetchData();
       if (selectedReport?.id === reportId) {
@@ -699,5 +700,3 @@ export default function BorrowerDetailPage() {
     </>
   );
 }
-
-    

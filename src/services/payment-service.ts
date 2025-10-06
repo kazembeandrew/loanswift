@@ -1,7 +1,6 @@
 'use client';
 
-import { collection, addDoc, getDocs, query, where, doc, getDoc, collectionGroup, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, collectionGroup, writeBatch, type Firestore } from 'firebase/firestore';
 import type { Payment, Account, Loan } from '@/types';
 import { getLoanById, updateLoan } from './loan-service';
 import { addJournalEntry } from './journal-service';
@@ -12,7 +11,7 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 // Note: Payments are now a subcollection of a loan.
 
-export async function getPaymentsByLoanId(loanId: string): Promise<Payment[]> {
+export async function getPaymentsByLoanId(db: Firestore, loanId: string): Promise<Payment[]> {
     const paymentsCollection = collection(db, `loans/${loanId}/payments`);
     try {
         const snapshot = await getDocs(paymentsCollection);
@@ -29,13 +28,13 @@ export async function getPaymentsByLoanId(loanId: string): Promise<Payment[]> {
     }
 }
 
-export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'>): Promise<string> {
-    const loan = await getLoanById(loanId);
+export async function addPayment(db: Firestore, loanId: string, paymentData: Omit<Payment, 'id'>): Promise<string> {
+    const loan = await getLoanById(db, loanId);
     if (!loan) {
         throw new Error(`Loan with ID ${loanId} not found.`);
     }
 
-    const allPaymentsForLoan = await getPaymentsByLoanId(loanId);
+    const allPaymentsForLoan = await getPaymentsByLoanId(db, loanId);
     
     const totalOwed = loan.principal * (1 + loan.interestRate / 100);
     const totalPaidPreviously = allPaymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
@@ -50,7 +49,7 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     let interestPortionOfPayment = 0;
     let principalPortionOfPayment = 0;
     try {
-        const accounts = await getAccounts();
+        const accounts = await getAccounts(db);
         const interestAccount = accounts.find(a => a.name === "Interest Income");
         const portfolioAccount = accounts.find(a => a.name === "Loan Portfolio");
         const cashAccount = accounts.find(a => a.name === "Cash on Hand");
@@ -71,7 +70,7 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
         principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
 
-        await addJournalEntry({
+        await addJournalEntry(db, {
             date: paymentData.date,
             description: `Payment for loan ${loanId}`,
             lines: [
@@ -112,7 +111,7 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     return newPaymentRef.id;
 }
 
-export async function getAllPayments(): Promise<(Payment & {loanId: string})[]> {
+export async function getAllPayments(db: Firestore): Promise<(Payment & {loanId: string})[]> {
     const paymentsQuery = query(collectionGroup(db, 'payments'));
     try {
         const querySnapshot = await getDocs(paymentsQuery);

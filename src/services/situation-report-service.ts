@@ -1,14 +1,13 @@
 'use client';
 
-import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, type Firestore } from 'firebase/firestore';
 import type { SituationReport } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
-const reportsCollection = collection(db, 'situationReports');
 
-export async function addSituationReport(reportData: Omit<SituationReport, 'id' | 'reportDate' | 'status'>): Promise<string> {
+export async function addSituationReport(db: Firestore, reportData: Omit<SituationReport, 'id' | 'reportDate' | 'status'>): Promise<string> {
+  const reportsCollection = collection(db, 'situationReports');
   const newReport: Omit<SituationReport, 'id'> = {
     ...reportData,
     reportDate: new Date().toISOString(),
@@ -27,7 +26,8 @@ export async function addSituationReport(reportData: Omit<SituationReport, 'id' 
   return docRef.id;
 }
 
-export async function getSituationReportsByBorrower(borrowerId: string): Promise<SituationReport[]> {
+export async function getSituationReportsByBorrower(db: Firestore, borrowerId: string): Promise<SituationReport[]> {
+  const reportsCollection = collection(db, 'situationReports');
   const q = query(reportsCollection, where("borrowerId", "==", borrowerId));
   try {
     const snapshot = await getDocs(q);
@@ -46,7 +46,8 @@ export async function getSituationReportsByBorrower(borrowerId: string): Promise
   }
 }
 
-export async function getAllSituationReports(): Promise<SituationReport[]> {
+export async function getAllSituationReports(db: Firestore): Promise<SituationReport[]> {
+    const reportsCollection = collection(db, 'situationReports');
     try {
         const snapshot = await getDocs(reportsCollection);
         return snapshot.docs
@@ -64,7 +65,7 @@ export async function getAllSituationReports(): Promise<SituationReport[]> {
     }
 }
 
-export async function updateSituationReportStatus(id: string, status: SituationReport['status']): Promise<void> {
+export async function updateSituationReportStatus(db: Firestore, id: string, status: SituationReport['status']): Promise<void> {
     const reportRef = doc(db, 'situationReports', id);
     const updateData = { 
         status: status,

@@ -1,14 +1,13 @@
 'use client';
 
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, runTransaction, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, runTransaction, getDoc, type Firestore } from 'firebase/firestore';
 import type { Account } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors';
 
-const accountsCollection = collection(db, 'accounts');
 
-export async function getAccounts(): Promise<Account[]> {
+export async function getAccounts(db: Firestore): Promise<Account[]> {
+  const accountsCollection = collection(db, 'accounts');
   try {
     const snapshot = await getDocs(accountsCollection);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)).sort((a, b) => a.name.localeCompare(b.name));
@@ -25,7 +24,8 @@ export async function getAccounts(): Promise<Account[]> {
   }
 }
 
-export async function addAccount(accountData: Omit<Account, 'id' | 'balance'>): Promise<string> {
+export async function addAccount(db: Firestore, accountData: Omit<Account, 'id' | 'balance'>): Promise<string> {
+    const accountsCollection = collection(db, 'accounts');
     const fullAccountData = {
         ...accountData,
         balance: 0,
@@ -45,7 +45,7 @@ export async function addAccount(accountData: Omit<Account, 'id' | 'balance'>): 
   return docRef.id;
 }
 
-export async function updateAccount(id: string, updates: Partial<Omit<Account, 'id'>>): Promise<void> {
+export async function updateAccount(db: Firestore, id: string, updates: Partial<Omit<Account, 'id'>>): Promise<void> {
     const docRef = doc(db, 'accounts', id);
     await updateDoc(docRef, updates)
     .catch(async (serverError) => {
@@ -59,7 +59,7 @@ export async function updateAccount(id: string, updates: Partial<Omit<Account, '
     });
 }
 
-export async function deleteAccount(id: string): Promise<void> {
+export async function deleteAccount(db: Firestore, id: string): Promise<void> {
     const docRef = doc(db, 'accounts', id);
     await deleteDoc(docRef)
     .catch(async (serverError) => {
@@ -72,7 +72,7 @@ export async function deleteAccount(id: string): Promise<void> {
     });
 }
 
-export async function updateAccountBalance(accountId: string, amount: number) {
+export async function updateAccountBalance(db: Firestore, accountId: string, amount: number) {
   const accountRef = doc(db, "accounts", accountId);
   await runTransaction(db, async (transaction) => {
     const accountDoc = await transaction.get(accountRef);
