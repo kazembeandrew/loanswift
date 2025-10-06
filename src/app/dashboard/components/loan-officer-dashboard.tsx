@@ -11,7 +11,7 @@ import DashboardMetrics from './dashboard-metrics';
 import BorrowerList from '../borrowers/components/borrower-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { format, isAfter } from 'date-fns';
 import { useDB } from '@/lib/firebase-provider';
 import MyTasks from './my-tasks';
 
@@ -29,7 +29,7 @@ type UpcomingPayment = {
 };
 
 export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: LoanOfficerDashboardProps) {
-  const { user, userProfile } = useAuth();
+  const { userProfile } = useAuth();
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
@@ -79,7 +79,6 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
   
   const getUpcomingPayments = (): UpcomingPayment[] => {
     const upcoming: UpcomingPayment[] = [];
-    const now = new Date();
 
     loans.forEach(loan => {
         const balance = getLoanBalance(loan);

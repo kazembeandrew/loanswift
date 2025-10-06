@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Flag, CheckCircle, ListTodo } from 'lucide-react';
 import type { Borrower, Loan, Payment, SituationReport } from '@/types';
-import { isAfter, format } from 'date-fns';
+import { isAfter, format, differenceInDays } from 'date-fns';
 
 type Task = {
     type: 'overdue' | 'report' | 'follow-up';
@@ -42,15 +42,18 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
                 cumulativeDue += installment.amountDue;
                 if (totalPaid < cumulativeDue) {
                     const dueDate = new Date(installment.dueDate);
-                    if (isAfter(now, dueDate)) { // Check if the due date is in the past
+                    if (isAfter(now, dueDate)) { 
                         const borrower = borrowers.find(b => b.id === loan.borrowerId);
-                        allTasks.push({
-                            type: 'overdue',
-                            title: `Overdue: ${borrower?.name || 'Unknown'}`,
-                            description: `Payment due on ${format(dueDate, 'PPP')} for loan ${loan.id}.`,
-                            href: `/dashboard/borrowers/${loan.borrowerId}`,
-                            icon: <AlertTriangle className="h-4 w-4 text-destructive" />
-                        });
+                        // Prevent duplicate tasks for the same loan
+                        if (!allTasks.some(t => t.type === 'overdue' && t.href.includes(loan.borrowerId))) {
+                            allTasks.push({
+                                type: 'overdue',
+                                title: `Overdue: ${borrower?.name || 'Unknown'}`,
+                                description: `Payment due on ${format(dueDate, 'PPP')}. Days Overdue: ${differenceInDays(now, dueDate)}`,
+                                href: `/dashboard/borrowers/${loan.borrowerId}`,
+                                icon: <AlertTriangle className="h-4 w-4 text-destructive" />
+                            });
+                        }
                     }
                     break; // Found the first missed/upcoming payment for this loan
                 }
@@ -66,7 +69,7 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
                     type: 'report',
                     title: `Review Report: ${borrower?.name || 'Unknown'}`,
                     description: `Report on "${report.summary}" needs review.`,
-                    href: `/dashboard/borrowers/${report.borrowerId}`,
+                    href: `/dashboard/borrowers/${report.borrowerId}?tab=reports`,
                     icon: <Flag className="h-4 w-4 text-blue-500" />
                 });
             });

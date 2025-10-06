@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
-import { addPayment, getAllPayments } from '@/services/payment-service';
+import { addPayment, getPaymentsByLoanId } from '@/services/payment-service';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
@@ -55,7 +55,7 @@ export default function BorrowerDetailPage() {
   const { user, userProfile } = useAuth();
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
-  const [allPayments, setAllPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const [allPayments, setAllPayments] = useState<(Payment)[]>([]);
   const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
@@ -82,16 +82,24 @@ export default function BorrowerDetailPage() {
 
   const fetchData = useCallback(async () => {
     if (!id) return;
-    const [borrowerData, loansData, paymentsData, reportsData] = await Promise.all([
-      getBorrowerById(db, id),
-      getLoansByBorrowerId(db, id),
-      getAllPayments(db),
-      getSituationReportsByBorrower(db, id),
-    ]);
+    
+    const borrowerData = await getBorrowerById(db, id);
     setBorrower(borrowerData);
-    setBorrowerLoans(loansData);
-    setAllPayments(paymentsData);
-    setSituationReports(reportsData);
+
+    if (borrowerData) {
+        const [loansData, reportsData] = await Promise.all([
+            getLoansByBorrowerId(db, borrowerData.id),
+            getSituationReportsByBorrower(db, borrowerData.id),
+        ]);
+        setBorrowerLoans(loansData);
+        setSituationReports(reportsData);
+
+        const allLoanPayments = await Promise.all(
+            loansData.map(loan => getPaymentsByLoanId(db, loan.id))
+        );
+        setAllPayments(allLoanPayments.flat());
+    }
+
   }, [id, db]);
 
   useEffect(() => {
@@ -355,7 +363,7 @@ export default function BorrowerDetailPage() {
           </Card>
         </div>
 
-        <Tabs defaultValue={defaultTab}>
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList>
             <TabsTrigger value="loans">Loan History</TabsTrigger>
             <TabsTrigger value="reports">Situation Reports ({situationReports.length})</TabsTrigger>
@@ -368,7 +376,7 @@ export default function BorrowerDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {borrowerLoans.length > 0 ? (
-                  <Tabs defaultValue={borrowerLoans[0]?.id}>
+                  <Tabs defaultValue={borrowerLoans[0]?.id} className="w-full">
                       <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                           {borrowerLoans.map(loan => (
                               <TabsTrigger key={loan.id} value={loan.id}>{loan.id}</TabsTrigger>
@@ -386,7 +394,7 @@ export default function BorrowerDetailPage() {
                                         <div className="flex-1">
                                           <p className="font-semibold">{loan.id}</p>
                                           <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
-                                          <p className={`text-sm font-medium ${status === 'closed' ? 'text-green-600' : 'text-destructive'}`}>
+                                          <p className={`text-sm font-medium ${balance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
                                             Balance: MWK {balance.toLocaleString()}
                                           </p>
                                         </div>
