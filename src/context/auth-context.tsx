@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!auth || !db) return; // Wait for auth and db to be initialized
+    if (!auth || !db) return; 
 
     let mounted = true;
 
@@ -53,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserProfile(userDoc);
           }
         } catch (error) {
-          // Error ensuring user document
           if (mounted) {
             setUserProfile(null);
           }
@@ -94,24 +93,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
   
   useEffect(() => {
-      if (!loading && user) {
+      if (!loading && user && pathname === '/login') {
           router.push('/dashboard');
       }
-  }, [user, loading, router]);
+  }, [user, loading, pathname, router]);
 
+
+  if (loading && pathname !== '/login') {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
-       {loading && pathname !== '/login' ? (
-        <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-      ) : (
-        children
-      )}
-      <ClientOnly>
-        <Toaster />
-      </ClientOnly>
+        {children}
+        <ClientOnly>
+          <Toaster />
+        </ClientOnly>
     </AuthContext.Provider>
   );
 }
