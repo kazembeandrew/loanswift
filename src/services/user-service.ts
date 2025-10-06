@@ -3,50 +3,20 @@ import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 
 
-export const createUserDocument = async (db: Firestore, user: User, additionalData?: Partial<UserProfile>): Promise<UserProfile | null> => {
-  if (!user) return null;
-
-  const userRef = doc(db, 'users', user.uid);
-  const userSnap = await getDoc(userRef);
-
-  if (!userSnap.exists()) {
-    try {
-      const defaultRole = additionalData?.role || 'loan_officer';
-      
-      const userData: UserProfile = {
-        uid: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || user.email?.split('@')[0] || 'User',
-        photoURL: user.photoURL || '',
-        role: defaultRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        ...additionalData
-      };
-      
-      await setDoc(userRef, userData);
-
-      return userData;
-
-    } catch (error) {
-      console.error("Error creating user document:", error);
-      throw error;
-    }
-  }
-  
-  return userSnap.data() as UserProfile;
-};
-
 export const ensureUserDocument = async (db: Firestore, user: User | null): Promise<UserProfile | null> => {
   if (!user) return null;
   
-  try {
-    const userDoc = await createUserDocument(db, user);
-    return userDoc;
-  } catch (error) {
-    console.error("Error ensuring user document:", error);
-    return null;
+  const userRef = doc(db, 'users', user.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (userSnap.exists()) {
+    return userSnap.data() as UserProfile;
   }
+  
+  // If the document doesn't exist, it should have been created on the backend
+  // during sign-up. We return null and let the auth context handle it,
+  // which might involve logging the user out or showing an error.
+  return null;
 };
 
 

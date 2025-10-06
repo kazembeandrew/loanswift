@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "NODE_ENV=production next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed:admin": "node scripts/seed-admin.js"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
