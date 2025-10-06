@@ -101,8 +101,8 @@ export default function PaymentsPage() {
 
     if (newPaymentAmount > balance) {
       toast({
-        title: 'Overpayment Warning',
-        description: `This payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}. The payment was not recorded.`,
+        title: 'Overpayment Not Allowed',
+        description: `Payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
         variant: 'destructive',
       });
       return;
