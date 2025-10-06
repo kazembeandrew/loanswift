@@ -8,7 +8,39 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 const borrowersCollection = collection(db, 'borrowers');
 
-export async function getBorrowers(): Promise<Borrower[]> {
+/**
+ * Fetches all borrowers assigned to a specific loan officer.
+ * @param loanOfficerId The UID of the loan officer.
+ * @returns A promise that resolves to an array of borrowers.
+ */
+export async function getBorrowersByLoanOfficer(loanOfficerId: string): Promise<Borrower[]> {
+  const q = query(borrowersCollection, where("loanOfficerId", "==", loanOfficerId));
+  try {
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
+      const permissionError = new FirestorePermissionError({
+        path: `borrowers where loanOfficerId == ${loanOfficerId}`,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+    throw serverError;
+  }
+}
+
+/**
+ * Fetches borrowers. If a loanOfficerId is provided, it fetches borrowers for that officer.
+ * Otherwise, it fetches all borrowers (typically for admin views).
+ * @param loanOfficerId Optional UID of the loan officer.
+ * @returns A promise that resolves to an array of borrowers.
+ */
+export async function getBorrowers(loanOfficerId?: string): Promise<Borrower[]> {
+  if (loanOfficerId) {
+    return getBorrowersByLoanOfficer(loanOfficerId);
+  }
+
   try {
     const snapshot = await getDocs(borrowersCollection);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
