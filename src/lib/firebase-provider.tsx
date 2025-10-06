@@ -45,13 +45,11 @@ function useFirebase() {
 }
 
 function useAuth() {
-    const { auth } = useFirebase()
-    return auth;
+    return useFirebase()?.auth;
 }
 
 function useDB() {
-    const { db } = useFirebase();
-    return db;
+    return useFirebase()?.db;
 }
 
 

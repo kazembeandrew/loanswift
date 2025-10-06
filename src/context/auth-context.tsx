@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const db = useDB();
 
   useEffect(() => {
+    if (!auth) return; // Wait for auth to be initialized
+
     let mounted = true;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -43,9 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         setUser(user);
         try {
-          const userDoc = await ensureUserDocument(db, user);
-          if (mounted) {
-            setUserProfile(userDoc);
+          // Ensure db is available before using it
+          if (db) {
+            const userDoc = await ensureUserDocument(db, user);
+            if (mounted) {
+              setUserProfile(userDoc);
+            }
           }
         } catch (error) {
           console.error('Error ensuring user document:', error);
