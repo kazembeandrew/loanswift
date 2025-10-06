@@ -39,6 +39,7 @@ import { getAllPayments } from '@/services/payment-service';
 import { getAccounts } from '@/services/account-service';
 import { getSettings } from '@/services/settings-service';
 import { useDB } from '@/lib/firebase-provider';
+import FinancialAnalysis from './financial-analysis';
 
 
 const monthlyCollectionsChartConfig = {
@@ -235,6 +236,12 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
               </CardContent>
           </Card>
         </div>
+        
+        <FinancialAnalysis
+          loans={loans}
+          payments={payments}
+          accounts={accounts}
+        />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="lg:col-span-4">

@@ -45,7 +45,6 @@ const portfolioItems = [
 ];
 
 const financialItems = [
-    { href: '/dashboard/financials', label: 'Financials', icon: PiggyBank },
     { href: '/dashboard/banking', label: 'Banking', icon: Landmark },
     { href: '/dashboard/accounts', label: 'Chart of Accounts', icon: BookUser },
     { href: '/dashboard/journal', label: 'Journal', icon: BookCopy },
