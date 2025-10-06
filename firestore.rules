@@ -3,21 +3,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User profile documents
+    // User profiles are readable by all staff, but only updatable by the user themselves or admin/hr.
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow create: if request.auth.uid == userId; 
+      allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId || request.auth.token.role in ['admin', 'hr'];
     }
 
-    // Settings can be read by any authenticated user, but only modified by admin.
+    // Settings can be read by any authenticated user but only modified by an admin.
     match /settings/{docId} {
         allow read: if request.auth != null;
         allow write: if request.auth.token.role == 'admin';
     }
 
-    // Portfolio collections (Borrowers, Loans, Payments) are managed by loan officers and management.
-    // HR is excluded from these collections.
+    // Core portfolio collections are only accessible to roles that manage loans and finances.
+    // HR is explicitly excluded.
     match /borrowers/{borrowerId} {
         allow read, write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
@@ -28,13 +28,13 @@ service cloud.firestore {
         allow read, write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
 
-    // Situation Reports can be read by all staff, but only created/updated by loan officers and management.
+    // Situation reports are readable by all staff for awareness, but only portfolio managers can create/update.
     match /situationReports/{reportId} {
         allow read: if request.auth != null;
         allow write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
 
-    // Chat conversations are restricted to participants.
+    // Chat functionality is restricted to participants of a conversation.
     match /conversations/{conversationId} {
         allow read, write: if request.auth.uid in resource.data.participants;
     }
@@ -42,7 +42,7 @@ service cloud.firestore {
         allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
     }
     
-    // Accounting documents can only be accessed by finance-related roles and administrators.
+    // Accounting documents can only be accessed by admin and finance roles.
     match /accounts/{accountId} {
         allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
     }
