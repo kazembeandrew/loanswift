@@ -16,19 +16,20 @@ import { GlobalSearch } from './global-search';
 import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
 
 type HeaderProps = {
   title: string;
-  showAddBorrowerButton?: boolean;
-  onAddBorrowerClick?: () => void;
 };
 
-export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClick }: HeaderProps) {
+export function Header({ title }: HeaderProps) {
   const [isSearchOpen, setSearchOpen] = useState(false);
   const { userProfile, signOut } = useAuth();
   const userDisplayName = userProfile?.email || 'Staff Admin';
   const userFallback = userDisplayName.substring(0, 2).toUpperCase();
   const isAdmin = userProfile?.role === 'admin';
+  const pathname = usePathname();
 
   return (
     <>
@@ -47,9 +48,11 @@ export function Header({ title, showAddBorrowerButton = false, onAddBorrowerClic
           <Search className="h-5 w-5" />
           <span className="sr-only">Search</span>
         </Button>
-        {showAddBorrowerButton && onAddBorrowerClick && (
-            <Button size="sm" onClick={onAddBorrowerClick}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Borrower
+        {pathname === '/dashboard' && userProfile?.role !== 'hr' && (
+             <Button size="sm" asChild>
+                <Link href="/dashboard/borrowers">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Borrower
+                </Link>
             </Button>
         )}
         <Button variant="ghost" size="icon">

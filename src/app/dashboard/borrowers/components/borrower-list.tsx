@@ -51,7 +51,7 @@ import { useAuth } from '@/context/auth-context';
 import { addBorrower, getBorrowers, updateBorrower } from '@/services/borrower-service';
 import { addLoan, getLoans } from '@/services/loan-service';
 import { addPayment, getAllPayments } from '@/services/payment-service';
-import { Card, CardHeader } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDB } from '@/lib/firebase-provider';
 
 const collateralSchema = z.object({
@@ -94,21 +94,15 @@ const newLoanFormDefaultValues = {
 };
 
 type BorrowerListProps = {
-  isAddBorrowerOpen?: boolean;
-  setAddBorrowerOpen?: (isOpen: boolean) => void;
   borrowers: Borrower[];
   loans: Loan[];
   payments: (Payment & { loanId: string })[];
   fetchData: () => Promise<void>;
 };
 
-export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp, setAddBorrowerOpen: setAddBorrowerOpenProp, borrowers, loans, payments, fetchData }: BorrowerListProps) {
+export default function BorrowerList({ borrowers, loans, payments, fetchData }: BorrowerListProps) {
   
-  const [internalIsAddBorrowerOpen, setInternalIsAddBorrowerOpen] = useState(false);
-  
-  const isAddBorrowerOpen = isAddBorrowerOpenProp !== undefined ? isAddBorrowerOpenProp : internalIsAddBorrowerOpen;
-  const setAddBorrowerOpen = setAddBorrowerOpenProp !== undefined ? setAddBorrowerOpenProp : setInternalIsAddBorrowerOpen;
-
+  const [isAddBorrowerOpen, setAddBorrowerOpen] = useState(false);
   const [isEditBorrowerOpen, setEditBorrowerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -249,7 +243,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
     setAddNewLoanOpen(true);
   };
   
-  const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>) => {
+  const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>>) => {
     if (!selectedBorrower) return;
     
     const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
@@ -317,16 +311,16 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <h1 className="font-headline text-2xl font-semibold">Borrowers</h1>
+      <CardHeader className="flex flex-row items-center">
+        <div className="grid gap-2">
+            <CardTitle>Borrowers</CardTitle>
+            <CardDescription>Manage all borrowers in the system.</CardDescription>
+        </div>
         <Dialog open={isAddBorrowerOpen} onOpenChange={setAddBorrowerOpen}>
           <DialogTrigger asChild>
-             { setAddBorrowerOpenProp === undefined && (
-                <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Borrower
-                </Button>
-              )
-            }
+            <Button className="ml-auto gap-1">
+                <PlusCircle className="h-4 w-4" /> Add Borrower
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -351,75 +345,77 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
           </DialogContent>
         </Dialog>
       </CardHeader>
-      <div className="rounded-lg border-t">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[150px] sm:w-auto">Borrower</TableHead>
-              <TableHead className="hidden md:table-cell">ID Number</TableHead>
-              <TableHead>Active Loans</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {borrowers.map((borrower) => {
-              const borrowerLoans = loans.filter((loan) => loan.borrowerId === borrower.id);
-              return (
-                <TableRow key={borrower.id}>
-                  <TableCell className="font-medium">
-                     <Link href={`/dashboard/borrowers/${borrower.id}`} className="hover:underline">
-                      {borrower.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">{borrower.idNumber}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {borrowerLoans.map((loan) => {
-                        const status = getLoanStatus(loan);
-                        return (
-                          <Badge
-                            key={loan.id}
-                            variant={getLoanStatusVariant(status)}
-                            className="cursor-pointer"
-                            onClick={() => status !== 'closed' && handleRecordPayment(borrower, loan)}
-                          >
-                            {loan.id} ({status})
-                          </Badge>
-                        )
-                      })}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleAddNewLoanClick(borrower)}>Add New Loan</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditBorrowerClick(borrower)}>Edit Borrower</DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/borrowers/${borrower.id}`}>View Dashboard</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
-                         {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
-                            <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(borrower, loan)}>
-                              For Loan {loan.id}
-                            </DropdownMenuItem>
-                         ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      <CardContent>
+        <div className="rounded-lg border">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead className="w-[150px] sm:w-auto">Borrower</TableHead>
+                <TableHead className="hidden md:table-cell">ID Number</TableHead>
+                <TableHead>Active Loans</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+                {borrowers.map((borrower) => {
+                const borrowerLoans = loans.filter((loan) => loan.borrowerId === borrower.id);
+                return (
+                    <TableRow key={borrower.id}>
+                    <TableCell className="font-medium">
+                        <Link href={`/dashboard/borrowers/${borrower.id}`} className="hover:underline">
+                        {borrower.name}
+                        </Link>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{borrower.idNumber}</TableCell>
+                    <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                        {borrowerLoans.map((loan) => {
+                            const status = getLoanStatus(loan);
+                            return (
+                            <Badge
+                                key={loan.id}
+                                variant={getLoanStatusVariant(status)}
+                                className="cursor-pointer"
+                                onClick={() => status !== 'closed' && handleRecordPayment(borrower, loan)}
+                            >
+                                {loan.id} ({status})
+                            </Badge>
+                            )
+                        })}
+                        </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleAddNewLoanClick(borrower)}>Add New Loan</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditBorrowerClick(borrower)}>Edit Borrower</DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/borrowers/${borrower.id}`}>View Dashboard</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
+                            {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
+                                <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(borrower, loan)}>
+                                For Loan {loan.id}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                    </TableRow>
+                );
+                })}
+            </TableBody>
+            </Table>
+        </div>
+      </CardContent>
 
        <Dialog open={isEditBorrowerOpen} onOpenChange={setEditBorrowerOpen}>
           <DialogContent>

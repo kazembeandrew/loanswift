@@ -16,8 +16,7 @@ import { useDB } from '@/lib/firebase-provider';
 import MyTasks from './my-tasks';
 
 type LoanOfficerDashboardProps = {
-    isAddBorrowerOpen: boolean;
-    setAddBorrowerOpen: (isOpen: boolean) => void;
+    
 };
 
 type UpcomingPayment = {
@@ -28,7 +27,7 @@ type UpcomingPayment = {
     balance: number;
 };
 
-export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: LoanOfficerDashboardProps) {
+export default function LoanOfficerDashboard({}: LoanOfficerDashboardProps) {
   const { userProfile } = useAuth();
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -127,8 +126,6 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
         <Card className="lg:col-span-4">
           <CardContent className="p-0">
             <BorrowerList 
-                isAddBorrowerOpen={isAddBorrowerOpen} 
-                setAddBorrowerOpen={setAddBorrowerOpen}
                 borrowers={borrowers}
                 loans={loans}
                 payments={payments}

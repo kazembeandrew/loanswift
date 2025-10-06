@@ -1,6 +1,5 @@
 
 'use client';
-import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Header } from '@/components/header';
 import CeoDashboard from './components/ceo-dashboard';
@@ -27,7 +26,6 @@ function HrDashboard() {
 }
 
 export default function DashboardPage() {
-  const [isAddBorrowerOpen, setAddBorrowerOpen] = useState(false);
   const { userProfile, loading } = useAuth();
   
   if (loading) {
@@ -46,21 +44,19 @@ export default function DashboardPage() {
       case 'ceo':
       case 'cfo':
       case 'admin':
-        return <CeoDashboard isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />;
+        return <CeoDashboard />;
       case 'hr':
         return <HrDashboard />;
       case 'loan_officer':
       default:
-        return <LoanOfficerDashboard isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />;
+        return <LoanOfficerDashboard />;
     }
   };
 
   return (
     <>
       <Header 
-        title="Dashboard" 
-        showAddBorrowerButton={userProfile?.role !== 'hr'}
-        onAddBorrowerClick={() => setAddBorrowerOpen(true)}
+        title="Dashboard"
       />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         {renderDashboard()}

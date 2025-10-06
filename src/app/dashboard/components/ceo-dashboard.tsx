@@ -49,12 +49,8 @@ const monthlyCollectionsChartConfig = {
   },
 } satisfies ChartConfig;
 
-type CeoDashboardProps = {
-    isAddBorrowerOpen: boolean;
-    setAddBorrowerOpen: (isOpen: boolean) => void;
-};
 
-export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: CeoDashboardProps) {
+export default function CeoDashboard() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
@@ -320,8 +316,6 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
         </div>
         
         <BorrowerList 
-            isAddBorrowerOpen={isAddBorrowerOpen} 
-            setAddBorrowerOpen={setAddBorrowerOpen}
             borrowers={borrowers}
             loans={loans}
             payments={payments}

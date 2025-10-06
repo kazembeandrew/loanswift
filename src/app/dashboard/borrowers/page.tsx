@@ -8,6 +8,7 @@ import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { useDB } from '@/lib/firebase-provider';
+import { Card } from '@/components/ui/card';
 
 export default function BorrowersPage() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
