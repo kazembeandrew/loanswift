@@ -84,4 +84,57 @@ async function seedAdminUser() {
   }
 }
 
-seedAdminUser();
+async function checkAdminUser() {
+  console.log('\n--- Running Diagnostic Check ---');
+  console.log(`Checking for user: ${ADMIN_EMAIL}`);
+  try {
+    // 1. Check Firebase Auth
+    const userRecord = await auth.getUserByEmail(ADMIN_EMAIL);
+    console.log('\n[SUCCESS] User found in Firebase Authentication.');
+    console.log('  UID:', userRecord.uid);
+    console.log('  Email:', userRecord.email);
+    console.log('  Custom Claims:', userRecord.customClaims);
+
+    if (userRecord.customClaims?.role !== 'admin') {
+      console.error('\n[PROBLEM] User does NOT have "admin" custom claim!');
+    } else {
+      console.log('\n[SUCCESS] User has "admin" custom claim.');
+    }
+
+    // 2. Check Firestore
+    const userDocRef = db.collection('users').doc(userRecord.uid);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
+      console.error('\n[PROBLEM] User document not found in Firestore!');
+    } else {
+      console.log('\n[SUCCESS] User document found in Firestore.');
+      console.log('  Document Path:', userDocRef.path);
+      console.log('  Document Data:', userDoc.data());
+       if (userDoc.data()?.role !== 'admin') {
+         console.error('\n[PROBLEM] Firestore document role is NOT "admin"!');
+       } else {
+         console.log('\n[SUCCESS] Firestore document role is "admin".');
+       }
+    }
+
+  } catch (error) {
+     if (error.code === 'auth/user-not-found') {
+        console.error('\n[PROBLEM] User does not exist in Firebase Authentication.');
+     } else {
+        console.error('\n❌ An unexpected error occurred during diagnostic check:', error);
+     }
+  } finally {
+    console.log('\n--- Diagnostic Check Complete ---');
+  }
+}
+
+
+// Decide which function to run based on command line arguments
+const command = process.argv[2];
+
+if (command === 'check') {
+    checkAdminUser();
+} else {
+    seedAdminUser();
+}
