@@ -12,7 +12,8 @@ import {
   Timestamp,
   serverTimestamp,
   getDoc,
-  arrayUnion
+  arrayUnion,
+  limit
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Conversation, ChatMessage, UserProfile } from '@/types';
@@ -40,7 +41,7 @@ export async function getConversationsForUser(userId: string): Promise<Conversat
   const convos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
   return convos.sort((a, b) => {
     const timeA = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
-    const timeB = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
+    const timeB = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
     return timeB - timeA;
   });
 }
@@ -89,6 +90,7 @@ export async function sendMessage(
   const lastMessageData = {
     text,
     timestamp,
+    senderId,
   };
 
   batch.set(newMessageRef, messageData);
@@ -113,28 +115,23 @@ export async function sendMessage(
 
 // Start a new conversation or get an existing one
 export async function findOrCreateConversation(currentUser: UserProfile, otherUser: UserProfile): Promise<string> {
+  // Ensure participants are always in a consistent order to find existing conversations.
   const participants = [currentUser.uid, otherUser.uid].sort();
   
   const q = query(
     conversationsCollection,
-    where('participants', '==', participants)
+    where('participants', '==', participants),
+    limit(1)
   );
 
-  const snapshot = await getDocs(q).catch(async (serverError) => {
-    // This query failing is also a permissions issue, let's catch it.
-    if (serverError.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-            path: `conversations where participants == [${participants.join(',')}]`,
-            operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
-    throw serverError;
-  });
+  try {
+    const snapshot = await getDocs(q);
 
-  if (!snapshot.empty) {
-    return snapshot.docs[0].id;
-  } else {
+    // If a conversation already exists, return its ID.
+    if (!snapshot.empty) {
+      return snapshot.docs[0].id;
+    } 
+    
     // If no conversation exists, create a new one.
     const participantEmails = [currentUser.email, otherUser.email].sort();
     const conversationData: Omit<Conversation, 'id'> = {
@@ -145,16 +142,18 @@ export async function findOrCreateConversation(currentUser: UserProfile, otherUs
     };
 
     // The security rule for 'create' will check if the current user's UID is in this `participants` array.
-    const docRef = await addDoc(conversationsCollection, conversationData)
-    .catch(async (serverError) => {
+    const docRef = await addDoc(conversationsCollection, conversationData);
+    return docRef.id;
+
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
-            path: conversationsCollection.path,
-            operation: 'create',
-            requestResourceData: conversationData,
+            path: `conversations where participants == [${participants.join(',')}]`,
+            operation: 'list', // Querying is a 'list' operation at its core
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
-    return docRef.id;
+    }
+    // Re-throw the error to be handled by the calling component
+    throw serverError;
   }
 }
