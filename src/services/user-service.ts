@@ -10,7 +10,8 @@ export const createUserDocument = async (db: Firestore, user: User, additionalDa
 
   if (!userSnap.exists()) {
     try {
-      const defaultRole = 'loan_officer';
+      // If the email matches the initial admin email, assign the 'admin' role.
+      const defaultRole = user.email === 'info.ntchito@gmail.com' ? 'admin' : 'loan_officer';
       
       const userData: UserProfile = {
         uid: user.uid,
