@@ -243,7 +243,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
     setAddNewLoanOpen(true);
   };
   
-  const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>>) => {
+  const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>) => {
     if (!selectedBorrower) return;
     
     const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
