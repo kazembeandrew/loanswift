@@ -2,45 +2,63 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId || request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
+  
+    // Helper Functions
+    function isLoanOfficerOrAbove() {
+      return request.auth.token.role in ['loan_officer', 'cfo', 'ceo', 'admin', 'hr'];
     }
 
+    function isAdmin() {
+        return request.auth.token.role in ['cfo', 'ceo', 'admin'];
+    }
+
+    function isOwner(userId) {
+        return request.auth.uid == userId;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isLoanOfficerOrAbove();
+      allow write: if isAdmin() || isOwner(userId);
+    }
+    
     match /borrowers/{borrowerId} {
-      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
+      allow read, write: if isLoanOfficerOrAbove() && (isAdmin() || resource.data.loanOfficerId == request.auth.uid);
+      allow create: if isLoanOfficerOrAbove();
     }
     
     match /loans/{loanId} {
-      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
-    }
-    
-    match /{path=**}/payments/{paymentId} {
-      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
-    }
-
-    match /settings/{docId} {
-      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
+      allow read, write: if isLoanOfficerOrAbove();
+      allow list: if isLoanOfficerOrAbove();
     }
 
     match /accounts/{accountId} {
-       allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
+        allow read, write: if isAdmin();
     }
 
     match /journal/{entryId} {
-      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
+        allow read, write: if isAdmin();
+    }
+    
+    match /settings/{docId} {
+      allow read, write: if isAdmin();
+    }
+    
+    match /{path=**}/payments/{paymentId} {
+      allow read, write: if isLoanOfficerOrAbove();
     }
     
     match /conversations/{conversationId} {
       allow read, write: if request.auth.uid in resource.data.participants;
-    }
-    
-    match /conversations/{conversationId}/messages/{messageId} {
-       allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      
+      match /messages/{messageId} {
+        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
     }
 
     match /situationReports/{reportId} {
-      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
+      allow create: if isLoanOfficerOrAbove();
+      allow read, update: if isAdmin() || get(/databases/$(database)/documents/situationReports/$(reportId)).data.reportedBy == request.auth.uid;
     }
   }
 }

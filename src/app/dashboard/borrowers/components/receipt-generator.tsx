@@ -16,6 +16,7 @@ import ReceiptPreview from '@/components/receipt-preview';
 import { getSettings } from '@/services/settings-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useAuth } from '@/context/auth-context';
 
 type ReceiptGeneratorProps = {
   isOpen: boolean;
@@ -42,6 +43,7 @@ export default function ReceiptGenerator({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
   
   
   useEffect(() => {
@@ -52,8 +54,8 @@ export default function ReceiptGenerator({
 
 
   const generateReceiptText = useCallback(async () => {
-    if (!settings) {
-        toast({ title: "Error", description: "Business settings not loaded.", variant: "destructive" });
+    if (!settings || !userProfile) {
+        toast({ title: "Error", description: "Business settings or user profile not loaded.", variant: "destructive" });
         return;
     }
     setIsGeneratingText(true);
@@ -66,7 +68,7 @@ export default function ReceiptGenerator({
         loanId: loan.id,
         paymentAmount: paymentAmount,
         paymentDate: new Date(paymentDate).toISOString(),
-        staffName: 'Staff Admin', // Hardcoded for now
+        staffName: userProfile.email,
         receiptId: newReceiptId,
         businessName: settings.businessName,
         businessAddress: settings.businessAddress,
@@ -84,13 +86,13 @@ export default function ReceiptGenerator({
     } finally {
       setIsGeneratingText(false);
     }
-  }, [borrower, loan, paymentAmount, paymentDate, settings, toast, balance]);
+  }, [borrower, loan, paymentAmount, paymentDate, settings, toast, balance, userProfile]);
 
   useEffect(() => {
-    if (isOpen && settings && !receiptText && !isGeneratingText) {
+    if (isOpen && settings && userProfile && !receiptText && !isGeneratingText) {
       generateReceiptText();
     }
-  }, [isOpen, settings, receiptText, isGeneratingText, generateReceiptText]);
+  }, [isOpen, settings, userProfile, receiptText, isGeneratingText, generateReceiptText]);
 
 
   const handleOpenChange = (open: boolean) => {

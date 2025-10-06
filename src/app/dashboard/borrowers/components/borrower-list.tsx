@@ -95,12 +95,14 @@ const newLoanFormDefaultValues = {
 type BorrowerListProps = {
   isAddBorrowerOpen?: boolean;
   setAddBorrowerOpen?: (isOpen: boolean) => void;
+  borrowers: Borrower[];
+  loans: Loan[];
+  payments: (Payment & { loanId: string })[];
+  fetchData: () => Promise<void>;
 };
 
-export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp, setAddBorrowerOpen: setAddBorrowerOpenProp }: BorrowerListProps) {
-  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp, setAddBorrowerOpen: setAddBorrowerOpenProp, borrowers, loans, payments, fetchData }: BorrowerListProps) {
+  
   const [internalIsAddBorrowerOpen, setInternalIsAddBorrowerOpen] = useState(false);
   
   const isAddBorrowerOpen = isAddBorrowerOpenProp !== undefined ? isAddBorrowerOpenProp : internalIsAddBorrowerOpen;
@@ -116,22 +118,6 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const { toast } = useToast();
   const { userProfile } = useAuth();
   const [receiptBalance, setReceiptBalance] = useState(0);
-
-  const fetchData = useCallback(async () => {
-    const [borrowersData, loansData, paymentsData] = await Promise.all([
-      getBorrowers(),
-      getLoans(),
-      getAllPayments(),
-    ]);
-    setBorrowers(borrowersData);
-    setLoans(loansData);
-    setPayments(paymentsData);
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
 
   const borrowerForm = useForm<z.infer<typeof borrowerFormSchema>>({
     resolver: zodResolver(borrowerFormSchema),
@@ -229,14 +215,14 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   };
   
   const handleAddBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
+    if (!userProfile) {
+        toast({ title: 'Error', description: 'You must be logged in to add a borrower.', variant: 'destructive'});
+        return;
+    }
     
     const newBorrowerData: Omit<Borrower, 'id' | 'joinDate'> = {
-      name: values.name,
-      phone: values.phone,
-      idNumber: values.idNumber,
-      address: values.address,
-      guarantorName: values.guarantorName,
-      guarantorPhone: values.guarantorPhone,
+      ...values,
+      loanOfficerId: userProfile.uid,
     };
     
     await addBorrower(newBorrowerData);
@@ -342,7 +328,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
             <DialogHeader>
               <DialogTitle>Add New Borrower</DialogTitle>
               <DialogDescription>
-                Fill in the borrower's personal details below.
+                Fill in the borrower's personal details below. You will be assigned as the loan officer.
               </DialogDescription>
             </DialogHeader>
             <Form {...borrowerForm}>

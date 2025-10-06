@@ -311,9 +311,14 @@ export default function CeoDashboard({ isAddBorrowerOpen, setAddBorrowerOpen }: 
             </Card>
         </div>
         
-        <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
+        <BorrowerList 
+            isAddBorrowerOpen={isAddBorrowerOpen} 
+            setAddBorrowerOpen={setAddBorrowerOpen}
+            borrowers={borrowers}
+            loans={loans}
+            payments={payments}
+            fetchData={fetchData}
+        />
     </>
   );
 }
-
-    

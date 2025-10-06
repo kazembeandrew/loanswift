@@ -32,26 +32,33 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
 
-  // TODO: Implement logic to assign borrowers to loan officers.
-  // For now, we will show all borrowers to all loan officers.
-  const myBorrowers = borrowers;
-  const myLoanIds = loans.filter(l => myBorrowers.some(b => b.id === l.borrowerId)).map(l => l.id);
-  const myLoans = loans.filter(l => myLoanIds.includes(l.id));
-
   const fetchData = useCallback(async () => {
-    const [borrowersData, loansData, paymentsData] = await Promise.all([
+    // Admins/CEOs see all data, Loan Officers only see their own.
+    const isAdminOrCeo = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
+    
+    const [allBorrowers, allLoans, allPayments] = await Promise.all([
       getBorrowers(),
       getLoans(),
       getAllPayments(),
     ]);
-    setBorrowers(borrowersData);
-    setLoans(loansData);
-    setPayments(paymentsData);
-  }, []);
+
+    if (isAdminOrCeo) {
+        setBorrowers(allBorrowers);
+        setLoans(allLoans);
+    } else if (userProfile) {
+        const myBorrowers = allBorrowers.filter(b => b.loanOfficerId === userProfile.uid);
+        const myLoanIds = allLoans.filter(l => myBorrowers.some(b => b.id === l.borrowerId)).map(l => l.id);
+        setBorrowers(myBorrowers);
+        setLoans(allLoans.filter(l => myLoanIds.includes(l.id)));
+    }
+    setPayments(allPayments);
+  }, [userProfile]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if(userProfile) {
+        fetchData();
+    }
+  }, [fetchData, userProfile]);
 
   const getLoanBalance = (loan: Loan) => {
     const totalPaid = payments
@@ -65,7 +72,7 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
     const upcoming: UpcomingPayment[] = [];
     const now = new Date();
 
-    myLoans.forEach(loan => {
+    loans.forEach(loan => {
         const balance = getLoanBalance(loan);
         if (balance <= 0 || !loan.repaymentSchedule) return;
 
@@ -78,7 +85,7 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
             cumulativeDue += installment.amountDue;
             // Find the first installment where the amount paid is less than the cumulative amount due
             if (totalPaid < cumulativeDue) {
-                const borrower = myBorrowers.find(b => b.id === loan.borrowerId);
+                const borrower = borrowers.find(b => b.id === loan.borrowerId);
                 upcoming.push({
                     loanId: loan.id,
                     borrowerName: borrower?.name || 'Unknown',
@@ -106,12 +113,19 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
         Welcome, {userProfile?.email.split('@')[0]}
       </h1>
 
-      <DashboardMetrics loans={myLoans} payments={payments} borrowers={myBorrowers} />
+      <DashboardMetrics loans={loans} payments={payments} borrowers={borrowers} />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardContent className="p-0">
-            <BorrowerList isAddBorrowerOpen={isAddBorrowerOpen} setAddBorrowerOpen={setAddBorrowerOpen} />
+            <BorrowerList 
+                isAddBorrowerOpen={isAddBorrowerOpen} 
+                setAddBorrowerOpen={setAddBorrowerOpen}
+                borrowers={borrowers}
+                loans={loans}
+                payments={payments}
+                fetchData={fetchData}
+            />
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
@@ -151,5 +165,3 @@ export default function LoanOfficerDashboard({ isAddBorrowerOpen, setAddBorrower
     </div>
   );
 }
-
-    

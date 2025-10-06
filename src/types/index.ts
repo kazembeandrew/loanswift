@@ -19,6 +19,7 @@ export type Borrower = {
   guarantorPhone: string;
   address: string;
   joinDate: string;
+  loanOfficerId: string; // The UID of the loan officer who manages this borrower
 };
 
 export type CollateralItem = {
