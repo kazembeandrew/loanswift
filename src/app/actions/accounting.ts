@@ -4,6 +4,21 @@ import { collection, runTransaction, getDocs, doc, setDoc, getDoc, getFirestore 
 import { getFirebase } from '@/lib/firebase';
 import type { Account, JournalEntry, TransactionLine, MonthEndClosure } from '@/types';
 import { format } from 'date-fns';
+import { addAuditLog } from '@/services/audit-log-service';
+import admin from 'firebase-admin';
+import { initializeAdminApp } from '@/lib/firebase-admin';
+
+async function getUserEmail(uid: string): Promise<string> {
+    const adminApp = initializeAdminApp();
+    if (!adminApp) return 'unknown';
+    try {
+        const userRecord = await admin.auth(adminApp).getUser(uid);
+        return userRecord.email || 'unknown';
+    } catch (error) {
+        console.error(`Could not get email for UID ${uid}:`, error);
+        return 'unknown';
+    }
+}
 
 const db = getFirestore(getFirebase());
 /**
@@ -29,6 +44,14 @@ export async function initiateMonthEndClose(initiatedByUid: string): Promise<Mon
   };
 
   await setDoc(closureRef, newClosure);
+
+  const userEmail = await getUserEmail(initiatedByUid);
+  await addAuditLog(db, {
+      userEmail: userEmail,
+      action: 'MONTH_END_INITIATE',
+      details: { period: periodId },
+  });
+
   return newClosure;
 }
 
@@ -42,7 +65,7 @@ export async function initiateMonthEndClose(initiatedByUid: string): Promise<Mon
 export async function approveMonthEndClose(periodId: string, approvedByUid: string): Promise<MonthEndClosure> {
     const closureRef = doc(db, 'monthEndClosures', periodId);
     
-    return await runTransaction(db, async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
         const closureDoc = await transaction.get(closureRef);
         if (!closureDoc.exists() || closureDoc.data().status !== 'pending_approval') {
             throw new Error('No pending month-end close found for this period to approve.');
@@ -57,6 +80,15 @@ export async function approveMonthEndClose(periodId: string, approvedByUid: stri
         transaction.update(closureRef, updatedClosureData);
         return { ...closureDoc.data(), ...updatedClosureData } as MonthEndClosure;
     });
+
+    const userEmail = await getUserEmail(approvedByUid);
+    await addAuditLog(db, {
+      userEmail: userEmail,
+      action: 'MONTH_END_APPROVE',
+      details: { period: periodId },
+    });
+    
+    return result;
 }
 
 
@@ -149,6 +181,13 @@ export async function processApprovedMonthEndClose(periodId: string, processedBy
 
 
     return closingJournalEntryData;
+  });
+
+  const userEmail = await getUserEmail(processedByUid);
+  await addAuditLog(db, {
+    userEmail: userEmail,
+    action: 'MONTH_END_PROCESS',
+    details: { period: periodId },
   });
 
   return closingEntry;

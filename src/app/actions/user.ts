@@ -2,6 +2,7 @@
 
 import { initializeAdminApp } from '@/lib/firebase-admin';
 import { createUserDocument } from '@/services/user-service';
+import { addAuditLog } from '@/services/audit-log-service';
 import type { UserProfile } from '@/types';
 import { User } from 'firebase/auth';
 import { doc, updateDoc, getFirestore } from 'firebase/firestore';
@@ -24,6 +25,15 @@ export async function handleCreateUser(email: string, password: string, role: Us
 
     await createUserDocument(db, userRecord as unknown as User, { role });
     await adminAuth.setCustomUserClaims(userRecord.uid, { role });
+    
+    await addAuditLog(db, {
+        userEmail: 'system@admin', // Should be replaced with actual admin user email from session
+        action: 'USER_CREATE',
+        details: {
+            newUserEmail: email,
+            assignedRole: role
+        }
+    });
 
     return { success: true };
   } catch (error: any) {
@@ -39,6 +49,9 @@ export async function handleUpdateUserRole(uid: string, role: UserProfile['role'
     }
     const adminAuth = admin.auth(adminApp);
     const db = getFirestore(getFirebase());
+    
+    // Get user email for logging before updating
+    const userToUpdate = await adminAuth.getUser(uid);
 
     // Set the custom claim first
     await adminAuth.setCustomUserClaims(uid, { role });
@@ -46,4 +59,13 @@ export async function handleUpdateUserRole(uid: string, role: UserProfile['role'
     // Then update the user's document in Firestore
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role, updatedAt: new Date().toISOString() });
+
+    await addAuditLog(db, {
+        userEmail: 'system@admin', // Should be replaced with actual admin user email from session
+        action: 'USER_ROLE_UPDATE',
+        details: {
+            updatedUserEmail: userToUpdate.email,
+            newRole: role
+        }
+    });
 }

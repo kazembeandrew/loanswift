@@ -1,6 +1,7 @@
 
 
 
+
 export type UserProfile = {
   uid: string;
   email: string;
@@ -126,4 +127,12 @@ export type MonthEndClosure = {
   processedAt?: string; // ISO String
   status: 'pending_approval' | 'approved' | 'processed' | 'rejected';
   closingJournalEntryId?: string;
+};
+
+export type AuditLog = {
+    id: string;
+    timestamp: string; // ISO string
+    userEmail: string; // Email of the user who performed the action
+    action: string; // e.g., "USER_CREATE", "LOAN_DISBURSE", "ROLE_UPDATE"
+    details: Record<string, any>; // e.g., { userId: "...", newRole: "admin" }
 };

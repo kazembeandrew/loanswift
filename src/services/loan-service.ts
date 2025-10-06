@@ -7,6 +7,9 @@ import { getAccounts } from './account-service';
 import { addMonths } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
+import { addAuditLog } from './audit-log-service';
+import { getAuth } from 'firebase/auth';
+import { getFirebase } from '@/lib/firebase';
 
 
 export async function getLoans(db: Firestore): Promise<Loan[]> {
@@ -85,6 +88,9 @@ function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>)
 
 
 export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
+  const auth = getAuth(getFirebase());
+  const currentUser = auth.currentUser;
+
   const loansCollection = collection(db, 'loans');
   const repaymentSchedule = generateRepaymentSchedule(loanData);
   const loanWithSchedule = { ...loanData, repaymentSchedule };
@@ -100,6 +106,18 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
         throw permissionError;
     });
 
+  // Log the audit event.
+  if (currentUser) {
+    addAuditLog(db, {
+      userEmail: currentUser.email || 'unknown',
+      action: 'LOAN_DISBURSEMENT',
+      details: {
+        loanId: docRef.id,
+        borrowerId: loanData.borrowerId,
+        amount: loanData.principal,
+      }
+    });
+  }
   
   // Automated Journal Entry for Loan Disbursement
   try {

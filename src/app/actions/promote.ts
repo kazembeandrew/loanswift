@@ -3,6 +3,7 @@
 import { initializeAdminApp } from '@/lib/firebase-admin';
 import { getFirebase } from '@/lib/firebase';
 import { doc, updateDoc, getFirestore } from 'firebase/firestore';
+import { addAuditLog } from '@/services/audit-log-service';
 import admin from 'firebase-admin';
 
 /**
@@ -23,6 +24,11 @@ export async function promoteUserToAdmin(email: string): Promise<{
   }
   const adminAuth = admin.auth(adminApp);
   const db = getFirestore(getFirebase());
+  
+  // Need to get the current user who is performing the action
+  // This is a placeholder as we don't have server-side auth session easily here
+  // In a real app, you'd get this from the session.
+  const promoterEmail = 'system@admin';
 
   try {
     const userRecord = await adminAuth.getUserByEmail(email);
@@ -32,6 +38,15 @@ export async function promoteUserToAdmin(email: string): Promise<{
 
     const userDocRef = doc(db, 'users', uid);
     await updateDoc(userDocRef, { role: 'admin' });
+
+    await addAuditLog(db, {
+        userEmail: promoterEmail,
+        action: 'USER_PROMOTE',
+        details: {
+            promotedUserEmail: email,
+            newRole: 'admin'
+        }
+    });
     
     return {
       status: 'success',

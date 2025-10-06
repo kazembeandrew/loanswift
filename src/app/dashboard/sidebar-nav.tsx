@@ -19,6 +19,7 @@ import {
   BookUser,
   BookCopy,
   Calculator,
+  History,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -57,6 +58,7 @@ const utilityItems = [
 
 const adminItems = [
     { href: '/dashboard/staff', label: 'Staff', icon: Shield },
+    { href: '/dashboard/audit-log', label: 'Audit Log', icon: History },
 ];
 
 
@@ -201,16 +203,19 @@ export function SidebarNav() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenu className="mt-2">
-                {adminItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
-                      <Link href={item.href}>
-                        <item.icon className="size-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {adminItems.map((item) => {
+                  if (item.label === 'Audit Log' && !isAdmin) return null;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
+                        <Link href={item.href}>
+                            <item.icon className="size-4" />
+                            <span>{item.label}</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </CollapsibleContent>
           </Collapsible>
