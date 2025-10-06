@@ -27,17 +27,39 @@ export async function addSituationReport(reportData: Omit<SituationReport, 'id' 
 
 export async function getSituationReportsByBorrower(borrowerId: string): Promise<SituationReport[]> {
   const q = query(reportsCollection, where("borrowerId", "==", borrowerId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport))
-    .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
-}
-
-export async function getAllSituationReports(): Promise<SituationReport[]> {
-    const snapshot = await getDocs(reportsCollection);
+  try {
+    const snapshot = await getDocs(q);
     return snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport))
       .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
+      const permissionError = new FirestorePermissionError({
+        path: `situationReports where borrowerId == ${borrowerId}`,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+    throw serverError;
+  }
+}
+
+export async function getAllSituationReports(): Promise<SituationReport[]> {
+    try {
+        const snapshot = await getDocs(reportsCollection);
+        return snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport))
+          .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+    } catch(serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: reportsCollection.path,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }
 
 export async function updateSituationReportStatus(id: string, status: SituationReport['status']): Promise<void> {
@@ -57,5 +79,3 @@ export async function updateSituationReportStatus(id: string, status: SituationR
         throw permissionError;
     });
 }
-
-    

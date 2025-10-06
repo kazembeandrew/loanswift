@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, doc, writeBatch, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, writeBatch, runTransaction, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { JournalEntry, TransactionLine } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -7,10 +7,21 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors
 const journalCollection = collection(db, 'journal');
 
 export async function getJournalEntries(): Promise<JournalEntry[]> {
-  const snapshot = await getDocs(journalCollection);
-  return snapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as JournalEntry))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    try {
+        const snapshot = await getDocs(journalCollection);
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as JournalEntry))
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: journalCollection.path,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }
 
 export async function addJournalEntry(entryData: Omit<JournalEntry, 'id'>): Promise<string> {
@@ -62,8 +73,8 @@ export async function addJournalEntry(entryData: Omit<JournalEntry, 'id'>): Prom
   }).catch(async (serverError) => {
     if (serverError.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
-            path: journalCollection.path,
-            operation: 'create',
+            path: 'transaction<journal/create, accounts/update>',
+            operation: 'write',
             requestResourceData: entryData,
         });
         errorEmitter.emit('permission-error', permissionError);

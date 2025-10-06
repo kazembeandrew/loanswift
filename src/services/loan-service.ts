@@ -7,25 +7,59 @@ import { addMonths } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
+const loansCollection = collection(db, 'loans');
 
 export async function getLoans(): Promise<Loan[]> {
-  const snapshot = await getDocs(collection(db, 'loans'));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+  try {
+    const snapshot = await getDocs(loansCollection);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
+      const permissionError = new FirestorePermissionError({
+        path: loansCollection.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+    throw serverError;
+  }
 }
 
 export async function getLoanById(id: string): Promise<Loan | null> {
     const docRef = doc(db, 'loans', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Loan;
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as Loan;
+        }
+        return null;
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
     }
-    return null;
 }
 
 export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> {
     const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: `loans where borrowerId == ${borrowerId}`,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }
 
 function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>): RepaymentScheduleItem[] {
@@ -53,7 +87,6 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
   const repaymentSchedule = generateRepaymentSchedule(loanData);
   const loanWithSchedule = { ...loanData, repaymentSchedule };
 
-  const loansCollection = collection(db, 'loans');
   const docRef = await addDoc(loansCollection, loanWithSchedule)
     .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({

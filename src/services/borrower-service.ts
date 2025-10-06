@@ -7,17 +7,39 @@ import { FirestorePermissionError } from '@/lib/errors';
 const borrowersCollection = collection(db, 'borrowers');
 
 export async function getBorrowers(): Promise<Borrower[]> {
-  const snapshot = await getDocs(borrowersCollection);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
+  try {
+    const snapshot = await getDocs(borrowersCollection);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
+      const permissionError = new FirestorePermissionError({
+        path: borrowersCollection.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+    throw serverError;
+  }
 }
 
 export async function getBorrowerById(id: string): Promise<Borrower | null> {
     const docRef = doc(db, 'borrowers', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Borrower;
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as Borrower;
+        }
+        return null;
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
     }
-    return null;
 }
 
 export async function addBorrower(borrowerData: Omit<Borrower, 'id' | 'joinDate'>): Promise<string> {

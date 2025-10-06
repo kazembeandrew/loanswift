@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, runTransaction, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Account } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -7,8 +7,20 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors
 const accountsCollection = collection(db, 'accounts');
 
 export async function getAccounts(): Promise<Account[]> {
-  const snapshot = await getDocs(accountsCollection);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)).sort((a, b) => a.name.localeCompare(b.name));
+  try {
+    const snapshot = await getDocs(accountsCollection);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)).sort((a, b) => a.name.localeCompare(b.name));
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
+      const permissionError = new FirestorePermissionError({
+          path: accountsCollection.path,
+          operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }
+    // Re-throw the original error to be handled by the calling function if needed
+    throw serverError;
+  }
 }
 
 export async function addAccount(accountData: Omit<Account, 'id' | 'balance'>): Promise<string> {

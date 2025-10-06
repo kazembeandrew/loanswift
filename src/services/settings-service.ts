@@ -16,29 +16,32 @@ const defaultSettings: Omit<BusinessSettings, 'id'> = {
 };
 
 export async function getSettings(): Promise<BusinessSettings> {
-    const docSnap = await getDoc(settingsDocRef).catch(async (serverError) => {
-         const permissionError = new FirestorePermissionError({
-            path: settingsDocRef.path,
-            operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
-
-    if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as BusinessSettings;
-    } else {
-        // If settings don't exist, create them with default values
-        await setDoc(settingsDocRef, defaultSettings).catch(async (serverError) => {
+    try {
+        const docSnap = await getDoc(settingsDocRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as BusinessSettings;
+        } else {
+            // If settings don't exist, create them with default values
+            await setDoc(settingsDocRef, defaultSettings).catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: settingsDocRef.path,
+                    operation: 'create',
+                    requestResourceData: defaultSettings,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw permissionError;
+            });
+            return { id: SETTINGS_DOC_ID, ...defaultSettings };
+        }
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: settingsDocRef.path,
-                operation: 'create',
-                requestResourceData: defaultSettings,
+                operation: 'get',
             });
             errorEmitter.emit('permission-error', permissionError);
-            throw permissionError;
-        });
-        return { id: SETTINGS_DOC_ID, ...defaultSettings };
+        }
+        throw serverError;
     }
 }
 

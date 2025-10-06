@@ -12,8 +12,19 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 export async function getPaymentsByLoanId(loanId: string): Promise<Payment[]> {
     const paymentsCollection = collection(db, `loans/${loanId}/payments`);
-    const snapshot = await getDocs(paymentsCollection);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+    try {
+        const snapshot = await getDocs(paymentsCollection);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: paymentsCollection.path,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }
 
 export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'>): Promise<string> {
@@ -69,17 +80,9 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         });
 
     } catch (journalError: any) {
-        if (journalError instanceof FirestorePermissionError) {
-             throw journalError;
-        }
-        console.error("Journal entry failed for payment:", journalError);
-        const permissionError = new FirestorePermissionError({
-            path: `loans/${loanId}/payments`,
-            operation: 'create',
-            requestResourceData: paymentData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
+        // The addJournalEntry function now handles its own permission errors,
+        // so we just re-throw to let the UI know something went wrong.
+        throw journalError;
     }
     
     const batch = writeBatch(db);
@@ -96,7 +99,7 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
 
     await batch.commit().catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
-            path: `loans/${loanId}/payments or /loans/${loanId}`,
+            path: `writeBatch<loans/${loanId}/payments, /loans/${loanId}>`,
             operation: 'write',
             requestResourceData: { payment: paymentData, loanUpdate: { outstandingBalance: newOutstandingBalance } },
         });
@@ -109,14 +112,25 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
 
 export async function getAllPayments(): Promise<(Payment & {loanId: string})[]> {
     const paymentsQuery = query(collectionGroup(db, 'payments'));
-    const querySnapshot = await getDocs(paymentsQuery);
-    const payments: (Payment & { loanId: string })[] = [];
-    querySnapshot.forEach((doc) => {
-        const loanDocRef = doc.ref.parent.parent;
-        if (loanDocRef) {
-            const loanId = loanDocRef.id;
-            payments.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
+    try {
+        const querySnapshot = await getDocs(paymentsQuery);
+        const payments: (Payment & { loanId: string })[] = [];
+        querySnapshot.forEach((doc) => {
+            const loanDocRef = doc.ref.parent.parent;
+            if (loanDocRef) {
+                const loanId = loanDocRef.id;
+                payments.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
+            }
+        });
+        return payments;
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: 'collectionGroup<payments>',
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         }
-    });
-    return payments;
+        throw serverError;
+    }
 }
