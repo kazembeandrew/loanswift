@@ -28,12 +28,13 @@ import {
   processApprovedMonthEndClose,
   getMonthEndClosure,
 } from '@/app/actions/accounting';
-import { Loader2, BookLock, CheckCircle, Hourglass, ShieldCheck } from 'lucide-react';
+import { Loader2, BookLock, CheckCircle, Hourglass, ShieldCheck, User, Calendar, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import type { MonthEndClosure } from '@/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useDB } from '@/lib/firebase-provider';
+import Link from 'next/link';
 
 export default function AccountingPage() {
   const [isProcessing, startTransition] = useTransition();
@@ -178,6 +179,44 @@ export default function AccountingPage() {
     // Default view for other roles or other states
     return <p className="text-sm text-muted-foreground">Month-end procedure is in progress.</p>;
   };
+  
+  const renderClosureDetails = () => {
+    if (!closure) return null;
+
+    return (
+        <Card>
+            <CardHeader><CardTitle>Closure Details</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-3">
+                    <Hourglass className="h-4 w-4 text-muted-foreground" />
+                    <p>Initiated by <span className="font-semibold">{closure.initiatedByEmail || '...'}</span> on <span className="font-semibold">{format(parseISO(closure.initiatedAt), 'PPP')}</span></p>
+                </div>
+
+                {closure.status === 'approved' || closure.status === 'processed' ? (
+                     <div className="flex items-center gap-3">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <p>Approved by <span className="font-semibold">{closure.approvedByEmail || '...'}</span> on <span className="font-semibold">{closure.approvedAt ? format(parseISO(closure.approvedAt), 'PPP') : 'N/A'}</span></p>
+                    </div>
+                ) : <p className="text-muted-foreground ml-7">Pending CEO approval...</p>}
+
+                {closure.status === 'processed' ? (
+                     <div className="flex items-center gap-3">
+                        <ShieldCheck className="h-4 w-4 text-blue-500" />
+                        <p>Processed by <span className="font-semibold">{closure.processedByEmail || '...'}</span> on <span className="font-semibold">{closure.processedAt ? format(parseISO(closure.processedAt), 'PPP') : 'N/A'}</span></p>
+                    </div>
+                ) : <p className="text-muted-foreground ml-7">Pending final processing by CFO...</p>}
+
+                {closure.closingJournalEntryId && (
+                     <div className="flex items-center gap-3 pt-2">
+                         <Link href="/dashboard/journal" className="text-primary hover:underline flex items-center gap-2">
+                            <ExternalLink className="h-4 w-4" /> View Closing Journal Entry
+                         </Link>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -205,34 +244,38 @@ export default function AccountingPage() {
     <>
       <Header title="Accounting Procedures" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Month-End Close for {periodId}</CardTitle>
-            <CardDescription>
-              A two-step process for closing the books, requiring CFO initiation and CEO approval.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                    <h3 className="font-semibold">Current Status</h3>
-                    {renderStatusBadge()}
+        <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+            <CardHeader>
+                <CardTitle>Month-End Close for {periodId}</CardTitle>
+                <CardDescription>
+                A two-step process for closing the books, requiring CFO initiation and CEO approval.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                        <h3 className="font-semibold">Current Status</h3>
+                        {renderStatusBadge()}
+                    </div>
+                    <div className="flex items-center">
+                        {isProcessing ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : renderActionButtons()}
+                    </div>
                 </div>
-                <div className="flex items-center">
-                    {isProcessing ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : renderActionButtons()}
+                
+                <div className="space-y-2 text-sm text-muted-foreground">
+                    <p><strong>Workflow:</strong></p>
+                    <ol className="list-decimal list-inside space-y-1">
+                        <li>The CFO initiates the month-end close for the current period.</li>
+                        <li>The CEO receives a notification and must approve the closure request on this page.</li>
+                        <li>Once approved, the CFO can finalize and process the closure, which posts the accounting entries.</li>
+                    </ol>
                 </div>
-            </div>
-            
-            <div className="space-y-2 text-sm text-muted-foreground">
-                <p><strong>Workflow:</strong></p>
-                <ol className="list-decimal list-inside space-y-1">
-                    <li>The CFO initiates the month-end close for the current period.</li>
-                    <li>The CEO receives a notification and must approve the closure request on this page.</li>
-                    <li>Once approved, the CFO can finalize and process the closure, which posts the accounting entries.</li>
-                </ol>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+            </Card>
+
+            {renderClosureDetails()}
+        </div>
       </main>
     </>
   );

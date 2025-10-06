@@ -5,6 +5,7 @@
 
 
 
+
 export type UserProfile = {
   uid: string;
   email: string;
@@ -123,10 +124,13 @@ export type SituationReport = {
 export type MonthEndClosure = {
   id: string; // Format: "YYYY-MM"
   initiatedBy: string; // UID of the CFO
+  initiatedByEmail?: string;
   initiatedAt: string; // ISO String
   approvedBy?: string; // UID of the CEO
+  approvedByEmail?: string;
   approvedAt?: string; // ISO String
   processedBy?: string; // UID of the CFO who processed it
+  processedByEmail?: string;
   processedAt?: string; // ISO String
   status: 'pending_approval' | 'approved' | 'processed' | 'rejected';
   closingJournalEntryId?: string;
