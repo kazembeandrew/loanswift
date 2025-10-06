@@ -117,7 +117,7 @@ export default function FinancialsPage() {
   
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="AI Financial Analysis" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <Card>
@@ -205,6 +205,6 @@ export default function FinancialsPage() {
           </div>
         )}
       </main>
-    </div>
+    </>
   );
 }

@@ -110,18 +110,18 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen w-full flex-col">
+      <>
         <Header title="Settings" />
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
-      </div>
+      </>
     );
   }
 
   if (!userProfile || userProfile.role !== 'admin') {
     return (
-        <div className="flex min-h-screen w-full flex-col">
+        <>
             <Header title="Settings" />
             <main className="flex flex-1 items-center justify-center p-4 md:p-8">
                 <Card className="w-full max-w-md">
@@ -136,12 +136,12 @@ export default function SettingsPage() {
                     </CardHeader>
                 </Card>
             </main>
-        </div>
+        </>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="Settings" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <form onSubmit={handleSaveChanges} className="grid gap-6">
@@ -248,6 +248,6 @@ export default function SettingsPage() {
             </CardContent>
         </Card>
       </main>
-    </div>
+    </>
   );
 }

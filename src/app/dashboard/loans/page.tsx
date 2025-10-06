@@ -166,7 +166,7 @@ export default function LoansPage() {
   const selectedBorrower = selectedLoan ? getBorrowerById(selectedLoan.borrowerId) : null;
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="Loans" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <div className="flex items-center">
@@ -276,6 +276,6 @@ export default function LoansPage() {
         />
       )}
 
-    </div>
+    </>
   );
 }

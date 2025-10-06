@@ -100,12 +100,12 @@ export default function BorrowerDetailPage() {
 
   if (!borrower) {
     return (
-      <div className="flex min-h-screen w-full flex-col">
+      <>
         <Header title="Loading Borrower..." />
         <main className="flex-1 flex items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
-      </div>
+      </>
     );
   }
 
@@ -305,7 +305,7 @@ export default function BorrowerDetailPage() {
 
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="Borrower Dashboard" />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center gap-4">
@@ -696,7 +696,7 @@ export default function BorrowerDetailPage() {
           </DialogContent>
       </Dialog>
 
-    </div>
+    </>
   );
 }
 

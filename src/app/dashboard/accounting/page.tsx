@@ -53,7 +53,7 @@ export default function AccountingPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="Accounting Procedures" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <Card>
@@ -92,6 +92,6 @@ export default function AccountingPage() {
         </Card>
 
       </main>
-    </div>
+    </>
   );
 }

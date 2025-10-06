@@ -143,7 +143,7 @@ export default function PaymentsPage() {
   const recentPayments = payments.slice(0, 7);
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="Payments" />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="grid gap-6 md:grid-cols-2">
@@ -281,6 +281,6 @@ export default function PaymentsPage() {
           balance={receiptBalance}
         />
       )}
-    </div>
+    </>
   );
 }

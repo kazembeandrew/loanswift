@@ -32,9 +32,12 @@ export default function DashboardPage() {
   
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
+      <>
+        <Header title="Dashboard" />
+        <main className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </main>
+      </>
     );
   }
 
@@ -53,7 +56,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header 
         title="Dashboard" 
         showAddBorrowerButton={userProfile?.role !== 'hr'}
@@ -62,7 +65,7 @@ export default function DashboardPage() {
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         {renderDashboard()}
       </main>
-    </div>
+    </>
   );
 }
 

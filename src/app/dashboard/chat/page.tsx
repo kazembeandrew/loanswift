@@ -123,9 +123,9 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-screen flex-col">
         <Header title="Internal Chat" />
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-[calc(100vh-4rem)]">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 min-h-0">
         <aside className="border-r flex flex-col">
             <div className="p-4 border-b">
                 <h2 className="text-xl font-bold">Conversations</h2>
@@ -177,7 +177,7 @@ export default function ChatPage() {
                         </div>
                     ))}
                 </div>
-                <div className="p-4 border-t">
+                <div className="p-4 border-t bg-background">
                     <form onSubmit={handleSendMessage} className="flex gap-2">
                         <Input 
                             value={newMessage}

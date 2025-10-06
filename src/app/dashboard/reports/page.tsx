@@ -68,7 +68,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="Reports" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <div className="grid gap-6 lg:grid-cols-2">
@@ -122,6 +122,6 @@ export default function ReportsPage() {
             </Card>
         </div>
       </main>
-    </div>
+    </>
   );
 }

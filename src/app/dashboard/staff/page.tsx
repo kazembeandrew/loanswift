@@ -143,18 +143,18 @@ export default function StaffPage() {
 
   if (isLoading) {
     return (
-        <div className="flex min-h-screen w-full flex-col">
+        <>
             <Header title="User Management" />
             <main className="flex flex-1 items-center justify-center">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </main>
-        </div>
+        </>
     );
   }
 
   if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'hr')) {
     return (
-        <div className="flex min-h-screen w-full flex-col">
+        <>
             <Header title="User Management" />
             <main className="flex flex-1 items-center justify-center p-4 md:p-8">
                 <Card className="w-full max-w-md">
@@ -169,13 +169,13 @@ export default function StaffPage() {
                     </CardHeader>
                 </Card>
             </main>
-        </div>
+        </>
     );
   }
 
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <>
       <Header title="User Management" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <Card>
@@ -312,6 +312,6 @@ export default function StaffPage() {
           </CardContent>
         </Card>
       </main>
-    </div>
+    </>
   );
 }
