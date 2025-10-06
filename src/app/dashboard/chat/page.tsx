@@ -31,23 +31,36 @@ export default function ChatPage() {
 
   const fetchConversations = useCallback(async () => {
     if (!user) return;
-    const convos = await getConversationsForUser(user.uid);
-    setConversations(convos);
-    if (!activeConversation && convos.length > 0) {
-      setActiveConversation(convos[0]);
+    try {
+      const convos = await getConversationsForUser(user.uid);
+      setConversations(convos);
+      if (!activeConversation && convos.length > 0) {
+        setActiveConversation(convos[0]);
+      }
+    } catch(error) {
+        // Errors are now handled globally, but we can still toast a generic message.
+        console.error("Error fetching conversations:", error);
+        toast({ title: 'Error', description: 'Could not load conversations.', variant: 'destructive' });
     }
-  }, [user, activeConversation]);
+  }, [user, activeConversation, toast]);
 
   const fetchMessages = useCallback(async () => {
     if (!activeConversation) return;
-    const msgs = await getMessagesForConversation(activeConversation.id);
-    setMessages(msgs);
-  }, [activeConversation]);
+    try {
+        const msgs = await getMessagesForConversation(activeConversation.id);
+        setMessages(msgs);
+    } catch(error) {
+        console.error("Error fetching messages:", error);
+        toast({ title: 'Error', description: 'Could not load messages for this conversation.', variant: 'destructive' });
+    }
+  }, [activeConversation, toast]);
 
   useEffect(() => {
-    fetchConversations();
-    getAllUsers().then(setAllUsers);
-  }, [fetchConversations]);
+    if(userProfile) {
+        fetchConversations();
+        getAllUsers().then(setAllUsers);
+    }
+  }, [fetchConversations, userProfile]);
 
   useEffect(() => {
     if (activeConversation) {
@@ -67,23 +80,41 @@ export default function ChatPage() {
         await fetchMessages(); // Immediately fetch after sending
         await fetchConversations(); // Refresh conversation list to show latest message
       } catch (error) {
-        toast({ title: 'Error', description: 'Could not send message.', variant: 'destructive' });
+        // The service now throws a specific error, which is caught by the listener.
+        // We don't need to toast here as the listener will show the dev overlay.
+        console.error("Failed to send message:", error);
       }
     });
   };
 
-  const handleSelectConversation = (conversation: Conversation) => {
+  const handleSelectConversation = async (conversation: Conversation) => {
     setActiveConversation(conversation);
-    fetchMessages();
+    // When a conversation is selected, immediately fetch its messages.
+    if (conversation) {
+        try {
+            const msgs = await getMessagesForConversation(conversation.id);
+            setMessages(msgs);
+        } catch (error) {
+            console.error("Error fetching messages:", error);
+            toast({ title: 'Error', description: 'Could not load messages.', variant: 'destructive' });
+        }
+    }
   };
+
 
   const startNewConversation = async (otherUser: UserProfile) => {
     if (!userProfile) return;
-    const conversationId = await findOrCreateConversation(userProfile, otherUser);
-    await fetchConversations();
-    const newActiveConvo = conversations.find(c => c.id === conversationId) || await getConversationsForUser(userProfile.uid).then(c => c.find(co => co.id === conversationId));
-    if (newActiveConvo) {
-      setActiveConversation(newActiveConvo);
+    try {
+        const conversationId = await findOrCreateConversation(userProfile, otherUser);
+        const convos = await getConversationsForUser(userProfile.uid);
+        setConversations(convos);
+        const newActiveConvo = convos.find(c => c.id === conversationId);
+        if (newActiveConvo) {
+            handleSelectConversation(newActiveConvo);
+        }
+    } catch (error) {
+        console.error("Error starting conversation:", error);
+        toast({ title: 'Error', description: 'Could not start a new conversation.', variant: 'destructive' });
     }
   };
 
