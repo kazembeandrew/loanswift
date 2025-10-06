@@ -3,6 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions
     function isAuth() {
       return request.auth != null;
     }
@@ -10,92 +11,101 @@ service cloud.firestore {
     function isRole(role) {
       return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
     }
-    
+
     function isOneOfRoles(roles) {
       return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles;
     }
-
-    // Admins have full access
-    match /{document=**} {
-      allow read, write: if isRole('admin');
+    
+    function isOwner(userId) {
+        return request.auth.uid == userId;
     }
 
-    // User profile rules
+    // User profiles can be read by any authenticated user.
+    // A user can only update their own profile.
+    // Admins and HR can update any user profile.
     match /users/{userId} {
-      allow get: if isAuth();
-      allow list: if isOneOfRoles(['admin', 'hr']);
-      allow create: if isAuth(); // Admin creates users via backend, users can create their own doc on first login
-      allow update: if request.auth.uid == userId || isOneOfRoles(['admin', 'hr']);
+      allow read: if isAuth();
+      allow update: if isOwner(userId) || isOneOfRoles(['admin', 'hr']);
+      // Create is handled by a server-side admin action.
+      allow create: if isOneOfRoles(['admin', 'hr']);
     }
 
-    // Settings are admin-only
+    // Settings can only be read and written by admins.
     match /settings/{docId} {
       allow read, write: if isOneOfRoles(['admin']);
     }
 
-    // Borrower and Loan rules
+    // Borrowers can be created by any authenticated user.
+    // Loan officers can read/update their own borrowers.
+    // Admins, CEOs, and CFOs can read/list all borrowers.
     match /borrowers/{borrowerId} {
+      allow create: if isAuth();
       allow get: if isAuth() && (resource.data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
-      allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']); // Allow admins/ceo/cfo to list all borrowers
-      allow create: if isAuth();
-      allow update: if isAuth() && (resource.data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin']));
-    }
-    
-    match /loans/{loanId} {
-      allow get: if isAuth();
       allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']);
+      allow update: if isAuth() && (resource.data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+    }
+
+    // Loans can be created by any authenticated user.
+    // Loan officers can read their own loans.
+    // Admins, CEOs, and CFOs can read/list all loans.
+    match /loans/{loanId} {
       allow create: if isAuth();
-      allow update: if isOneOfRoles(['admin', 'cfo']);
+      allow get: if isAuth() && (get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+      allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']);
+      allow update: if isAuth() && (get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+      
+      // Payments can be created by any authenticated user.
+      // They can be read by the loan officer or admin/ceo/cfo.
+      match /payments/{paymentId} {
+        allow create: if isAuth();
+        allow read: if isAuth() && (get(/databases/$(database)/documents/borrowers/$(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+      }
     }
     
-    match /loans/{loanId}/payments/{paymentId} {
-      allow read, create: if isAuth();
-    }
-    
-    // Rule for collection group query on 'payments'
+    // Rule for the 'payments' collection group query needed for CEO dashboard.
     match /{path=**}/payments/{paymentId} {
         allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
 
-    // Situation Reports
+
+    // Situation reports can be created by any authenticated user.
+    // They can be read by the loan officer who created the borrower's loan, or admins/ceos/cfos.
+    // Status can only be updated by admin/ceo/cfo.
     match /situationReports/{reportId} {
-      allow get: if isAuth();
-      allow list: if isAuth();
-      allow create: if isAuth();
-      allow update: if isOneOfRoles(['admin', 'ceo', 'cfo']);
+        allow create: if isAuth();
+        allow read: if isAuth() && (get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+        allow update: if isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
 
-    // Conversations
+    // Conversations can be read/written by participants.
+    // Create is allowed if the creator is one of the participants.
     match /conversations/{conversationId} {
-      allow get: if isAuth() && request.auth.uid in resource.data.participants;
-      allow list: if isAuth() && request.auth.uid in resource.data.participants;
+      allow read, update, delete: if isAuth() && request.auth.uid in resource.data.participants;
       allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
-      allow update: if isAuth() && request.auth.uid in resource.data.participants; // For updating lastMessage
+
+      // Messages can be read/written by conversation participants.
+      match /messages/{messageId} {
+        allow read, write: if isAuth() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
     }
     
-    match /conversations/{conversationId}/messages/{messageId} {
-      allow read, create: if isAuth() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[0] == request.auth.uid || get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[1] == request.auth.uid;
-    }
-    
-    // Accounting documents - restricted to financial roles
+    // Accounting documents can only be accessed by admin, ceo, or cfo.
     match /accounts/{accountId} {
-      allow get: if isOneOfRoles(['admin', 'ceo', 'cfo']);
-      allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']);
-      allow write: if isOneOfRoles(['admin', 'cfo']);
+      allow read, write: if isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
-    
+
     match /journal/{entryId} {
-      allow get: if isOneOfRoles(['admin', 'ceo', 'cfo']);
-      allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']);
-      allow create: if isOneOfRoles(['admin', 'cfo']);
+      allow read, write: if isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
-    
+
+    // Month end closures have specific role-based rules.
     match /monthEndClosures/{closureId} {
         allow get: if isOneOfRoles(['admin', 'ceo', 'cfo']);
         allow list: if isOneOfRoles(['admin', 'ceo', 'cfo']);
-        allow create: if isRole('cfo');
+        allow create: if isRole('cfo') || isRole('admin');
         allow update: if (isRole('ceo') && request.resource.data.status == 'approved') || 
-                         (isRole('cfo') && request.resource.data.status == 'processed');
+                         (isRole('cfo') && request.resource.data.status == 'processed') ||
+                         isRole('admin');
     }
   }
 }
