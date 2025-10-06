@@ -16,12 +16,4 @@ function getFirebase() {
     return getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
 }
 
-function getFirebaseServices() {
-    const app = getFirebase();
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    return { app, auth, db };
-}
-
-
-export { getFirebaseServices as getFirebase, firebaseConfig };
+export { getFirebase, firebaseConfig };

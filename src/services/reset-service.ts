@@ -1,6 +1,8 @@
 
-import { collection, getDocs, writeBatch, collectionGroup } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, getDocs, writeBatch, collectionGroup, getFirestore } from 'firebase/firestore';
+import { getFirebase } from '@/lib/firebase';
+
+const db = getFirestore(getFirebase());
 
 const collectionsToDelete = [
     'borrowers',
@@ -10,6 +12,9 @@ const collectionsToDelete = [
     'accounts',
     'journal',
     'users',
+    'audit_logs',
+    'monthEndClosures',
+    'situationReports',
 ];
 
 const groupCollectionsToDelete = ['payments', 'messages'];
