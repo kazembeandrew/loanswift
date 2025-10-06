@@ -31,7 +31,7 @@ export default function AuditLogPage() {
         const logsData = await getAuditLogs(db);
         setLogs(logsData);
     } catch(error) {
-        console.error("Failed to fetch audit logs:", error);
+        // Error is handled globally by the listener
     } finally {
         setIsLoading(false);
     }

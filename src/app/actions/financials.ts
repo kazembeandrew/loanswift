@@ -18,7 +18,6 @@ export async function handleGenerateFinancialSummary(
     const output = await generateFinancialSummary(input);
     return output;
   } catch (error) {
-    console.error('Error in handleGenerateFinancialSummary:', error);
     throw new Error('Failed to generate financial summary.');
   }
 }

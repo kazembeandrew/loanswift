@@ -53,7 +53,6 @@ export async function promoteUserToAdmin(email: string): Promise<{
       message: `User ${email} has been successfully promoted to admin.`,
     };
   } catch (error: any) {
-    console.error(`Failed to promote user ${email}:`, error);
     return {
       status: 'error',
       message: error.message || 'An unknown error occurred.',

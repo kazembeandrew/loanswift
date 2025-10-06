@@ -79,7 +79,6 @@ export default function ReceiptGenerator({
       const result = await handleGenerateReceipt(input);
       setReceiptText(result.receiptText);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Error Generating Receipt Text',
         description: 'An unexpected error occurred. Please try again.',
@@ -173,7 +172,6 @@ export default function ReceiptGenerator({
 
         toast({title: "Download Started", description: "Your receipt PDF is downloading."});
     } catch(error) {
-        console.error("PDF generation error:", error);
         toast({title: "PDF Error", description: "Failed to generate PDF.", variant: "destructive"});
     } finally {
         setIsDownloadingPdf(false);

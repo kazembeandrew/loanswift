@@ -41,7 +41,6 @@ export default function ChatPage() {
       }
     } catch(error) {
         // Errors are now handled globally, but we can still toast a generic message.
-        console.error("Error fetching conversations:", error);
         toast({ title: 'Error', description: 'Could not load conversations.', variant: 'destructive' });
     }
   }, [user, activeConversation, toast, db]);
@@ -52,7 +51,6 @@ export default function ChatPage() {
         const msgs = await getMessagesForConversation(db, activeConversation.id);
         setMessages(msgs);
     } catch(error) {
-        console.error("Error fetching messages:", error);
         toast({ title: 'Error', description: 'Could not load messages for this conversation.', variant: 'destructive' });
     }
   }, [activeConversation, toast, db]);
@@ -83,8 +81,6 @@ export default function ChatPage() {
         await fetchConversations(); // Refresh conversation list to show latest message
       } catch (error) {
         // The service now throws a specific error, which is caught by the listener.
-        // We don't need to toast here as the listener will show the dev overlay.
-        console.error("Failed to send message:", error);
       }
     });
   };
@@ -97,7 +93,6 @@ export default function ChatPage() {
             const msgs = await getMessagesForConversation(db, conversation.id);
             setMessages(msgs);
         } catch (error) {
-            console.error("Error fetching messages:", error);
             toast({ title: 'Error', description: 'Could not load messages.', variant: 'destructive' });
         }
     }
@@ -115,7 +110,6 @@ export default function ChatPage() {
             handleSelectConversation(newActiveConvo);
         }
     } catch (error) {
-        console.error("Error starting conversation:", error);
         toast({ title: 'Error', description: 'Could not start a new conversation.', variant: 'destructive' });
     }
   };

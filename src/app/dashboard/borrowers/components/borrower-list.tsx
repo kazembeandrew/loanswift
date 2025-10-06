@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -48,9 +48,9 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { addBorrower, getBorrowers, updateBorrower } from '@/services/borrower-service';
-import { addLoan, getLoans } from '@/services/loan-service';
-import { addPayment, getAllPayments } from '@/services/payment-service';
+import { addBorrower, updateBorrower } from '@/services/borrower-service';
+import { addLoan } from '@/services/loan-service';
+import { addPayment } from '@/services/payment-service';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDB } from '@/lib/firebase-provider';
 

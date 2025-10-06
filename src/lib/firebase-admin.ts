@@ -19,11 +19,9 @@ export function initializeAdminApp() {
         credential: admin.credential.cert(serviceAccount),
       });
     } else {
-      console.warn('Firebase Admin credentials are not fully set in environment variables. Admin features may not work.');
       return null;
     }
   } catch (error) {
-    console.error('CRITICAL: Firebase admin initialization failed.', error);
     return null;
   }
 }

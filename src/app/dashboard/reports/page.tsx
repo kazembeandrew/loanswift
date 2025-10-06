@@ -54,7 +54,6 @@ export default function ReportsPage() {
           });
         }
       } catch (error) {
-        console.error(error);
         toast({
           title: 'Error Generating Summary',
           description: 'An unexpected error occurred. Please try again.',

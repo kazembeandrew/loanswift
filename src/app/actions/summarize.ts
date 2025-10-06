@@ -6,7 +6,6 @@ export async function handleSummarizeArrears(excelDataUri: string): Promise<Summ
     const output = await summarizeArrears({ excelData: excelDataUri });
     return output;
   } catch (error) {
-    console.error('Error in handleSummarizeArrears:', error);
     throw new Error('Failed to summarize arrears.');
   }
 }

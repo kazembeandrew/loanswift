@@ -37,7 +37,6 @@ export async function handleCreateUser(email: string, password: string, role: Us
 
     return { success: true };
   } catch (error: any) {
-    console.error('Error creating new user:', error);
     return { success: false, error: error.message || 'An unknown error occurred.' };
   }
 }

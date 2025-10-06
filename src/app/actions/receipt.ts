@@ -8,7 +8,6 @@ export async function handleGenerateReceipt(input: GenerateReceiptInput): Promis
     const output = await generateReceipt(input);
     return output;
   } catch (error) {
-    console.error('Error in handleGenerateReceipt:', error);
     throw new Error('Failed to generate receipt text.');
   }
 }

@@ -4,7 +4,6 @@
 export async function uploadFile(file: File, path: string): Promise<void> {
   // const storageRef = ref(storage, path);
   // await uploadBytes(storageRef, file);
-  console.warn("Firebase Storage is disabled.");
   return Promise.resolve();
 }
 
@@ -20,13 +19,11 @@ export async function getFiles(path: string): Promise<{name: string, url: string
   // );
 
   // return files;
-  console.warn("Firebase Storage is disabled.");
   return Promise.resolve([]);
 }
 
 export async function getDownloadURL(path: string): Promise<string> {
     // const storageRef = ref(storage, path);
     // return await getStorageDownloadURL(storageRef);
-    console.warn("Firebase Storage is disabled.");
     return Promise.resolve("");
 }

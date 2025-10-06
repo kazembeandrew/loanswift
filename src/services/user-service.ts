@@ -27,7 +27,6 @@ export const createUserDocument = async (db: Firestore, user: User, additionalDa
       return userData;
 
     } catch (error) {
-      console.error('Error creating user document:', error);
       throw error;
     }
   }
@@ -42,7 +41,6 @@ export const ensureUserDocument = async (db: Firestore, user: User | null): Prom
     const userDoc = await createUserDocument(db, user);
     return userDoc;
   } catch (error) {
-    console.error('Error ensuring user document:', error);
     return null;
   }
 };
@@ -57,7 +55,6 @@ export async function getUserProfile(db: Firestore, uid: string): Promise<UserPr
         }
         return null;
     } catch (error) {
-        console.error('Error getting user profile:', error);
         return null;
     }
 }

@@ -15,7 +15,6 @@ async function getUserEmail(uid: string): Promise<string> {
         const userRecord = await admin.auth(adminApp).getUser(uid);
         return userRecord.email || 'unknown';
     } catch (error) {
-        console.error(`Could not get email for UID ${uid}:`, error);
         return 'unknown';
     }
 }

@@ -125,11 +125,7 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
     const loanPortfolioAccount = accounts.find(a => a.name === 'Loan Portfolio');
     const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
 
-    if (!loanPortfolioAccount || !cashAccount) {
-      // Log an error to the console but do not block loan creation.
-      // This makes the system more resilient if accounting isn't fully configured.
-      console.error("Could not create journal entry for loan disbursement: Critical accounting accounts ('Loan Portfolio', 'Cash on Hand') are not set up.");
-    } else {
+    if (loanPortfolioAccount && cashAccount) {
         await addJournalEntry(db, {
             date: loanData.startDate,
             description: `Loan disbursement for ${docRef.id}`,
@@ -151,7 +147,6 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
     }
   } catch (error) {
     // This will now catch permission errors from addJournalEntry
-    console.error("Failed to create automated journal entry for loan disbursement:", error);
   }
 
   return docRef.id;

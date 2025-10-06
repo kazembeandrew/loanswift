@@ -28,7 +28,6 @@ export default function LoginPage() {
     try {
       await signIn(email, password);
     } catch (error) {
-        console.error(error);
         toast({
             title: 'Login Failed',
             description: 'Please check your email and password.',

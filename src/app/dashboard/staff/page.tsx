@@ -71,7 +71,6 @@ export default function StaffPage() {
       const data = await getAllUsers(db);
       setUsers(data);
     } catch (error) {
-      console.error(error);
       toast({
         title: 'Error fetching users',
         description: 'Could not load the list of users.',
@@ -100,7 +99,6 @@ export default function StaffPage() {
         });
         await fetchData();
       } catch (error) {
-        console.error('Failed to update role:', error);
         toast({
           title: 'Error updating role',
           description: 'Could not update the user role. Please try again.',

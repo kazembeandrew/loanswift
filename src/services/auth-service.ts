@@ -30,5 +30,9 @@ export const signOutUser = (): Promise<void> => {
 }
 
 export const onAuthStateChanged = (callback: (user: User | null) => void) => {
+    if (!auth) {
+        callback(null);
+        return () => {};
+    }
     return onFirebaseAuthStateChanged(auth, callback);
 }

@@ -76,7 +76,6 @@ export default function SettingsPage() {
           description: 'Your business information has been updated.',
         });
       } catch (error) {
-        console.error('Failed to save settings:', error);
         toast({
           title: 'Error Saving Settings',
           description: 'Could not save your settings. Please try again.',
@@ -99,7 +98,6 @@ export default function SettingsPage() {
             throw new Error(result.error);
         }
       } catch (error) {
-        console.error('Failed to delete all data:', error);
         toast({
           title: 'Error Deleting Data',
           description: error instanceof Error ? error.message : 'Could not delete all data. Please try again.',
