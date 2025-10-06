@@ -1,9 +1,12 @@
 
 import admin from 'firebase-admin';
 
-// This file now ONLY exports the admin instance.
-// Initialization is handled by the server actions that need it.
-if (!admin.apps.length) {
+// This function ensures the Firebase Admin SDK is initialized, but only once.
+export function initializeAdminApp() {
+  if (admin.apps.length > 0) {
+    return admin.app();
+  }
+
   try {
     const serviceAccount = {
       projectId: process.env.FIREBASE_PROJECT_ID,
@@ -12,14 +15,15 @@ if (!admin.apps.length) {
     };
 
     if (serviceAccount.clientEmail && serviceAccount.privateKey && serviceAccount.projectId) {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-        });
+      return admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+      console.warn('Firebase Admin credentials are not fully set in environment variables. Admin features may not work.');
+      return null;
     }
-
   } catch (error) {
     console.error('CRITICAL: Firebase admin initialization failed.', error);
+    return null;
   }
 }
-
-export const adminAuth = admin.apps.length ? admin.auth() : null;

@@ -1,9 +1,10 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase-admin';
+import { initializeAdminApp } from '@/lib/firebase-admin';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
+import admin from 'firebase-admin';
 
 /**
  * Promotes a user to the 'admin' role by setting their custom claims.
@@ -14,12 +15,14 @@ export async function promoteUserToAdmin(email: string): Promise<{
   status: 'success' | 'error';
   message: string;
 }> {
-  if (!adminAuth) {
+  const adminApp = initializeAdminApp();
+  if (!adminApp) {
     return {
       status: 'error',
       message: 'Firebase Admin not configured on the server.',
     };
   }
+  const adminAuth = admin.auth(adminApp);
 
   try {
     const userRecord = await adminAuth.getUserByEmail(email);

@@ -1,17 +1,21 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase-admin';
+import { initializeAdminApp } from '@/lib/firebase-admin';
 import { createUserDocument } from '@/services/user-service';
 import type { UserProfile } from '@/types';
 import { User } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import admin from 'firebase-admin';
 
 export async function handleCreateUser(email: string, password: string, role: UserProfile['role']): Promise<{ success: boolean; error?: string }> {
-  if (!adminAuth) {
+  const adminApp = initializeAdminApp();
+  if (!adminApp) {
     return { success: false, error: 'Firebase Admin not configured on the server.' };
   }
+  const adminAuth = admin.auth(adminApp);
+  
   try {
     const userRecord = await adminAuth.createUser({
       email,
@@ -29,9 +33,12 @@ export async function handleCreateUser(email: string, password: string, role: Us
 }
 
 export async function handleUpdateUserRole(uid: string, role: UserProfile['role']): Promise<void> {
-    if (!adminAuth) {
+    const adminApp = initializeAdminApp();
+    if (!adminApp) {
       throw new Error("Cannot update user role. Firebase Admin is not initialized.");
     }
+    const adminAuth = admin.auth(adminApp);
+
     // Set the custom claim first
     await adminAuth.setCustomUserClaims(uid, { role });
     
