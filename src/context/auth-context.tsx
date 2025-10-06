@@ -1,7 +1,8 @@
+
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOutUser, signInWithEmail, signInWithGoogle } from '@/services/auth-service';
-import { createUserProfile, getUserProfile } from '@/services/user-service';
+import { ensureUserDocument } from '@/services/user-service';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -26,21 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(async (user) => {
+      setUser(user);
       if (user) {
-        setUser(user);
-        
-        // Force refresh the token to get custom claims immediately after login/state change
-        await user.getIdTokenResult(true);
-        const tokenResult = await user.getIdTokenResult();
-        const claims = tokenResult.claims;
-        const userRole = claims.role as UserProfile['role'] || 'loan_officer';
-
-        // This server-side function now handles both creation and role synchronization.
-        const profile = await createUserProfile({ uid: user.uid, email: user.email! }, userRole);
-        setUserProfile(profile);
-
+        const userDoc = await ensureUserDocument(user);
+        setUserProfile(userDoc);
       } else {
-        setUser(null);
         setUserProfile(null);
       }
       setLoading(false);
@@ -51,8 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
         const userCredential = await signInWithEmail(email, password);
-        // The onAuthStateChanged listener will handle setting user and userProfile state
-        // and redirecting to the dashboard.
+        // The onAuthStateChanged listener will handle the rest
     } catch (error) {
         console.error("Sign in error:", error);
         throw error;
@@ -88,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-        {children}
+        {!loading && children}
         {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
     </AuthContext.Provider>
   );

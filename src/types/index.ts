@@ -1,8 +1,13 @@
 
+
 export type UserProfile = {
   uid: string;
   email: string;
   role: 'admin' | 'ceo' | 'loan_officer' | 'cfo' | 'hr';
+  displayName?: string;
+  photoURL?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Borrower = {
