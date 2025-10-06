@@ -39,7 +39,7 @@ export async function getConversationsForUser(userId: string): Promise<Conversat
 
   const convos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
   return convos.sort((a, b) => {
-    const timeA = a.lastMessage ? new Date(a.lastMessage.timestamp).getTime() : 0;
+    const timeA = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
     const timeB = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
     return timeB - timeA;
   });
@@ -121,6 +121,7 @@ export async function findOrCreateConversation(currentUser: UserProfile, otherUs
   );
 
   const snapshot = await getDocs(q).catch(async (serverError) => {
+    // This query failing is also a permissions issue, let's catch it.
     if (serverError.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
             path: `conversations where participants == [${participants.join(',')}]`,
@@ -134,6 +135,7 @@ export async function findOrCreateConversation(currentUser: UserProfile, otherUs
   if (!snapshot.empty) {
     return snapshot.docs[0].id;
   } else {
+    // If no conversation exists, create a new one.
     const participantEmails = [currentUser.email, otherUser.email].sort();
     const conversationData: Omit<Conversation, 'id'> = {
       participants,
@@ -141,6 +143,8 @@ export async function findOrCreateConversation(currentUser: UserProfile, otherUs
       createdAt: new Date().toISOString(),
       lastMessage: null,
     };
+
+    // The security rule for 'create' will check if the current user's UID is in this `participants` array.
     const docRef = await addDoc(conversationsCollection, conversationData)
     .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
