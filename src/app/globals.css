@@ -13,33 +13,33 @@
     --card-foreground: 210 10% 23%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 10% 23%;
-    --primary: 208 61% 50%; /* #4682B4 */
+    --primary: 207 44% 49%; /* #4682B4 SteelBlue */
     --primary-foreground: 0 0% 100%;
     --secondary: 180 5% 91%;
     --secondary-foreground: 210 10% 23%;
     --muted: 210 20% 94%;
     --muted-foreground: 210 10% 45%;
-    --accent: 240 76% 27%; /* #191970 */
+    --accent: 240 65% 25%; /* #191970 MidnightBlue */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%; /* slate-200 */
     --input: 220 13% 91%;
-    --ring: 208 61% 50%;
+    --ring: 207 44% 49%;
     --radius: 0.25rem;
-    --chart-1: 208 61% 50%;
-    --chart-2: 240 76% 27%;
+    --chart-1: 207 44% 49%;
+    --chart-2: 240 65% 25%;
     --chart-3: 207 30% 65%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --sidebar-background: 224 71% 4%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 208 61% 50%;
+    --sidebar-primary: 207 44% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 224 71% 9%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 224 71% 9%;
-    --sidebar-ring: 208 61% 50%;
+    --sidebar-ring: 207 44% 49%;
   }
   .dark {
     --background: 220 13% 6%; /* slate-950 */
@@ -48,33 +48,33 @@
     --card-foreground: 215 20% 65%;
     --popover: 220 13% 6%;
     --popover-foreground: 215 20% 65%;
-    --primary: 208 61% 50%; /* #4682B4 */
+    --primary: 207 44% 49%; /* #4682B4 SteelBlue */
     --primary-foreground: 0 0% 100%;
     --secondary: 220 13% 18%; /* slate-800 */
     --secondary-foreground: 210 40% 98%;
     --muted: 220 13% 18%;
     --muted-foreground: 215 20% 65%;
-    --accent: 240 76% 37%; /* a slightly lighter #191970 for dark mode */
+    --accent: 240 65% 35%; /* a slightly lighter #191970 for dark mode */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
     --border: 220 13% 18%; /* slate-800 */
     --input: 220 13% 25%; /* bg-slate-900/50 - custom */
-    --ring: 208 61% 50%;
+    --ring: 207 44% 49%;
     
-    --chart-1: 208 61% 50%;
-    --chart-2: 240 76% 37%;
+    --chart-1: 207 44% 49%;
+    --chart-2: 240 65% 35%;
     --chart-3: 207 30% 65%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     --sidebar-background: 224 71% 4%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 208 61% 50%;
+    --sidebar-primary: 207 44% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 224 71% 9%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 224 71% 9%;
-    --sidebar-ring: 208 61% 50%;
+    --sidebar-ring: 207 44% 49%;
   }
 }
 
