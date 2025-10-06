@@ -2,6 +2,7 @@ import { doc, setDoc, getDoc, updateDoc, getDocs, collection, type Firestore } f
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 
+
 export const createUserDocument = async (db: Firestore, user: User, additionalData?: Partial<UserProfile>): Promise<UserProfile | null> => {
   if (!user) return null;
 
@@ -10,8 +11,7 @@ export const createUserDocument = async (db: Firestore, user: User, additionalDa
 
   if (!userSnap.exists()) {
     try {
-      // If the email matches the initial admin email, assign the 'admin' role.
-      const defaultRole = user.email === 'info.ntchito@gmail.com' ? 'admin' : 'loan_officer';
+      const defaultRole = additionalData?.role || 'loan_officer';
       
       const userData: UserProfile = {
         uid: user.uid,
@@ -25,9 +25,11 @@ export const createUserDocument = async (db: Firestore, user: User, additionalDa
       };
       
       await setDoc(userRef, userData);
+
       return userData;
 
     } catch (error) {
+      console.error("Error creating user document:", error);
       throw error;
     }
   }
@@ -42,6 +44,7 @@ export const ensureUserDocument = async (db: Firestore, user: User | null): Prom
     const userDoc = await createUserDocument(db, user);
     return userDoc;
   } catch (error) {
+    console.error("Error ensuring user document:", error);
     return null;
   }
 };
@@ -56,6 +59,7 @@ export async function getUserProfile(db: Firestore, uid: string): Promise<UserPr
         }
         return null;
     } catch (error) {
+        console.error("Error getting user profile:", error);
         return null;
     }
 }

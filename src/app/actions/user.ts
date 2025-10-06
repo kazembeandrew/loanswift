@@ -1,11 +1,9 @@
 'use server';
 
 import { initializeAdminApp } from '@/lib/firebase-admin';
-import { createUserDocument } from '@/services/user-service';
 import { addAuditLog } from '@/services/audit-log-service';
 import type { UserProfile } from '@/types';
-import { User } from 'firebase/auth';
-import { doc, updateDoc, getFirestore } from 'firebase/firestore';
+import { doc, updateDoc, getFirestore, setDoc } from 'firebase/firestore';
 import { getFirebase } from '@/lib/firebase';
 import admin from 'firebase-admin';
 
@@ -23,7 +21,18 @@ export async function handleCreateUser(email: string, password: string, role: Us
       password,
     });
 
-    await createUserDocument(db, userRecord as unknown as User, { role });
+    // This creates the document in Firestore
+    const userRef = doc(db, 'users', userRecord.uid);
+    const userData: UserProfile = {
+      uid: userRecord.uid,
+      email: userRecord.email || '',
+      role: role,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await setDoc(userRef, userData);
+
+    // This sets the custom claim, which is critical for security rules and backend access control
     await adminAuth.setCustomUserClaims(userRecord.uid, { role });
     
     await addAuditLog(db, {
