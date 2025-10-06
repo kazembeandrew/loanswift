@@ -20,6 +20,7 @@ import {
   BookCopy,
   Calculator,
   History,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -53,7 +54,8 @@ const financialItems = [
 ]
 
 const utilityItems = [
-    { href: '/dashboard/reports', label: 'Reports', icon: FileText },
+    { href: '/dashboard/reports', label: 'Financial Reports', icon: FileText },
+    { href: '/dashboard/situation-reports', label: 'Situation Reports', icon: ClipboardList },
 ]
 
 const adminItems = [
@@ -173,22 +175,25 @@ export function SidebarNav() {
          <Collapsible defaultOpen={isUtilitiesActive} className="mt-2">
           <CollapsibleTrigger className="w-full">
             <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
-              <span>Utilities</span>
+              <span>Reports</span>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </div>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenu className="mt-2">
-              {utilityItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
-                    <Link href={item.href}>
-                      <item.icon className="size-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {utilityItems.map((item) => {
+                if (item.href === '/dashboard/reports' && !showFinancials) return null;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label} className="justify-start">
+                      <Link href={item.href}>
+                        <item.icon className="size-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>

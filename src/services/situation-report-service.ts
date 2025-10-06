@@ -1,6 +1,6 @@
 'use client';
 
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, type Firestore } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, type Firestore, orderBy } from 'firebase/firestore';
 import type { SituationReport } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -28,12 +28,11 @@ export async function addSituationReport(db: Firestore, reportData: Omit<Situati
 
 export async function getSituationReportsByBorrower(db: Firestore, borrowerId: string): Promise<SituationReport[]> {
   const reportsCollection = collection(db, 'situationReports');
-  const q = query(reportsCollection, where("borrowerId", "==", borrowerId));
+  const q = query(reportsCollection, where("borrowerId", "==", borrowerId), orderBy('reportDate', 'desc'));
   try {
     const snapshot = await getDocs(q);
     return snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport))
-      .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+      .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport));
   } catch (serverError: any) {
     if (serverError.code === 'permission-denied') {
       const permissionError = new FirestorePermissionError({
@@ -48,11 +47,11 @@ export async function getSituationReportsByBorrower(db: Firestore, borrowerId: s
 
 export async function getAllSituationReports(db: Firestore): Promise<SituationReport[]> {
     const reportsCollection = collection(db, 'situationReports');
+    const q = query(reportsCollection, orderBy('reportDate', 'desc'));
     try {
-        const snapshot = await getDocs(reportsCollection);
+        const snapshot = await getDocs(q);
         return snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport))
-          .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+          .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport));
     } catch(serverError: any) {
         if (serverError.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({

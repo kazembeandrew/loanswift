@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -49,7 +49,9 @@ const situationReportSchema = z.object({
 
 export default function BorrowerDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const defaultTab = searchParams.get('tab') || 'loans';
   const { user, userProfile } = useAuth();
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
@@ -353,7 +355,7 @@ export default function BorrowerDetailPage() {
           </Card>
         </div>
 
-        <Tabs defaultValue="loans">
+        <Tabs defaultValue={defaultTab}>
           <TabsList>
             <TabsTrigger value="loans">Loan History</TabsTrigger>
             <TabsTrigger value="reports">Situation Reports ({situationReports.length})</TabsTrigger>
