@@ -1,6 +1,8 @@
 import { collection, addDoc, getDocs, doc, writeBatch, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { JournalEntry, TransactionLine } from '@/types';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors';
 
 const journalCollection = collection(db, 'journal');
 
@@ -57,5 +59,16 @@ export async function addJournalEntry(entryData: Omit<JournalEntry, 'id'>): Prom
     }
 
     return newEntryRef.id;
+  }).catch(async (serverError) => {
+    if (serverError.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+            path: journalCollection.path,
+            operation: 'create',
+            requestResourceData: entryData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+    // Re-throw the original error to be handled by the calling function
+    throw serverError;
   });
 }

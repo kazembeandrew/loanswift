@@ -5,6 +5,7 @@ import { createUserProfile, getUserProfile } from '@/services/user-service';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 import { useRouter } from 'next/navigation';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 type AuthContextType = {
   user: User | null;
@@ -73,7 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, loading, router]);
 
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+        {children}
+        {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

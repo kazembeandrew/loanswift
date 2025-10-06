@@ -4,6 +4,8 @@ import type { Loan, RepaymentScheduleItem } from '@/types';
 import { addJournalEntry } from './journal-service';
 import { getAccounts } from './account-service';
 import { addMonths } from 'date-fns';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 
 export async function getLoans(): Promise<Loan[]> {
@@ -52,7 +54,18 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
   const repaymentSchedule = generateRepaymentSchedule(loanData);
   const loanWithSchedule = { ...loanData, repaymentSchedule };
 
-  const docRef = await addDoc(collection(db, 'loans'), loanWithSchedule);
+  const loansCollection = collection(db, 'loans');
+  const docRef = await addDoc(loansCollection, loanWithSchedule)
+    .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: loansCollection.path,
+            operation: 'create',
+            requestResourceData: loanWithSchedule,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
+
   
   // Automated Journal Entry for Loan Disbursement
   try {
@@ -85,6 +98,7 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
         });
     }
   } catch (error) {
+    // This will now catch permission errors from addJournalEntry
     console.error("Failed to create automated journal entry for loan disbursement:", error);
   }
 
@@ -93,5 +107,14 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
 
 export async function updateLoan(id: string, updates: Partial<Loan>): Promise<void> {
     const docRef = doc(db, 'loans', id);
-    await updateDoc(docRef, updates);
+    await updateDoc(docRef, updates)
+    .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: updates,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
 }

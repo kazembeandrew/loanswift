@@ -4,6 +4,8 @@ import type { Payment, Account, Loan } from '@/types';
 import { getLoanById, updateLoan } from './loan-service';
 import { addJournalEntry } from './journal-service';
 import { getAccounts } from './account-service';
+import { errorEmitter } from '@/lib/error-emitter';
+import { FirestorePermissionError } from '@/lib/errors';
 
 
 // Note: Payments are now a subcollection of a loan.
@@ -31,65 +33,26 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         throw new Error(`Payment of ${paymentData.amount} exceeds the outstanding balance of ${outstandingBalance}.`);
     }
 
-    const interestOwedTotal = totalOwed - loan.principal;
-    
-    const allAccounts = await getAccounts();
-    const interestIncomeAccount = allAccounts.find(a => a.name === 'Interest Income');
-    // We check for all critical accounts at once to provide a single, clear error message.
-    const loanPortfolioAccount = allAccounts.find(a => a.name === 'Loan Portfolio');
-    const cashAccount = allAccounts.find(a => a.name === 'Cash on Hand');
-
-    if (!interestIncomeAccount || !loanPortfolioAccount || !cashAccount) {
-        let missingAccounts = [];
-        if (!interestIncomeAccount) missingAccounts.push('"Interest Income" (type: Income)');
-        if (!loanPortfolioAccount) missingAccounts.push('"Loan Portfolio" (type: Asset)');
-        if (!cashAccount) missingAccounts.push('"Cash on Hand" (type: Asset)');
-        throw new Error(`Cannot record payment. The following critical accounts are missing from your Chart of Accounts: ${missingAccounts.join(', ')}. Please create them on the Accounts page.`);
-    }
-    
-    let interestPaidPreviously = 0;
-    for (const p of allPaymentsForLoan) {
-        const remainingInterest = interestOwedTotal - interestPaidPreviously;
-        const interestForThisPayment = Math.min(p.amount, remainingInterest);
-        interestPaidPreviously += interestForThisPayment;
-    }
-
-
-    const remainingInterestToPay = interestOwedTotal - interestPaidPreviously;
-    const interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
-    const principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
-    
-    // Create the automated Journal Entry
-    // This is wrapped in a transaction inside addJournalEntry, so it's safe to call here.
+    // This section is now wrapped in the main batch write, but we must calculate portions first.
+    let interestPortionOfPayment = 0;
+    let principalPortionOfPayment = 0;
     try {
-        await addJournalEntry({
-            date: paymentData.date,
-            description: `Payment for loan ${loanId}`,
-            lines: [
-                { // Money comes into cash
-                    accountId: cashAccount.id,
-                    accountName: cashAccount.name,
-                    type: 'debit',
-                    amount: paymentData.amount,
-                },
-                ...(principalPortionOfPayment > 0 ? [{ // Principal repayment reduces loan portfolio
-                    accountId: loanPortfolioAccount.id,
-                    accountName: loanPortfolioAccount.name,
-                    type: 'credit',
-                    amount: principalPortionOfPayment,
-                }] : []),
-                ...(interestPortionOfPayment > 0 ? [{ // Interest is recognized as income
-                    accountId: interestIncomeAccount.id,
-                    accountName: interestIncomeAccount.name,
-                    type: 'credit',
-                    amount: interestPortionOfPayment,
-                }] : [])
-            ].filter(Boolean) as any
-        });
-    } catch (journalError) {
-        console.error("CRITICAL: Failed to create automated journal entry for payment. Financial records may be inconsistent.", journalError);
-        // Throw a specific error if accounting fails, as it's a critical step.
-        throw new Error("Payment data was saved, but the accounting entry failed. Please review your account setup and the journal entry logs.");
+        const interestOwedTotal = totalOwed - loan.principal;
+        let interestPaidPreviously = 0;
+        for (const p of allPaymentsForLoan) {
+            const remainingInterest = interestOwedTotal - interestPaidPreviously;
+            const interestForThisPayment = Math.min(p.amount, remainingInterest);
+            interestPaidPreviously += interestForThisPayment;
+        }
+
+        const remainingInterestToPay = interestOwedTotal - interestPaidPreviously;
+        interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
+        principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
+    } catch(e) {
+        // Calculation error, proceed with payment but log warning.
+        console.warn("Could not calculate principal/interest split for payment. Journal entry will be simplified.", e);
+        principalPortionOfPayment = paymentData.amount;
+        interestPortionOfPayment = 0;
     }
 
     const batch = writeBatch(db);
@@ -104,7 +67,43 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const loanRef = doc(db, 'loans', loanId);
     batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
     
-    await batch.commit();
+    // 3. Automated Journal Entry for Payment
+    try {
+      await addJournalEntry({
+            date: paymentData.date,
+            description: `Payment for loan ${loanId}`,
+            lines: [
+                { type: 'debit', amount: paymentData.amount, accountId: 'cash_on_hand', accountName: 'Cash on Hand' },
+                ...(principalPortionOfPayment > 0 ? [{ type: 'credit', amount: principalPortionOfPayment, accountId: 'loan_portfolio', accountName: 'Loan Portfolio' }] : []),
+                ...(interestPortionOfPayment > 0 ? [{ type: 'credit', amount: interestPortionOfPayment, accountId: 'interest_income', accountName: 'Interest Income' }] : [])
+            ].filter(Boolean) as any,
+      });
+    } catch (journalError: any) {
+        if (journalError instanceof FirestorePermissionError) {
+            // Already handled by addJournalEntry, just rethrow
+             throw journalError;
+        }
+        // If it's another error from addJournalEntry (e.g., accounts missing), we can still emit a permission error for the write.
+        console.error("Journal entry failed for payment", journalError);
+        const permissionError = new FirestorePermissionError({
+            path: `loans/${loanId}/payments`,
+            operation: 'create',
+            requestResourceData: paymentData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    }
+
+    await batch.commit().catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: `loans/${loanId}/payments or /loans/${loanId}`,
+            operation: 'write',
+            requestResourceData: { payment: paymentData, loanUpdate: { outstandingBalance: newOutstandingBalance } },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
+
     return newPaymentRef.id;
 }
 
