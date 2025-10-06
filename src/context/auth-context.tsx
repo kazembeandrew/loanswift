@@ -3,9 +3,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
 import { ensureUserDocument, type UserProfile } from '@/services/user-service';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
-
+import { Loader2 } from 'lucide-react';
+import { Toaster } from '@/components/ui/toaster';
+import ClientOnly from '@/components/client-only';
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const auth = useFirebaseAuth();
   const db = useDB();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!auth || !db) return; // Wait for auth and db to be initialized
@@ -50,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserProfile(userDoc);
           }
         } catch (error) {
-          console.error('Error ensuring user document:', error);
+          // Error ensuring user document
           if (mounted) {
             setUserProfile(null);
           }
@@ -99,7 +102,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+       {loading && pathname !== '/login' ? (
+        <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      ) : (
+        children
+      )}
+      <ClientOnly>
+        <Toaster />
+      </ClientOnly>
     </AuthContext.Provider>
   );
 }
