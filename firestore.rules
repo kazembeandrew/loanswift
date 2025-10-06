@@ -2,66 +2,75 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isRole(role) {
-      return request.auth.token.role == role;
+
+    function isStaff() {
+      return request.auth != null && request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo', 'hr'];
     }
 
-    function isOneOfRoles(roles) {
-      return request.auth.token.role in roles;
+    function isFinance() {
+      return request.auth != null && request.auth.token.role in ['admin', 'ceo', 'cfo'];
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    function isManagement() {
+      return request.auth != null && request.auth.token.role in ['admin', 'ceo'];
     }
-    
+
+    function isAdminOrHR() {
+      return request.auth != null && request.auth.token.role in ['admin', 'hr'];
+    }
+
     // User profile documents
     match /users/{userId} {
-      allow read: if request.auth != null; // Any authenticated user can read profiles (for chat, etc.)
-      allow create: if isOwner(userId); // A user can create their own profile document
-      allow update: if isOwner(userId) || isOneOfRoles(['admin', 'hr']);
+      // Anyone authenticated can read user profiles (for chat, etc.)
+      allow read: if request.auth != null;
+      // Users can create their own profile. Admins can create profiles.
+      allow create: if request.auth.uid == userId || isAdminOrHR();
+      // Users can update their own profile, or admins/HR can.
+      allow update: if request.auth.uid == userId || isAdminOrHR();
     }
 
-    // Settings can only be read by any user, but only modified by admin
+    // Settings can be read by any staff, but only modified by management.
     match /settings/{docId} {
-        allow read: if request.auth != null;
-        allow write: if isOneOfRoles(['admin']);
+        allow read: if isStaff();
+        allow write: if isManagement();
     }
 
-    // Loans and Borrowers can be managed by officers, admins, and ceo/cfo
+    // Core lending data can be managed by staff.
     match /borrowers/{borrowerId} {
-        allow read, write: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo']);
+        allow read, write: if isStaff();
     }
     match /loans/{loanId} {
-        allow read, write: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo']);
+        allow read, write: if isStaff();
     }
     match /loans/{loanId}/payments/{paymentId} {
-        allow read, write: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo']);
+        allow read, write: if isStaff();
     }
 
     // Situation Reports
     match /situationReports/{reportId} {
-      allow create: if request.auth != null; // Any authenticated user can create a report
-      allow read: if isOneOfRoles(['loan_officer', 'admin', 'ceo', 'cfo', 'hr']); // All staff can read reports
-      allow update: if isOneOfRoles(['admin', 'ceo', 'cfo']); // Only management can update/resolve reports
+        // Any staff member can create or read reports.
+        allow read, create: if isStaff();
+        // Only management can update (e.g., change status).
+        allow update: if isManagement();
     }
 
     // Chat functionality
     match /conversations/{conversationId} {
+        // Participants can read/write the conversation document.
         allow read, write: if request.auth.uid in resource.data.participants;
     }
     match /conversations/{conversationId}/messages/{messageId} {
-        allow read, write: if get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[0] == request.auth.uid || 
-                     get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[1] == request.auth.uid;
+        // Participants of a conversation can read/write messages.
+        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
     }
-    
-    // Accounting documents can only be accessed by finance-related roles
+
+    // Accounting documents can only be accessed by finance-related roles.
     match /accounts/{accountId} {
-        allow read, write: if isOneOfRoles(['admin', 'ceo', 'cfo']);
+        allow read, write: if isFinance();
     }
     match /journal/{entryId} {
-        allow read, write: if isOneOfRoles(['admin', 'ceo', 'cfo']);
+        allow read, write: if isFinance();
     }
-    
+
   }
 }
