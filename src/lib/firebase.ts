@@ -1,14 +1,8 @@
-// Import the functions you need from the SDKs you need
-import { getApps, initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-// import { getStorage } from "firebase/storage";
-import { getAuth } from "firebase/auth";
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   "projectId": "studio-3290000872-cc6d3",
   "appId": "1:409607890089:web:fec8fb9f4369fcceec35b8",
@@ -19,12 +13,18 @@ const firebaseConfig = {
   "messagingSenderId": "409607890089"
 };
 
-// Initialize Firebase
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
 const apps = getApps();
-const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
+if (apps.length > 0) {
+    app = apps[0];
+} else {
+    app = initializeApp(firebaseConfig);
+}
 
+auth = getAuth(app);
+db = getFirestore(app);
 
-const db = getFirestore(app);
-// export const storage = getStorage(app);
-export const auth = getAuth(app);
-export { db, firebaseConfig };
+export { app, auth, db, firebaseConfig };
