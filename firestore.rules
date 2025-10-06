@@ -1,6 +1,4 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -24,46 +22,14 @@ service cloud.firestore {
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId || isAdmin();
     }
-    
-    // Settings can only be read by any user, but only modified by admin/ceo
-    match /settings/{docId} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-    }
 
-    // Loans and Borrowers can be managed by officers, admins, and ceo
-    match /borrowers/{borrowerId} {
-        allow read, write: if isLoanOfficerOrAbove();
-    }
     match /loans/{loanId} {
-        allow read, write: if isLoanOfficerOrAbove();
-    }
-    match /loans/{loanId}/payments/{paymentId} {
-        allow read, write: if isLoanOfficerOrAbove();
-    }
-    
-    // Situation Reports
-    match /situationReports/{reportId} {
-      allow read: if isLoanOfficerOrAbove();
-      allow create: if isLoanOfficerOrAbove();
-      allow update: if isAdmin();
+      allow read, write: if isLoanOfficerOrAbove();
     }
 
-    // Chat functionality
-    match /conversations/{conversationId} {
-        allow read, write: if request.auth.uid in resource.data.participants;
-    }
-    match /conversations/{conversationId}/messages/{messageId} {
-        allow read: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-        allow write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-    }
-    
-    // Accounting documents can only be accessed by finance-related roles
-    match /accounts/{accountId} {
-        allow read, write: if isAdmin();
-    }
-    match /journal/{entryId} {
-        allow read, write: if isAdmin();
+    // Your other collections...
+    match /situationReports/{reportId} {
+      allow read, write: if isLoanOfficerOrAbove();
     }
   }
 }
