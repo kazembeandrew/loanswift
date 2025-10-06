@@ -20,16 +20,44 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId || isAdmin();
+      allow update: if request.auth.uid == userId || userHasRole(['admin', 'hr']);
     }
-
+    
     match /loans/{loanId} {
       allow read, write: if isLoanOfficerOrAbove();
+      
+      match /payments/{paymentId} {
+        allow read, write: if isLoanOfficerOrAbove();
+      }
     }
-
-    // Your other collections...
+    
+    match /borrowers/{borrowerId} {
+      allow read, write: if isLoanOfficerOrAbove();
+    }
+    
+    match /settings/{settingId} {
+      allow read: if isLoanOfficerOrAbove();
+      allow write: if isAdmin();
+    }
+    
     match /situationReports/{reportId} {
       allow read, write: if isLoanOfficerOrAbove();
+    }
+
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
+    }
+
+    match /accounts/{accountId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /journal/{entryId} {
+      allow read, write: if isAdmin();
     }
   }
 }
