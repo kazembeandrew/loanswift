@@ -21,8 +21,8 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { getAllUsers, updateUserRole } from '@/services/user-service';
-import { handleCreateUser } from '@/app/actions/user';
+import { getAllUsers } from '@/services/user-service';
+import { handleCreateUser, handleUpdateUserRole } from '@/app/actions/user';
 import { promoteUserToAdmin } from '@/app/actions/promote';
 import type { UserProfile } from '@/types';
 import { Loader2, ShieldAlert, PlusCircle, ShieldCheck } from 'lucide-react';
@@ -89,10 +89,10 @@ export default function StaffPage() {
     }
   }, [fetchData, userProfile]);
   
-  const handleRoleChange = (uid: string, newRole: UserProfile['role']) => {
+  const onRoleChange = (uid: string, newRole: UserProfile['role']) => {
     startUpdatingTransition(async () => {
       try {
-        await updateUserRole(uid, newRole);
+        await handleUpdateUserRole(uid, newRole);
         toast({
           title: 'Role Updated',
           description: `The user's role has been successfully changed to ${newRole}.`,
@@ -263,7 +263,7 @@ export default function StaffPage() {
                         <TableCell>
                           <Select
                             value={user.role}
-                            onValueChange={(newRole: UserProfile['role']) => handleRoleChange(user.uid, newRole)}
+                            onValueChange={(newRole: UserProfile['role']) => onRoleChange(user.uid, newRole)}
                             disabled={isUpdating || user.uid === userProfile?.uid || userProfile?.role !== 'admin'}
                           >
                             <SelectTrigger className="w-40">

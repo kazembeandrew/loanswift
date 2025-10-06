@@ -1,93 +1,101 @@
 'use client';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { onAuthStateChanged, signOutUser, signInWithEmail, signInWithGoogle } from '@/services/auth-service';
-import { ensureUserDocument } from '@/services/user-service';
-import type { User } from 'firebase/auth';
-import type { UserProfile } from '@/types';
+
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { ensureUserDocument, type UserProfile } from '@/services/user-service';
 import { useRouter } from 'next/navigation';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
-type AuthContextType = {
-  user: User | null;
+interface AuthContextType {
+  user: import('firebase/auth').User | null;
   userProfile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   signInWithGoogle: () => Promise<any>;
   signOut: () => void;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<import('firebase/auth').User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(async (user) => {
+    let mounted = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!mounted) return;
+
       if (user) {
-        const userDoc = await ensureUserDocument(user);
         setUser(user);
-        setUserProfile(userDoc);
+        try {
+          const userDoc = await ensureUserDocument(user);
+          if (mounted) {
+            setUserProfile(userDoc);
+          }
+        } catch (error) {
+          console.error('Error ensuring user document:', error);
+          if (mounted) {
+            setUserProfile(null);
+          }
+        }
       } else {
         setUser(null);
         setUserProfile(null);
       }
-      setLoading(false);
+      
+      if (mounted) {
+        setLoading(false);
+      }
     });
-    return () => unsubscribe();
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
-  
+
   const signIn = async (email: string, password: string) => {
-    try {
-        const userCredential = await signInWithEmail(email, password);
-        // The onAuthStateChanged listener will handle the rest
-    } catch (error) {
-        console.error("Sign in error:", error);
-        throw error;
-    }
+    return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-      // onAuthStateChanged will handle the rest
-    } catch (error) {
-      console.error("Google Sign in error:", error);
-      throw error;
-    }
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
   };
-
 
   const signOut = async () => {
-    await signOutUser();
-    setUser(null);
-    setUserProfile(null);
+    await signOutUser(auth);
     router.push('/login');
   };
 
-  const value = { user, userProfile, loading, signIn, signInWithGoogle: handleGoogleSignIn, signOut };
-
+  const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
+  
+  // This effect handles redirection after login/logout.
+  // It's separated to avoid circular dependencies.
   useEffect(() => {
-    if (!loading && user) {
-        router.push('/dashboard');
-    }
+      if (!loading && user) {
+          router.push('/dashboard');
+      }
   }, [user, loading, router]);
 
 
   return (
     <AuthContext.Provider value={value}>
-        {!loading && children}
-        {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
+      {!loading && children}
+      {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }
