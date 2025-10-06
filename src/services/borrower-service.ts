@@ -78,7 +78,7 @@ export async function getBorrowerById(db: Firestore, id: string): Promise<Borrow
     }
 }
 
-export async function addBorrower(db: Firestore, borrowerData: Omit<Borrower, 'id' | 'joinDate'>): Promise<string> {
+export async function addBorrower(db: Firestore, borrowerData: Omit<Borrower, 'id' | 'joinDate'>): Promise<Borrower> {
   const borrowersCollection = collection(db, 'borrowers');
   const fullBorrowerData = {
     ...borrowerData,
@@ -95,7 +95,10 @@ export async function addBorrower(db: Firestore, borrowerData: Omit<Borrower, 'i
         throw permissionError;
     });
 
-  return docRef.id;
+  return {
+    id: docRef.id,
+    ...fullBorrowerData,
+  };
 }
 
 export async function updateBorrower(db: Firestore, id: string, updates: Partial<Omit<Borrower, 'id' | 'joinDate'>>): Promise<void> {

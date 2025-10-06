@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -118,6 +119,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
   const { toast } = useToast();
   const { userProfile } = useAuth();
   const [receiptBalance, setReceiptBalance] = useState(0);
+  const router = useRouter();
   const db = useDB();
 
   const borrowerForm = useForm<z.infer<typeof borrowerFormSchema>>({
@@ -226,15 +228,16 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
       loanOfficerId: userProfile.uid,
     };
     
-    await addBorrower(db, newBorrowerData);
+    const newBorrower = await addBorrower(db, newBorrowerData);
     
     await fetchData();
     setAddBorrowerOpen(false);
     borrowerForm.reset(borrowerFormDefaultValues);
     toast({
       title: 'Borrower Added',
-      description: `${values.name} has been successfully added.`,
+      description: `${values.name} has been successfully added. Redirecting...`,
     });
+    router.push(`/dashboard/borrowers/${newBorrower.id}`);
   };
 
   const handleAddNewLoanClick = (borrower: Borrower) => {
