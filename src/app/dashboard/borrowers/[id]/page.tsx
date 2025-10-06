@@ -6,7 +6,7 @@ import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag } from 'lucide-react';
+import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
@@ -32,7 +32,7 @@ import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { getSituationReportsByBorrower, addSituationReport } from '@/services/situation-report-service';
+import { getSituationReportsByBorrower, addSituationReport, updateSituationReportStatus } from '@/services/situation-report-service';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -59,11 +59,14 @@ export default function BorrowerDetailPage() {
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [isFileReportOpen, setFileReportOpen] = useState(false);
+  const [isViewReportOpen, setViewReportOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<SituationReport | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [receiptBalance, setReceiptBalance] = useState(0);
 
   const { toast } = useToast();
+  const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
   const reportForm = useForm<z.infer<typeof situationReportSchema>>({
     resolver: zodResolver(situationReportSchema),
@@ -187,6 +190,25 @@ export default function BorrowerDetailPage() {
     }
   };
 
+  const handleViewReport = (report: SituationReport) => {
+    setSelectedReport(report);
+    setViewReportOpen(true);
+  };
+
+  const handleUpdateReportStatus = async (reportId: string, status: SituationReport['status']) => {
+    try {
+      await updateSituationReportStatus(reportId, status);
+      toast({ title: 'Status Updated', description: `Report status changed to ${status}.` });
+      await fetchData();
+      if (selectedReport?.id === reportId) {
+        setSelectedReport(prev => prev ? { ...prev, status } : null);
+      }
+    } catch (error: any) {
+      toast({ title: 'Update Failed', description: error.message || "Could not update status.", variant: 'destructive' });
+    }
+  }
+
+
   const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
       const balance = getLoanBalance(loan);
       if (balance <= 0) return 'closed';
@@ -252,6 +274,18 @@ export default function BorrowerDetailPage() {
     }
   }
 
+  const getReportStatusVariant = (
+    status: SituationReport['status']
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    switch(status) {
+      case 'Open': return 'outline';
+      case 'Under Review': return 'default';
+      case 'Resolved': return 'secondary';
+      case 'Closed': return 'secondary';
+      default: return 'default';
+    }
+  }
+
   const avatarFallback = borrower.name.split(' ').map(n => n[0]).join('');
 
   const totalAmountLoaned = borrowerLoans.reduce((sum, loan) => sum + loan.principal, 0);
@@ -311,7 +345,7 @@ export default function BorrowerDetailPage() {
         <Tabs defaultValue="loans">
           <TabsList>
             <TabsTrigger value="loans">Loan History</TabsTrigger>
-            <TabsTrigger value="reports">Situation Reports</TabsTrigger>
+            <TabsTrigger value="reports">Situation Reports ({situationReports.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="loans">
             <Card>
@@ -406,6 +440,7 @@ export default function BorrowerDetailPage() {
                           <TableHead>Type</TableHead>
                           <TableHead>Summary</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -414,7 +449,12 @@ export default function BorrowerDetailPage() {
                             <TableCell>{format(new Date(report.reportDate), 'PPP')}</TableCell>
                             <TableCell><Badge variant="secondary">{report.situationType}</Badge></TableCell>
                             <TableCell>{report.summary}</TableCell>
-                            <TableCell><Badge>{report.status}</Badge></TableCell>
+                            <TableCell><Badge variant={getReportStatusVariant(report.status)}>{report.status}</Badge></TableCell>
+                             <TableCell className="text-right">
+                               <Button variant="outline" size="sm" onClick={() => handleViewReport(report)}>
+                                 View Report
+                               </Button>
+                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -604,6 +644,48 @@ export default function BorrowerDetailPage() {
           </form>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={isViewReportOpen} onOpenChange={setViewReportOpen}>
+          <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                  <DialogTitle>Situation Report Details</DialogTitle>
+                  {selectedReport && <DialogDescription>Report filed on {format(new Date(selectedReport.reportDate), 'PPP')}</DialogDescription>}
+              </DialogHeader>
+              {selectedReport && (
+                  <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-4">
+                      <div className="flex items-center justify-between">
+                          <div>
+                              <span className="font-semibold text-lg">{selectedReport.summary}</span>
+                               <p className="text-sm text-muted-foreground">Type: <Badge variant="secondary">{selectedReport.situationType}</Badge></p>
+                          </div>
+                          <Badge variant={getReportStatusVariant(selectedReport.status)} className="text-base px-3 py-1">{selectedReport.status}</Badge>
+                      </div>
+                      
+                      <div>
+                          <h4 className="font-semibold mb-1">Details</h4>
+                          <p className="text-sm text-muted-foreground bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md">{selectedReport.details}</p>
+                      </div>
+
+                      <div>
+                          <h4 className="font-semibold mb-1">Proposed Resolution</h4>
+                          <p className="text-sm text-muted-foreground bg-slate-50 dark:bg-slate-800/50 p-3 rounded-md">{selectedReport.resolutionPlan}</p>
+                      </div>
+
+                     {isAdmin && selectedReport.status !== 'Closed' && (
+                        <div className="space-y-2 border-t pt-4">
+                            <Label>Update Status</Label>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => handleUpdateReportStatus(selectedReport.id, 'Under Review')} disabled={selectedReport.status === 'Under Review'}>Under Review</Button>
+                                <Button size="sm" variant="outline" onClick={() => handleUpdateReportStatus(selectedReport.id, 'Resolved')} disabled={selectedReport.status === 'Resolved'}>Mark as Resolved</Button>
+                                <Button size="sm" variant="secondary" onClick={() => handleUpdateReportStatus(selectedReport.id, 'Closed')}>Close Report</Button>
+                            </div>
+                        </div>
+                     )}
+                  </div>
+              )}
+          </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

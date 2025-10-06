@@ -42,7 +42,6 @@ function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>)
     schedule.push({
       dueDate: dueDate.toISOString(),
       amountDue: monthlyPayment,
-      status: 'pending',
     });
   }
 

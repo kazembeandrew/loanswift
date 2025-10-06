@@ -37,6 +37,15 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     let interestPortionOfPayment = 0;
     let principalPortionOfPayment = 0;
     try {
+        const accounts = await getAccounts();
+        const interestAccount = accounts.find(a => a.name === "Interest Income");
+        const portfolioAccount = accounts.find(a => a.name === "Loan Portfolio");
+        const cashAccount = accounts.find(a => a.name === "Cash on Hand");
+
+        if (!interestAccount || !portfolioAccount || !cashAccount) {
+            throw new Error("Required accounts for payment processing are missing.");
+        }
+        
         const interestOwedTotal = totalOwed - loan.principal;
         let interestPaidPreviously = 0;
         for (const p of allPaymentsForLoan) {
@@ -48,13 +57,31 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
         const remainingInterestToPay = interestOwedTotal - interestPaidPreviously;
         interestPortionOfPayment = Math.max(0, Math.min(paymentData.amount, remainingInterestToPay));
         principalPortionOfPayment = paymentData.amount - interestPortionOfPayment;
-    } catch(e) {
-        // Calculation error, proceed with payment but log warning.
-        console.warn("Could not calculate principal/interest split for payment. Journal entry will be simplified.", e);
-        principalPortionOfPayment = paymentData.amount;
-        interestPortionOfPayment = 0;
-    }
 
+        await addJournalEntry({
+            date: paymentData.date,
+            description: `Payment for loan ${loanId}`,
+            lines: [
+                { type: 'debit', amount: paymentData.amount, accountId: cashAccount.id, accountName: cashAccount.name },
+                ...(principalPortionOfPayment > 0 ? [{ type: 'credit', amount: principalPortionOfPayment, accountId: portfolioAccount.id, accountName: portfolioAccount.name }] : []),
+                ...(interestPortionOfPayment > 0 ? [{ type: 'credit', amount: interestPortionOfPayment, accountId: interestAccount.id, accountName: interestAccount.name }] : [])
+            ].filter(Boolean) as any,
+        });
+
+    } catch (journalError: any) {
+        if (journalError instanceof FirestorePermissionError) {
+             throw journalError;
+        }
+        console.error("Journal entry failed for payment:", journalError);
+        const permissionError = new FirestorePermissionError({
+            path: `loans/${loanId}/payments`,
+            operation: 'create',
+            requestResourceData: paymentData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    }
+    
     const batch = writeBatch(db);
 
     // 1. Record the payment in the loan's subcollection
@@ -66,33 +93,6 @@ export async function addPayment(loanId: string, paymentData: Omit<Payment, 'id'
     const newOutstandingBalance = outstandingBalance - paymentData.amount;
     const loanRef = doc(db, 'loans', loanId);
     batch.update(loanRef, { outstandingBalance: newOutstandingBalance });
-    
-    // 3. Automated Journal Entry for Payment
-    try {
-      await addJournalEntry({
-            date: paymentData.date,
-            description: `Payment for loan ${loanId}`,
-            lines: [
-                { type: 'debit', amount: paymentData.amount, accountId: 'cash_on_hand', accountName: 'Cash on Hand' },
-                ...(principalPortionOfPayment > 0 ? [{ type: 'credit', amount: principalPortionOfPayment, accountId: 'loan_portfolio', accountName: 'Loan Portfolio' }] : []),
-                ...(interestPortionOfPayment > 0 ? [{ type: 'credit', amount: interestPortionOfPayment, accountId: 'interest_income', accountName: 'Interest Income' }] : [])
-            ].filter(Boolean) as any,
-      });
-    } catch (journalError: any) {
-        if (journalError instanceof FirestorePermissionError) {
-            // Already handled by addJournalEntry, just rethrow
-             throw journalError;
-        }
-        // If it's another error from addJournalEntry (e.g., accounts missing), we can still emit a permission error for the write.
-        console.error("Journal entry failed for payment", journalError);
-        const permissionError = new FirestorePermissionError({
-            path: `loans/${loanId}/payments`,
-            operation: 'create',
-            requestResourceData: paymentData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    }
 
     await batch.commit().catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({

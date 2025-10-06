@@ -87,7 +87,7 @@ export default function IncomeStatement() {
             ))}
             <TableRow className="font-semibold border-t">
               <TableCell>Total Expenses</TableCell>
-              <TableCell className="text-right">MWK {totalExpenses.toLocaleString()}</TableCell>SAP
+              <TableCell className="text-right">MWK {totalExpenses.toLocaleString()}</TableCell>
             </TableRow>
 
             <TableRow className="font-bold text-lg border-t-2 border-primary">

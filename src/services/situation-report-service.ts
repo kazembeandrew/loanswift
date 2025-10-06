@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SituationReport } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
@@ -37,5 +37,19 @@ export async function getAllSituationReports(): Promise<SituationReport[]> {
     const snapshot = await getDocs(reportsCollection);
     return snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as SituationReport))
-      .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
+}
+
+export async function updateSituationReportStatus(id: string, status: SituationReport['status']): Promise<void> {
+    const reportRef = doc(db, 'situationReports', id);
+    await updateDoc(reportRef, { status: status })
+    .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: reportRef.path,
+            operation: 'update',
+            requestResourceData: { status },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    });
 }

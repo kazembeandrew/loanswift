@@ -105,5 +105,5 @@ export type SituationReport = {
   summary: string;
   details: string;
   resolutionPlan: string;
-  status: 'Open' | 'Under Review' | 'Resolved';
+  status: 'Open' | 'Under Review' | 'Resolved' | 'Closed';
 };
