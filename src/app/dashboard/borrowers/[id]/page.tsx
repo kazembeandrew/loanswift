@@ -92,8 +92,10 @@ export default function BorrowerDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (userProfile) {
+        fetchData();
+    }
+  }, [fetchData, userProfile]);
 
 
   if (!borrower) {
@@ -196,6 +198,14 @@ export default function BorrowerDetailPage() {
   };
 
   const handleUpdateReportStatus = async (reportId: string, status: SituationReport['status']) => {
+    if (!isAdmin) {
+      toast({ 
+        title: 'Permission Denied', 
+        description: "You don't have permission to update report status.", 
+        variant: 'destructive' 
+      });
+      return;
+    }
     try {
       await updateSituationReportStatus(reportId, status);
       toast({ title: 'Status Updated', description: `Report status changed to ${status}.` });
@@ -689,3 +699,5 @@ export default function BorrowerDetailPage() {
     </div>
   );
 }
+
+    

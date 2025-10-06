@@ -106,4 +106,7 @@ export type SituationReport = {
   details: string;
   resolutionPlan: string;
   status: 'Open' | 'Under Review' | 'Resolved' | 'Closed';
+  updatedAt?: string; // ISO string
 };
+
+    

@@ -42,7 +42,11 @@ export async function getAllSituationReports(): Promise<SituationReport[]> {
 
 export async function updateSituationReportStatus(id: string, status: SituationReport['status']): Promise<void> {
     const reportRef = doc(db, 'situationReports', id);
-    await updateDoc(reportRef, { status: status })
+    const updateData = { 
+        status: status,
+        updatedAt: new Date().toISOString()
+    };
+    await updateDoc(reportRef, updateData)
     .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: reportRef.path,
@@ -53,3 +57,5 @@ export async function updateSituationReportStatus(id: string, status: SituationR
         throw permissionError;
     });
 }
+
+    
