@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
 import { ensureUserDocument, type UserProfile } from '@/services/user-service';
 import { useRouter, usePathname } from 'next/navigation';
@@ -38,39 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!auth || !db) return; 
-
-    let mounted = true;
+    if (!auth || !db) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!mounted) return;
-
+      setLoading(true);
       if (user) {
         setUser(user);
-        try {
-          const userDoc = await ensureUserDocument(db, user);
-          if (mounted) {
-            setUserProfile(userDoc);
-          }
-        } catch (error) {
-          if (mounted) {
-            setUserProfile(null);
-          }
-        }
+        const userDoc = await ensureUserDocument(db, user);
+        setUserProfile(userDoc);
       } else {
         setUser(null);
         setUserProfile(null);
       }
-      
-      if (mounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [auth, db]);
 
   const signIn = async (email: string, password: string) => {
@@ -84,19 +67,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return signInWithPopup(auth, provider);
   };
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (!auth) throw new Error('Auth not initialized');
     await signOutUser(auth);
+    setUser(null);
+    setUserProfile(null);
     router.push('/login');
-  };
+  }, [auth, router]);
 
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
   
   useEffect(() => {
-      if (!loading && user && pathname === '/login') {
+      if (!loading && user && userProfile && pathname === '/login') {
           router.push('/dashboard');
       }
-  }, [user, loading, pathname, router]);
+  }, [user, userProfile, loading, pathname, router]);
 
 
   if (loading && pathname !== '/login') {
