@@ -17,11 +17,10 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
-const apps = getApps();
-if (apps.length > 0) {
-    app = apps[0];
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
 } else {
-    app = initializeApp(firebaseConfig);
+  app = getApps()[0];
 }
 
 auth = getAuth(app);
