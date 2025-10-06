@@ -1,66 +1,46 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isLoanOfficerOrAbove() {
-      // Includes loan_officer, cfo, ceo, admin, hr
-      return request.auth.token.role in ['loan_officer', 'ceo', 'admin', 'cfo', 'hr'];
-    }
-
-    function isAdmin() {
-      // More restrictive: only ceo, admin, cfo
-      return request.auth.token.role in ['ceo', 'admin', 'cfo'];
-    }
-
-    // Users can manage their own profile. Staff can view profiles.
     match /users/{userId} {
-      allow read: if request.auth.uid != null;
-      allow write: if request.auth.uid == userId;
+      allow read, write: if request.auth.uid == userId || request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
     }
 
-    // Loan officers and above can manage borrowers and their loans.
     match /borrowers/{borrowerId} {
-      allow read, write: if isLoanOfficerOrAbove();
-    }
-
-    match /loans/{loanId} {
-      allow read, write: if isLoanOfficerOrAbove();
-    }
-
-    // This rule allows collection group queries on 'payments' for authorized users.
-    match /{path=**}/payments/{paymentId} {
-      allow read, write: if isLoanOfficerOrAbove();
+      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
     }
     
-    // Admins can manage the chart of accounts and journal entries.
+    match /loans/{loanId} {
+      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
+    }
+    
+    match /{path=**}/payments/{paymentId} {
+      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
+    }
+
+    match /settings/{docId} {
+      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
+    }
+
     match /accounts/{accountId} {
-      allow read, write: if isAdmin();
+       allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
     }
 
     match /journal/{entryId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Admins can manage business settings.
-    match /settings/{settingId} {
-        allow read, write: if isAdmin();
+      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
     }
     
-    // Authenticated users can participate in conversations.
     match /conversations/{conversationId} {
       allow read, write: if request.auth.uid in resource.data.participants;
     }
-
-    // Participants of a conversation can read/write messages within it.
-    match /conversations/{conversationId}/messages/{messageId} {
-       allow read, write: if get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
-    }
     
-    // Loan officers and above can manage situation reports.
+    match /conversations/{conversationId}/messages/{messageId} {
+       allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
+
     match /situationReports/{reportId} {
-        allow read, write: if isLoanOfficerOrAbove();
+      allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo', 'hr', 'loan_officer'];
     }
   }
 }
