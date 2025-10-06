@@ -19,12 +19,14 @@ export async function performMonthEndClose(): Promise<Omit<JournalEntry, 'id'>> 
   
   const closingDate = new Date().toISOString().split('T')[0];
 
-  const closingEntry = await runTransaction(db, async (transaction) => {
-    const accountsCollection = collection(db, 'accounts');
-    const accountsSnapshot = await transaction.get(accountsCollection);
-    
-    const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
+  // Fetch all accounts outside the transaction. Reads don't need to be in the transaction
+  // unless they depend on a write that's part of the same transaction.
+  const accountsCollection = collection(db, 'accounts');
+  const accountsSnapshot = await getDocs(accountsCollection);
+  const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
 
+  const closingEntry = await runTransaction(db, async (transaction) => {
+    
     const incomeAccounts = allAccounts.filter(a => a.type === 'income');
     const expenseAccounts = allAccounts.filter(a => a.type === 'expense');
     
