@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,21 +14,13 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { getSettings } from '@/services/settings-service';
-import type { BusinessSettings } from '@/types';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const { signIn } = useAuth();
   const { toast } = useToast();
-
-  useEffect(() => {
-    getSettings().then(setSettings);
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,20 +39,10 @@ export default function LoginPage() {
     }
   };
 
-  const businessLogo = getPlaceholderImage('business-logo-small');
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background-light dark:bg-background-dark">
-      <Card className="w-full max-w-sm border-slate-200 dark:border-slate-800">
-        <CardHeader className="text-center">
-            <div className="flex justify-center items-center gap-4 mb-4">
-                 {businessLogo && (
-                    <img src={businessLogo.imageUrl} alt="Business Logo" className="h-12 w-12" data-ai-hint={businessLogo.imageHint} />
-                 )}
-                <h1 className="text-4xl font-bold text-slate-900 dark:text-white font-headline">
-                  {settings?.businessName || 'Welcome'}
-                </h1>
-            </div>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
             Enter your email below to login to your account.
@@ -79,7 +61,6 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
-                  className="bg-slate-100 dark:bg-slate-900/50"
                 />
               </div>
               <div className="grid gap-2">
@@ -93,7 +74,6 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
-                    className="bg-slate-100 dark:bg-slate-900/50"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
