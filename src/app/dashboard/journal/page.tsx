@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -274,7 +275,7 @@ export default function JournalPage() {
                     <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed py-10">
                         <div className="flex flex-col items-center gap-1 text-center">
                             <BookCopy className="h-12 w-12 text-muted-foreground" />
-                            <h3 className="font-headline text-2xl font-bold tracking-tight mt-4">No journal entries found</h3>
+                            <h3 className="font-headline text-2xl font-bold tracking-tight mt-4">No journal entries</h3>
                             <p className="text-sm text-muted-foreground">Create your first journal entry to record a transaction.</p>
                         </div>
                     </div>
