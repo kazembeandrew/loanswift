@@ -1,4 +1,3 @@
-
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { onAuthStateChanged, signOutUser, signInWithEmail, signInWithGoogle } from '@/services/auth-service';
