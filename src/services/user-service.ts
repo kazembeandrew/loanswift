@@ -87,7 +87,8 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     if (docSnap.exists()) {
         const existingProfile = docSnap.data() as UserProfile;
         // If the role in the token (from claims) is different from Firestore, update Firestore.
-        if (adminAuth && existingProfile.role !== role) {
+        // This keeps the DB in sync with the source of truth (custom claims).
+        if (existingProfile.role !== role) {
             await updateDoc(docRef, { role: role });
             return { ...existingProfile, role: role };
         }
@@ -98,18 +99,20 @@ export async function createUserProfile(user: {uid: string, email: string}, role
     const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email || '',
-        role: role,
+        role: role, // The role from the token is the source of truth
     };
 
+    // The claim should have already been set, but this is a fallback.
+    // The primary logic for setting claims is in `updateUserRole`.
     if (adminAuth) {
         try {
             await adminAuth.setCustomUserClaims(user.uid, { role: userProfile.role });
         } catch (error) {
-            console.error("Failed to set custom claims. This may happen in environments without proper admin credentials.", error);
+            console.error("Failed to set custom claims on profile creation. This may happen in environments without proper admin credentials.", error);
         }
     }
     
-    await setDoc(docRef, userProfile, { merge: true });
+    await setDoc(docRef, userProfile);
     return userProfile;
 }
 
@@ -117,8 +120,10 @@ export async function updateUserRole(uid: string, role: UserProfile['role']): Pr
     if (!adminAuth) {
       throw new Error("Cannot update user role. Firebase Admin is not initialized.");
     }
+    // Set the custom claim first. This is the source of truth.
     await adminAuth.setCustomUserClaims(uid, { role });
 
+    // Then, update the Firestore document for client-side access and querying.
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role });
 }
