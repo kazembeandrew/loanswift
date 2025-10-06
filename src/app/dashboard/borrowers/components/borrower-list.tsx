@@ -446,7 +446,7 @@ export default function BorrowerList({ isAddBorrowerOpen: isAddBorrowerOpenProp,
                  <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                  <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                  <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage>)} />
+                 <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <DialogFooter>
                   <Button type="submit">Save Changes</Button>
                 </DialogFooter>
