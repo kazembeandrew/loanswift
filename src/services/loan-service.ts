@@ -1,3 +1,5 @@
+'use client';
+
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Loan, RepaymentScheduleItem } from '@/types';

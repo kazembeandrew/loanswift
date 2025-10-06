@@ -1,3 +1,5 @@
+'use client';
+
 import { collection, addDoc, getDocs, doc, writeBatch, runTransaction, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { JournalEntry, TransactionLine } from '@/types';

@@ -1,3 +1,5 @@
+'use client';
+
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, runTransaction, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Account } from '@/types';

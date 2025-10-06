@@ -1,3 +1,5 @@
+'use client';
+
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { BusinessSettings } from '@/types';
