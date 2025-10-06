@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Flag, CheckCircle, ListTodo } from 'lucide-react';
 import type { Borrower, Loan, Payment, SituationReport } from '@/types';
-import { differenceInDays, isAfter, subDays, format } from 'date-fns';
+import { isAfter, format } from 'date-fns';
 
 type Task = {
     type: 'overdue' | 'report' | 'follow-up';
@@ -42,7 +42,7 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
                 cumulativeDue += installment.amountDue;
                 if (totalPaid < cumulativeDue) {
                     const dueDate = new Date(installment.dueDate);
-                    if (isAfter(now, subDays(dueDate, -7))) {
+                    if (isAfter(now, dueDate)) { // Check if the due date is in the past
                         const borrower = borrowers.find(b => b.id === loan.borrowerId);
                         allTasks.push({
                             type: 'overdue',
@@ -52,7 +52,7 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
                             icon: <AlertTriangle className="h-4 w-4 text-destructive" />
                         });
                     }
-                    break; // Found the first missed payment for this loan
+                    break; // Found the first missed/upcoming payment for this loan
                 }
             }
         });
