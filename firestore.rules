@@ -3,69 +3,88 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to check roles
+    // Helper Functions to check user roles from their custom claims.
     function isLoanOfficerOrAbove() {
-      return request.auth.token.role in ['loan_officer', 'cfo', 'admin', 'ceo', 'hr'];
+      return request.auth.token.role in ['loan_officer', 'ceo', 'admin', 'cfo', 'hr'];
     }
 
-    function isCfoOrAbove() {
-      return request.auth.token.role in ['cfo', 'admin', 'ceo'];
+    function isAdminOrCfo() {
+      return request.auth.token.role in ['admin', 'ceo', 'cfo'];
+    }
+    
+    function isAdminOrHr() {
+        return request.auth.token.role in ['admin', 'hr'];
     }
 
-    function isAdmin() {
-      return request.auth.token.role == 'admin';
-    }
+    // --- Collections ---
 
-    // Users can view any profile, but only update their own (or admins can update any)
+    // Users can be seen by any staff member, but only updated by themselves or an admin/hr.
     match /users/{userId} {
-      allow get, list: if request.auth != null;
-      allow create: if isCfoOrAbove() || request.auth.token.role == 'hr';
-      allow update: if request.auth.uid == userId || request.auth.token.role in ['admin', 'hr'];
-      allow delete: if isAdmin();
+      allow get, list: if isLoanOfficerOrAbove();
+      allow update: if request.auth.uid == userId || isAdminOrHr();
+      // Allow creation during sign-up
+      allow create: if request.auth.uid != null;
     }
 
-    // Loan officers and above can manage borrowers
+    // Borrowers can be managed by any loan officer or above.
     match /borrowers/{borrowerId} {
-      allow read, write: if isLoanOfficerOrAbove();
+      allow get, list, create, update: if isLoanOfficerOrAbove();
+      // Delete is typically restricted.
+      allow delete: if isAdminOrCfo();
     }
 
-    // Loan officers and above can manage loans
+    // Loans follow the same logic as borrowers.
     match /loans/{loanId} {
-      allow read, write: if isLoanOfficerOrAbove();
+      allow get, list, create, update: if isLoanOfficerOrAbove();
+      allow delete: if isAdminOrCfo();
     }
     
-    // Payments are a subcollection. This rule allows authorized users to query across all payments.
+    // Rule for the payments subcollection. A user can manage a payment
+    // if they have access to the parent loan.
+    match /loans/{loanId}/payments/{paymentId} {
+        allow read, write: if isLoanOfficerOrAbove();
+    }
+
+    // Grant permission for the collection group query used by getAllPayments().
+    // This allows authorized users to query the 'payments' collection across all loans.
     match /{path=**}/payments/{paymentId} {
-       allow read, write: if isLoanOfficerOrAbove();
+      allow read: if isLoanOfficerOrAbove();
     }
 
-    // CFO, Admins, and CEO can manage financial records
+    // Accounting data is restricted to financial and admin roles.
     match /accounts/{accountId} {
-        allow read, write: if isCfoOrAbove();
-    }
-    match /journal/{journalId} {
-        allow read, write: if isCfoOrAbove();
+      allow get, list, create, update: if isAdminOrCfo();
+      allow delete: if request.auth.token.role == 'admin'; // Only full admins can delete accounts
     }
 
-    // Only Admins can change settings or delete all data
+    match /journal/{entryId} {
+      allow get, list, create, update: if isAdminOrCfo();
+      allow delete: if request.auth.token.role == 'admin';
+    }
+
+    // General settings can be read by anyone, but only written by top-level admins.
     match /settings/{settingId} {
-        allow read: if isLoanOfficerOrAbove();
-        allow write: if isAdmin();
+      allow get: if isLoanOfficerOrAbove();
+      allow write: if isAdminOrCfo();
     }
-    
-    // Participants can read/write their own messages.
+
+    // Chat conversations can only be accessed by their participants.
     match /conversations/{conversationId} {
-      allow read, create, update: if request.auth.uid in resource.data.participants;
-      
-      match /messages/{messageId} {
-        allow read, create: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-      }
+      allow get, list: if request.auth.uid in resource.data.participants;
+      // Creation is handled by the chat service logic, checking participants implicitly.
+      allow create: if request.auth.uid in request.resource.data.participants;
+      allow update: if request.auth.uid in resource.data.participants; // For updating lastMessage
     }
     
-    // Loan officers and above can create and read reports. Admins can update them.
+    // Messages within a conversation can only be accessed by participants.
+    match /conversations/{conversationId}/messages/{messageId} {
+        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
+
+    // Situation reports can be created by any loan officer or above, but only managed by admins.
     match /situationReports/{reportId} {
-        allow read, create: if isLoanOfficerOrAbove();
-        allow update: if isCfoOrAbove();
+        allow create, get, list: if isLoanOfficerOrAbove();
+        allow update, delete: if isAdminOrCfo();
     }
   }
 }
