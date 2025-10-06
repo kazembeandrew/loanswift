@@ -1,36 +1,92 @@
+
 'use server';
 
-import { collection, runTransaction, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, runTransaction, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Account, JournalEntry, TransactionLine } from '@/types';
+import type { Account, JournalEntry, TransactionLine, MonthEndClosure } from '@/types';
+import { format } from 'date-fns';
 
 /**
- * @description Performs the month-end closing process for the accounting books.
- * This involves:
- * 1. Calculating net profit (Total Revenue - Total Expenses).
- * 2. Creating a closing journal entry to move the net profit into an equity account (Retained Earnings).
- * 3. Updating the balance of the equity account.
- * 4. Resetting the balances of all income and expense accounts to 0.
- * This entire process is done within a single Firestore transaction to ensure atomicity.
- * 
- * @returns A JSON object representing the closing journal entry.
+ * @description Initiates the month-end closing process by creating a closure request document.
+ * This can only be done by a CFO.
+ * @param initiatedByUid The UID of the CFO initiating the close.
+ * @returns A promise that resolves to the newly created closure request object.
  */
-export async function performMonthEndClose(): Promise<Omit<JournalEntry, 'id'>> {
+export async function initiateMonthEndClose(initiatedByUid: string): Promise<MonthEndClosure> {
+  const periodId = format(new Date(), 'yyyy-MM');
+  const closureRef = doc(db, 'monthEndClosures', periodId);
+
+  const docSnap = await getDoc(closureRef);
+  if (docSnap.exists() && docSnap.data().status !== 'rejected') {
+    throw new Error(`A month-end close for period ${periodId} is already in progress or has been completed.`);
+  }
+
+  const newClosure: MonthEndClosure = {
+    id: periodId,
+    status: 'pending_approval',
+    initiatedBy: initiatedByUid,
+    initiatedAt: new Date().toISOString(),
+  };
+
+  await setDoc(closureRef, newClosure);
+  return newClosure;
+}
+
+/**
+ * @description Approves a pending month-end close request.
+ * This can only be done by a CEO.
+ * @param periodId The ID of the closure period (e.g., "YYYY-MM").
+ * @param approvedByUid The UID of the CEO approving the request.
+ * @returns A promise that resolves to the updated closure object.
+ */
+export async function approveMonthEndClose(periodId: string, approvedByUid: string): Promise<MonthEndClosure> {
+    const closureRef = doc(db, 'monthEndClosures', periodId);
+    
+    return await runTransaction(db, async (transaction) => {
+        const closureDoc = await transaction.get(closureRef);
+        if (!closureDoc.exists() || closureDoc.data().status !== 'pending_approval') {
+            throw new Error('No pending month-end close found for this period to approve.');
+        }
+
+        const updatedClosureData = {
+            status: 'approved',
+            approvedBy: approvedByUid,
+            approvedAt: new Date().toISOString(),
+        };
+
+        transaction.update(closureRef, updatedClosureData);
+        return { ...closureDoc.data(), ...updatedClosureData } as MonthEndClosure;
+    });
+}
+
+
+/**
+ * @description Processes a previously approved month-end close.
+ * This involves creating the closing journal entry and resetting account balances.
+ * This can only be done by a CFO on an 'approved' closure.
+ * @param periodId The ID of the closure period (e.g., "YYYY-MM").
+ * @param processedByUid The UID of the CFO processing the closure.
+ * @returns A promise that resolves to the final closing journal entry.
+ */
+export async function processApprovedMonthEndClose(periodId: string, processedByUid: string): Promise<Omit<JournalEntry, 'id'>> {
   
+  const closureRef = doc(db, 'monthEndClosures', periodId);
   const closingDate = new Date().toISOString().split('T')[0];
 
-  // Fetch all accounts outside the transaction. Reads don't need to be in the transaction
-  // unless they depend on a write that's part of the same transaction.
   const accountsCollection = collection(db, 'accounts');
   const accountsSnapshot = await getDocs(accountsCollection);
   const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
 
   const closingEntry = await runTransaction(db, async (transaction) => {
     
+    const closureDoc = await transaction.get(closureRef);
+    if (!closureDoc.exists() || closureDoc.data().status !== 'approved') {
+        throw new Error('This month-end close has not been approved by the CEO yet.');
+    }
+
     const incomeAccounts = allAccounts.filter(a => a.type === 'income');
     const expenseAccounts = allAccounts.filter(a => a.type === 'expense');
     
-    // Use "Retained Earnings" or the first available equity account as the closing target.
     let capitalAccount = allAccounts.find(a => a.name === 'Retained Earnings' && a.type === 'equity');
     if (!capitalAccount) {
       capitalAccount = allAccounts.find(a => a.type === 'equity');
@@ -46,50 +102,27 @@ export async function performMonthEndClose(): Promise<Omit<JournalEntry, 'id'>> 
 
     const journalLines: TransactionLine[] = [];
     
-    // Create credit lines to zero out income accounts
     for (const acc of incomeAccounts) {
         if (acc.balance !== 0) {
-            journalLines.push({
-                accountId: acc.id,
-                accountName: acc.name,
-                type: 'debit',
-                amount: acc.balance
-            });
+            journalLines.push({ accountId: acc.id, accountName: acc.name, type: 'debit', amount: acc.balance });
         }
     }
     
-    // Create debit lines to zero out expense accounts
     for (const acc of expenseAccounts) {
         if (acc.balance !== 0) {
-             journalLines.push({
-                accountId: acc.id,
-                accountName: acc.name,
-                type: 'credit',
-                amount: acc.balance
-            });
+             journalLines.push({ accountId: acc.id, accountName: acc.name, type: 'credit', amount: acc.balance });
         }
     }
     
-    // Create the final line to move net profit to capital
-    if (netProfit > 0) { // Profit
-      journalLines.push({
-        accountId: capitalAccount.id,
-        accountName: capitalAccount.name,
-        type: 'credit',
-        amount: netProfit,
-      });
-    } else if (netProfit < 0) { // Loss
-      journalLines.push({
-        accountId: capitalAccount.id,
-        accountName: capitalAccount.name,
-        type: 'debit',
-        amount: Math.abs(netProfit),
-      });
+    if (netProfit > 0) {
+      journalLines.push({ accountId: capitalAccount.id, accountName: capitalAccount.name, type: 'credit', amount: netProfit });
+    } else if (netProfit < 0) {
+      journalLines.push({ accountId: capitalAccount.id, accountName: capitalAccount.name, type: 'debit', amount: Math.abs(netProfit) });
     }
 
     const closingJournalEntryData: Omit<JournalEntry, 'id'> = {
         date: closingDate,
-        description: `Month-End Closing Entry for period ending ${closingDate}`,
+        description: `Month-End Closing Entry for period ${periodId}`,
         lines: journalLines,
     };
     
@@ -105,9 +138,28 @@ export async function performMonthEndClose(): Promise<Omit<JournalEntry, 'id'>> 
     for (const acc of [...incomeAccounts, ...expenseAccounts]) {
         transaction.update(doc(db, 'accounts', acc.id), { balance: 0 });
     }
+    
+    // 4. Mark the closure as processed
+    transaction.update(closureRef, {
+        status: 'processed',
+        closingJournalEntryId: newJournalEntryRef.id,
+        processedBy: processedByUid,
+        processedAt: new Date().toISOString(),
+    });
+
 
     return closingJournalEntryData;
   });
 
   return closingEntry;
+}
+
+
+export async function getMonthEndClosure(periodId: string): Promise<MonthEndClosure | null> {
+    const closureRef = doc(db, 'monthEndClosures', periodId);
+    const docSnap = await getDoc(closureRef);
+    if (docSnap.exists()) {
+        return docSnap.data() as MonthEndClosure;
+    }
+    return null;
 }
