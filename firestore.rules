@@ -2,75 +2,52 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isStaff() {
-      return request.auth != null && request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo', 'hr'];
-    }
-
-    function isFinance() {
-      return request.auth != null && request.auth.token.role in ['admin', 'ceo', 'cfo'];
-    }
-
-    function isManagement() {
-      return request.auth != null && request.auth.token.role in ['admin', 'ceo'];
-    }
-
-    function isAdminOrHR() {
-      return request.auth != null && request.auth.token.role in ['admin', 'hr'];
-    }
-
+    
     // User profile documents
     match /users/{userId} {
-      // Anyone authenticated can read user profiles (for chat, etc.)
       allow read: if request.auth != null;
-      // Users can create their own profile. Admins can create profiles.
-      allow create: if request.auth.uid == userId || isAdminOrHR();
-      // Users can update their own profile, or admins/HR can.
-      allow update: if request.auth.uid == userId || isAdminOrHR();
+      allow create: if request.auth.uid == userId; 
+      allow update: if request.auth.uid == userId || request.auth.token.role in ['admin', 'hr'];
     }
 
-    // Settings can be read by any staff, but only modified by management.
+    // Settings can be read by any authenticated user, but only modified by admin.
     match /settings/{docId} {
-        allow read: if isStaff();
-        allow write: if isManagement();
+        allow read: if request.auth != null;
+        allow write: if request.auth.token.role == 'admin';
     }
 
-    // Core lending data can be managed by staff.
+    // Portfolio collections (Borrowers, Loans, Payments) are managed by loan officers and management.
+    // HR is excluded from these collections.
     match /borrowers/{borrowerId} {
-        allow read, write: if isStaff();
+        allow read, write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
     match /loans/{loanId} {
-        allow read, write: if isStaff();
+        allow read, write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
     match /loans/{loanId}/payments/{paymentId} {
-        allow read, write: if isStaff();
+        allow read, write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
 
-    // Situation Reports
+    // Situation Reports can be read by all staff, but only created/updated by loan officers and management.
     match /situationReports/{reportId} {
-        // Any staff member can create or read reports.
-        allow read, create: if isStaff();
-        // Only management can update (e.g., change status).
-        allow update: if isManagement();
+        allow read: if request.auth != null;
+        allow write: if request.auth.token.role in ['loan_officer', 'admin', 'ceo', 'cfo'];
     }
 
-    // Chat functionality
+    // Chat conversations are restricted to participants.
     match /conversations/{conversationId} {
-        // Participants can read/write the conversation document.
         allow read, write: if request.auth.uid in resource.data.participants;
     }
     match /conversations/{conversationId}/messages/{messageId} {
-        // Participants of a conversation can read/write messages.
         allow read, write: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
     }
-
-    // Accounting documents can only be accessed by finance-related roles.
+    
+    // Accounting documents can only be accessed by finance-related roles and administrators.
     match /accounts/{accountId} {
-        allow read, write: if isFinance();
+        allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
     }
     match /journal/{entryId} {
-        allow read, write: if isFinance();
+        allow read, write: if request.auth.token.role in ['admin', 'ceo', 'cfo'];
     }
-
   }
 }
