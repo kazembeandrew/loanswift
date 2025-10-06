@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const db = useDB();
 
   useEffect(() => {
-    if (!auth) return; // Wait for auth to be initialized
+    if (!auth || !db) return; // Wait for auth and db to be initialized
 
     let mounted = true;
 
@@ -45,12 +45,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         setUser(user);
         try {
-          // Ensure db is available before using it
-          if (db) {
-            const userDoc = await ensureUserDocument(db, user);
-            if (mounted) {
-              setUserProfile(userDoc);
-            }
+          const userDoc = await ensureUserDocument(db, user);
+          if (mounted) {
+            setUserProfile(userDoc);
           }
         } catch (error) {
           console.error('Error ensuring user document:', error);
@@ -75,15 +72,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [auth, db]);
 
   const signIn = async (email: string, password: string) => {
+    if (!auth) throw new Error('Auth not initialized');
     return signInWithEmailAndPassword(auth, email, password);
   };
 
   const signInWithGoogle = async () => {
+    if (!auth) throw new Error('Auth not initialized');
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
   };
 
   const signOut = async () => {
+    if (!auth) throw new Error('Auth not initialized');
     await signOutUser(auth);
     router.push('/login');
   };
@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
