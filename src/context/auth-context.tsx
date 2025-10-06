@@ -1,14 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
 import { ensureUserDocument, type UserProfile } from '@/services/user-service';
 import { useRouter } from 'next/navigation';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { useFirebaseAuth } from '@/lib/firebase-provider';
+
 
 interface AuthContextType {
-  user: import('firebase/auth').User | null;
+  user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
@@ -27,10 +27,11 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<import('firebase/auth').User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const auth = useFirebaseAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -65,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [auth]);
 
   const signIn = async (email: string, password: string) => {
     return signInWithEmailAndPassword(auth, email, password);
@@ -83,8 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
   
-  // This effect handles redirection after login/logout.
-  // It's separated to avoid circular dependencies.
   useEffect(() => {
       if (!loading && user) {
           router.push('/dashboard');
@@ -95,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {!loading && children}
-      {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
     </AuthContext.Provider>
   );
 }

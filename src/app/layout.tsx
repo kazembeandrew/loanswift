@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { Belleza, Alegreya } from 'next/font/google';
+import { FirebaseClientProvider } from '@/lib/firebase-client-provider';
 
 const belleza = Belleza({
   subsets: ['latin'],
@@ -33,9 +34,11 @@ export default function RootLayout({
           <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
         </head>
       <body className={`${belleza.variable} ${alegreya.variable} font-body text-slate-800 dark:text-slate-200`}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <FirebaseClientProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>
