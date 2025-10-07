@@ -37,6 +37,10 @@ export default function SituationReportsPage() {
   const isManager = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
   const fetchData = useCallback(async () => {
+    if (!isManager) {
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
       const [reportsData, borrowersData] = await Promise.all([
@@ -55,7 +59,7 @@ export default function SituationReportsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [db, toast]);
+  }, [db, toast, isManager]);
 
   useEffect(() => {
     fetchData();
@@ -112,6 +116,27 @@ export default function SituationReportsPage() {
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
       </>
+    );
+  }
+
+  if (!isManager) {
+    return (
+        <>
+            <Header title="Situation Reports" />
+            <main className="flex flex-1 items-center justify-center p-4 md:p-8">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                       <div className="flex justify-center">
+                         <ShieldAlert className="h-12 w-12 text-destructive" />
+                       </div>
+                        <CardTitle className="mt-4">Access Denied</CardTitle>
+                        <CardDescription>
+                            You do not have permission to view this page. This feature is for managerial roles only.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            </main>
+        </>
     );
   }
 
