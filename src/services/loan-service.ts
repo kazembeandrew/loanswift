@@ -1,5 +1,3 @@
-'use client';
-
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, type Firestore } from 'firebase/firestore';
 import type { Loan, RepaymentScheduleItem } from '@/types';
 import { addJournalEntry } from './journal-service';

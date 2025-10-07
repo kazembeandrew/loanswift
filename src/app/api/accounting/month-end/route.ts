@@ -39,7 +39,7 @@ async function verifyUser(request: NextRequest, allowedRoles: string[]) {
 
 export async function GET(request: NextRequest) {
     try {
-        const user = await verifyUser(request, ['ceo', 'cfo', 'admin']);
+        await verifyUser(request, ['ceo', 'cfo', 'admin']);
         const { searchParams } = new URL(request.url);
         const periodId = searchParams.get('periodId');
         
