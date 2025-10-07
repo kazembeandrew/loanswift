@@ -26,10 +26,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getSettings, updateSettings } from '@/services/settings-service';
-import { resetDataAction } from '@/app/actions/reset';
 import type { BusinessSettings } from '@/types';
-import { Loader2, Trash2, ShieldAlert, BookLock } from 'lucide-react';
+import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
 import { useDB } from '@/lib/firebase-provider';
+
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
@@ -92,14 +92,24 @@ export default function SettingsPage() {
     }
     startDeletingTransition(async () => {
       try {
-        const result = await resetDataAction(user.uid);
-        if (result.success) {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/admin/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+        });
+        
+        const result = await response.json();
+
+        if (response.ok) {
           toast({
             title: 'Data Deletion Successful',
-            description: 'All application data has been permanently deleted. Please refresh the page.',
+            description: result.message || 'All application data has been permanently deleted. Please refresh the page.',
           });
         } else {
-            throw new Error(result.message);
+          throw new Error(result.message || 'An unknown error occurred during reset.');
         }
       } catch (error) {
         toast({
