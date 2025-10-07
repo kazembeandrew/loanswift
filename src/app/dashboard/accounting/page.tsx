@@ -22,18 +22,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import {
-  initiateMonthEndClose,
-  approveMonthEndClose,
-  processApprovedMonthEndClose,
-  getMonthEndClosure,
-} from '@/app/actions/accounting';
 import { Loader2, BookLock, CheckCircle, Hourglass, ShieldCheck, User, Calendar, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import type { MonthEndClosure } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { useDB } from '@/lib/firebase-provider';
 import Link from 'next/link';
 
 export default function AccountingPage() {
@@ -43,18 +36,31 @@ export default function AccountingPage() {
 
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
-  const db = useDB();
 
   const isCfo = userProfile?.role === 'cfo';
   const isCeo = userProfile?.role === 'ceo';
   const periodId = format(new Date(), 'yyyy-MM');
 
   const fetchClosureStatus = useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
-    const closureData = await getMonthEndClosure(periodId);
-    setClosure(closureData);
-    setIsLoading(false);
-  }, [periodId]);
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch(`/api/accounting/month-end?periodId=${periodId}`, {
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch status.');
+      }
+      const data = await response.json();
+      setClosure(data.data);
+    } catch (error) {
+      // toast is handled in handleError
+    } finally {
+      setIsLoading(false);
+    }
+  }, [periodId, user]);
 
   useEffect(() => {
     if (userProfile) {
@@ -62,53 +68,40 @@ export default function AccountingPage() {
     }
   }, [userProfile, fetchClosureStatus]);
 
-  const handleInitiate = () => {
+  const performAction = (action: 'initiate' | 'approve' | 'process') => {
     startTransition(async () => {
-      if (!user) return;
-      try {
-        const result = await initiateMonthEndClose(user.uid);
-        setClosure(result);
-        toast({
-          title: 'Month-End Close Initiated',
-          description: `The closing process for ${periodId} has been initiated and is awaiting CEO approval.`,
-        });
-      } catch (error) {
-        handleError(error, 'Failed to initiate month-end close');
-      }
+        if (!user) return;
+        try {
+            const idToken = await user.getIdToken();
+            const response = await fetch('/api/accounting/month-end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ action, periodId }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.message || `Failed to ${action}.`);
+            }
+            setClosure(result.data);
+            toast({
+                title: result.title,
+                description: result.description,
+            });
+            if (action === 'process') {
+              await fetchClosureStatus();
+            }
+        } catch (error) {
+            handleError(error, `Failed to ${action} month-end close`);
+        }
     });
-  };
-  
-  const handleApprove = () => {
-     startTransition(async () => {
-      if (!user) return;
-      try {
-        const result = await approveMonthEndClose(periodId, user.uid);
-        setClosure(result);
-        toast({
-          title: 'Month-End Close Approved',
-          description: `The closing process for ${periodId} has been approved and is ready for final processing by the CFO.`,
-        });
-      } catch (error) {
-        handleError(error, 'Failed to approve month-end close');
-      }
-    });
-  };
-  
-  const handleProcess = () => {
-     startTransition(async () => {
-      if (!user) return;
-      try {
-        const result = await processApprovedMonthEndClose(periodId, user.uid);
-        await fetchClosureStatus(); // Refetch to get the 'processed' state
-        toast({
-          title: 'Month-End Close Successful',
-          description: `Period ${periodId} closed. Profit/Loss has been moved to equity. Entry: ${result.description}`,
-        });
-      } catch (error) {
-        handleError(error, 'Failed to process month-end close');
-      }
-    });
-  };
+  }
+
+  const handleInitiate = () => performAction('initiate');
+  const handleApprove = () => performAction('approve');
+  const handleProcess = () => performAction('process');
 
   const handleError = (error: unknown, title: string) => {
     console.error(`${title}:`, error);
@@ -151,7 +144,7 @@ export default function AccountingPage() {
         if (closure.status === 'approved') {
             return (
                 <AlertDialog>
-                    <AlertDialogTrigger asChild><Button onClick={handleProcess} disabled={isProcessing}><CheckCircle className="mr-2 h-4 w-4"/>Process Approved Close</Button></AlertDialogTrigger>
+                    <AlertDialogTrigger asChild><Button disabled={isProcessing}><CheckCircle className="mr-2 h-4 w-4"/>Process Approved Close</Button></AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This will finalize the month-end close, post the journal entry, and reset income/expense accounts. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleProcess}>Yes, process close</AlertDialogAction></AlertDialogFooter>
@@ -166,7 +159,7 @@ export default function AccountingPage() {
         if (closure?.status === 'pending_approval') {
             return (
                  <AlertDialog>
-                    <AlertDialogTrigger asChild><Button variant="outline" onClick={handleApprove} disabled={isProcessing}><ShieldCheck className="mr-2 h-4 w-4"/>Approve Month-End Close</Button></AlertDialogTrigger>
+                    <AlertDialogTrigger asChild><Button variant="outline" disabled={isProcessing}><ShieldCheck className="mr-2 h-4 w-4"/>Approve Month-End Close</Button></AlertDialogTrigger>
                     <AlertDialogContent>
                          <AlertDialogHeader><AlertDialogTitle>Approve Month-End Close?</AlertDialogTitle><AlertDialogDescription>You are about to approve the month-end closing for period {periodId}. This will allow the CFO to finalize the process.</AlertDialogDescription></AlertDialogHeader>
                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleApprove}>Yes, Approve</AlertDialogAction></AlertDialogFooter>
