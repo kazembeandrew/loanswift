@@ -1,23 +1,20 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions that check Firestore for roles
+    // Helper functions for roles - FIXED SYNTAX
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Get user role from Firestore document instead of token claims
+    // Get user role from Firestore document - FIXED
     function getUserRole() {
-      if (!isSignedIn()) { return null; }
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      // Check if the document exists and has data before accessing role
-      if (userDoc != null && 'data' in userDoc && 'role' in userDoc.data) {
-        return userDoc.data.role;
+      if (!isSignedIn()) { 
+        return null; 
       }
-      return null;
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data.role;
     }
 
     function isRole(role) {
@@ -45,93 +42,89 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
-    // Can the requesting user (loan officer) access the specified borrower document?
+    // Can the requesting user (loan officer) access the specified borrower document? - FIXED
     function canAccessBorrower(borrowerId) {
         let borrowerDoc = get(/databases/$(database)/documents/borrowers/$(borrowerId));
-        return borrowerDoc != null && borrowerDoc.data.loanOfficerId == request.auth.uid;
+        return borrowerDoc.data.loanOfficerId == request.auth.uid;
     }
-
-    // --- Collection Rules ---
 
     // Rules for User Profiles
     match /users/{userId} {
       allow read: if isCLevel() || isHr() || isOwner(userId);
-      // Anyone can create their own user doc upon first sign-in
-      allow create: if isOwner(userId) || isCLevel() || isHr();
-      allow update: if (isCLevel() || isHr()) || (isOwner(userId) && request.resource.data.keys().hasOnly(['displayName', 'photoURL', 'updatedAt']));
+      allow create: if isCLevel() || isHr();
+      allow update: if isCLevel() || isHr() || isOwner(userId);
       allow delete: if isAdmin();
     }
 
     // Rules for Business Settings
     match /settings/{docId} {
-      allow read: if isSignedIn();
-      allow write: if isCLevel();
+      allow read, write: if isCLevel();
     }
     
     // Rules for Borrowers and their subcollections
     match /borrowers/{borrowerId} {
       allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(borrowerId));
       allow create: if isLoanOfficer();
-      allow update: if isCLevel() || (isLoanOfficer() && canAccessBorrower(borrowerId));
+      allow update: if isLoanOfficer() && canAccessBorrower(borrowerId);
       allow delete: if isAdmin();
     }
     
     // Rules for Loans
     match /loans/{loanId} {
-      function getLoanData() {
-        return get(/databases/$(database)/documents/loans/$(loanId)).data;
-      }
-      
-      allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(getLoanData().borrowerId));
-      allow create: if isLoanOfficer() && canAccessBorrower(request.resource.data.borrowerId);
-      allow update: if isCLevel() || (isLoanOfficer() && canAccessBorrower(getLoanData().borrowerId));
+      allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId));
+      allow create, update: if isLoanOfficer() && canAccessBorrower(request.resource.data.borrowerId);
       
       // Payments are a subcollection of Loans
       match /payments/{paymentId} {
-         allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(getLoanData().borrowerId));
-         // Creating a payment is part of a transaction, so we check the loan's borrower
-         allow create: if isLoanOfficer() && canAccessBorrower(getLoanData().borrowerId);
+         allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId));
+         allow create: if isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId);
+         allow update, delete: if isAdmin();
+      }
+    }
+
+    // Collection group rule for payments (for CEO dashboard) - FIXED POSITION
+    match /{path=**}/payments/{paymentId} {
+      allow read: if isCLevel();
+    }
+
+    // Rules for Situation Reports
+    match /situationReports/{reportId} {
+      allow read: if isCLevel() || (resource.data.reportedBy == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update: if isCLevel();
+      allow delete: if isAdmin();
+    }
+
+    // Rules for Internal Chat
+    match /conversations/{conversationId} {
+      allow read, update: if request.auth.uid in resource.data.participants;
+      allow create: if request.auth.uid in request.resource.data.participants;
+      
+      match /messages/{messageId} {
+         allow read, create: if request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
          allow update, delete: if isAdmin();
       }
     }
     
-    // Rules for Chat
-    match /conversations/{conversationId} {
-      allow read, create: if isSignedIn() && request.auth.uid in resource.data.participants;
-      allow update: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-      
-      match /messages/{messageId} {
-        allow read, create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-      }
-    }
-
-    // Rules for Financial Data
+    // Rules for Accounting collections
     match /accounts/{accountId} {
-        allow read: if isCLevel();
-        allow create, update: if isCLevel();
-        allow delete: if isAdmin();
+        allow read, write: if isCLevel();
     }
-
+    
     match /journal/{journalId} {
-        allow read, create: if isCLevel();
-        allow update, delete: if isAdmin();
+       allow read, write: if isCLevel();
     }
     
     match /monthEndClosures/{closureId} {
-      allow read, create, update: if isCLevel();
+       allow read, write: if isCLevel();
     }
     
-    // Rules for Reports
-    match /situationReports/{reportId} {
-      allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/situationReports/$(reportId)).data.borrowerId));
-      allow create: if isLoanOfficer();
-      allow update: if isCLevel();
-    }
-    
+    // Rules for Audit Log
     match /audit_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn(); // Log creation is allowed if signed in, but should be handled by secure server-side logic
+        allow read: if isAdmin();
+        // Nobody can write to the audit log directly from the client.
+        // This must be done via a server-side function (which we are doing).
+        allow write: if false; 
     }
-    
   }
 }
