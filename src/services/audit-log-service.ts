@@ -25,27 +25,3 @@ export async function addAuditLog(logData: Omit<AuditLog, 'id' | 'timestamp'>): 
     // prevents the user from thinking their action failed.
   }
 }
-
-/**
- * Fetches all audit log entries, sorted by most recent first.
- * This is an admin-only operation, protected by security rules.
- * @param db The client Firestore instance.
- * @returns A promise that resolves to an array of audit log entries.
- */
-export async function getAuditLogs(db: Firestore): Promise<AuditLog[]> {
-  const auditLogsCollection = collection(db, 'audit_logs');
-  const q = query(auditLogsCollection, orderBy('timestamp', 'desc'));
-  try {
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog));
-  } catch (serverError: any) {
-    if (serverError.code === 'permission-denied') {
-      const permissionError = new FirestorePermissionError({
-        path: auditLogsCollection.path,
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }
-    throw serverError;
-  }
-}

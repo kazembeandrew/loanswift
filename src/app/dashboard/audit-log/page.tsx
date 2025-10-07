@@ -13,29 +13,38 @@ import {
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
-import { getAuditLogs } from '@/services/audit-log-service';
 import type { AuditLog } from '@/types';
 import { Loader2, ShieldAlert, History } from 'lucide-react';
 import { format } from 'date-fns';
-import { useDB } from '@/lib/firebase-provider';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { userProfile } = useAuth();
-  const db = useDB();
+  const { user, userProfile } = useAuth();
+  const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
-        const logsData = await getAuditLogs(db);
-        setLogs(logsData);
-    } catch(error) {
-        // Error is handled globally by the listener
+      const idToken = await user.getIdToken();
+      const response = await fetch('/api/admin/audit-log', {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to fetch audit logs.");
+      }
+      setLogs(result.data);
+    } catch(error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
         setIsLoading(false);
     }
-  }, [db]);
+  }, [user, toast]);
 
   useEffect(() => {
     if (userProfile?.role === 'admin') {

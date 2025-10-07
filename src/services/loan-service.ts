@@ -1,14 +1,13 @@
 'use server';
 import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, type Firestore } from 'firebase/firestore';
 import type { Loan, RepaymentScheduleItem } from '@/types';
-import { addJournalEntry } from './journal-service';
-import { getAccounts } from './account-service';
 import { addMonths } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { addAuditLog } from './audit-log-service';
 import { getAuth } from 'firebase/auth';
 import { getFirebase } from '@/lib/firebase';
+import { adminDb } from '@/lib/firebase-admin';
 
 
 export async function getLoans(db: Firestore): Promise<Loan[]> {
@@ -119,13 +118,14 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
   }
   
   // Automated Journal Entry for Loan Disbursement
-  try {
-    const accounts = await getAccounts(db);
-    const loanPortfolioAccount = accounts.find(a => a.name === 'Loan Portfolio');
-    const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
+    const accountsSnapshot = await adminDb.collection('accounts').get();
+    const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const loanPortfolioAccount = allAccounts.find(a => a.name === 'Loan Portfolio');
+    const cashAccount = allAccounts.find(a => a.name === 'Cash on Hand');
 
     if (loanPortfolioAccount && cashAccount) {
-        await addJournalEntry(db, {
+        const entryData = {
             date: loanData.startDate,
             description: `Loan disbursement for ${docRef.id}`,
             lines: [
@@ -142,11 +142,10 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
                     amount: loanData.principal,
                 }
             ]
-        });
+        };
+        // Use the Admin SDK to create the journal entry directly
+        await adminDb.collection('journal').add(entryData);
     }
-  } catch (error) {
-    // This will now catch permission errors from addJournalEntry
-  }
 
   return docRef.id;
 }
