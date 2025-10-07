@@ -25,5 +25,8 @@ if (getApps().length === 0) {
 auth = getAuth(app);
 db = getFirestore(app);
 
+function getFirebase() {
+    return { app, auth, db };
+}
 
-export { app, auth, db, firebaseConfig };
+export { app, auth, db, firebaseConfig, getFirebase };

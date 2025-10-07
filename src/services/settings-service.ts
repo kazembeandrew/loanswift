@@ -12,7 +12,7 @@ const SETTINGS_DOC_ID = 'business_config';
 const defaultSettings: Omit<BusinessSettings, 'id'> = {
     businessName: 'Janalo Enterprises',
     businessAddress: 'Private Bag 292, Lilongwe',
-    businessPhone: '+265 996 566 091 / +265 880 663 248',
+    businessPhone: '+265 996 566 091 / +256 880 663 248',
     reserveAmount: 0,
 };
 
