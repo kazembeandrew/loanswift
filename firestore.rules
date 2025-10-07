@@ -3,22 +3,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions for roles - FIXED SYNTAX
+    // Helper functions for roles
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Get user role from Firestore document - FIXED
-    function getUserRole() {
-      if (!isSignedIn()) { 
-        return null; 
-      }
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return userDoc.data.role;
+    function getUserData() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isRole(role) {
-      return isSignedIn() && getUserRole() == role;
+      return isSignedIn() && getUserData().role == role;
     }
 
     function isAdmin() {
@@ -37,15 +32,16 @@ service cloud.firestore {
         return isRole('loan_officer');
     }
 
-    // Is the user requesting access their own document?
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
     
-    // Can the requesting user (loan officer) access the specified borrower document? - FIXED
     function canAccessBorrower(borrowerId) {
-        let borrowerDoc = get(/databases/$(database)/documents/borrowers/$(borrowerId));
-        return borrowerDoc.data.loanOfficerId == request.auth.uid;
+        return get(/databases/$(database)/documents/borrowers/$(borrowerId)).data.loanOfficerId == request.auth.uid;
+    }
+    
+    function getLoanBorrowerId(loanId) {
+        return get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId;
     }
 
     // Rules for User Profiles
@@ -71,26 +67,27 @@ service cloud.firestore {
     
     // Rules for Loans
     match /loans/{loanId} {
-      allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId));
-      allow create, update: if isLoanOfficer() && canAccessBorrower(request.resource.data.borrowerId);
+      allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(getLoanBorrowerId(loanId)));
+      allow create: if isLoanOfficer() && canAccessBorrower(request.resource.data.borrowerId);
+      allow update: if isCLevel() || (isLoanOfficer() && canAccessBorrower(getLoanBorrowerId(loanId)));
       
       // Payments are a subcollection of Loans
       match /payments/{paymentId} {
-         allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId));
-         allow create: if isLoanOfficer() && canAccessBorrower(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId);
+         allow read: if isCLevel() || (isLoanOfficer() && canAccessBorrower(getLoanBorrowerId(loanId)));
+         allow create: if isLoanOfficer() && canAccessBorrower(getLoanBorrowerId(loanId));
          allow update, delete: if isAdmin();
       }
     }
 
-    // Collection group rule for payments (for CEO dashboard) - FIXED POSITION
+    // Collection group rule for payments (for CEO dashboard)
     match /{path=**}/payments/{paymentId} {
       allow read: if isCLevel();
     }
 
     // Rules for Situation Reports
     match /situationReports/{reportId} {
-      allow read: if isCLevel() || (resource.data.reportedBy == request.auth.uid);
-      allow create: if isSignedIn();
+      allow read: if isCLevel() || (isLoanOfficer() && resource.data.reportedBy == request.auth.uid);
+      allow create: if isLoanOfficer();
       allow update: if isCLevel();
       allow delete: if isAdmin();
     }
@@ -119,11 +116,9 @@ service cloud.firestore {
        allow read, write: if isCLevel();
     }
     
-    // Rules for Audit Log
+    // Rules for Audit Log (Only allows server-side creation)
     match /audit_logs/{logId} {
         allow read: if isAdmin();
-        // Nobody can write to the audit log directly from the client.
-        // This must be done via a server-side function (which we are doing).
         allow write: if false; 
     }
   }
