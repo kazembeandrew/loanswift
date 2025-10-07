@@ -3,9 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
 import { getUserProfile, ensureUserDocument, type UserProfile } from '@/services/user-service';
-import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
+import { useFirebaseAuth, useDB } from '@/lib/firebase-client-provider';
 import { Loader2 } from 'lucide-react';
-import { auth } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 
 interface AuthContextType {

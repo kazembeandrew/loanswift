@@ -6,6 +6,11 @@ import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
+// This file is now deprecated and its functionality has been merged into 
+// `firebase-client-provider.tsx` and `auth-context.tsx`.
+// It is kept here to prevent breaking imports in files that have not yet been updated.
+// New code should use `useDB()` and `useFirebaseAuth()` from `firebase-client-provider.tsx`.
+
 // Types
 export interface FirebaseContextValue {
   app: FirebaseApp;
@@ -32,21 +37,4 @@ export function FirebaseProvider({
       {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
     </FirebaseContext.Provider>
   );
-}
-
-// Hooks
-function useFirebase() {
-  const context = React.useContext(FirebaseContext);
-  if (context === undefined) {
-    throw new Error('useFirebase must be used within a FirebaseProvider');
-  }
-  return context;
-}
-
-export function useFirebaseAuth() {
-  return useFirebase()?.auth;
-}
-
-export function useDB() {
-  return useFirebase()?.db;
 }

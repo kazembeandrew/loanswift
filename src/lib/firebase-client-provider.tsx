@@ -1,11 +1,39 @@
 'use client';
 
-import * as React from 'react';
-import { app, auth, db } from './firebase';
-import { FirebaseProvider, type FirebaseContextValue } from './firebase-provider';
+import { createContext, useContext, ReactNode } from 'react';
+import { app } from './firebase';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getAuth, type Auth } from 'firebase/auth';
 
-export function FirebaseClientProvider({ children }: { children: React.ReactNode }) {
-  const value = React.useMemo<FirebaseContextValue>(() => ({ app, auth, db }), []);
+// Initialize Firebase services
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-  return <FirebaseProvider value={value}>{children}</FirebaseProvider>;
+const FirebaseContext = createContext<{
+  db: Firestore;
+  auth: Auth;
+} | undefined>(undefined);
+
+export function FirebaseClientProvider({ children }: { children: ReactNode }) {
+  return (
+    <FirebaseContext.Provider value={{ db, auth }}>
+      {children}
+    </FirebaseContext.Provider>
+  );
+}
+
+export function useDB() {
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    throw new Error('useDB must be used within a FirebaseClientProvider');
+  }
+  return context.db;
+}
+
+export function useFirebaseAuth() {
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    throw new Error('useFirebaseAuth must be used within a FirebaseClientProvider');
+  }
+  return context.auth;
 }
