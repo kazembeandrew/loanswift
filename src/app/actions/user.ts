@@ -59,7 +59,7 @@ export async function handleCreateUser(email: string, password: string, role: Us
     // This sets the custom claim, which is critical for security rules and backend access control
     await adminAuth.setCustomUserClaims(userRecord.uid, { role });
     
-    await addAuditLog(db, {
+    await addAuditLog({
         userEmail: 'system@admin', // Should be replaced with actual admin user email from session
         action: 'USER_CREATE',
         details: {
@@ -92,7 +92,7 @@ export async function handleUpdateUserRole(uid: string, role: UserProfile['role'
     const docRef = doc(db, 'users', uid);
     await updateDoc(docRef, { role, updatedAt: new Date().toISOString() });
 
-    await addAuditLog(db, {
+    await addAuditLog({
         userEmail: 'system@admin', // Should be replaced with actual admin user email from session
         action: 'USER_ROLE_UPDATE',
         details: {

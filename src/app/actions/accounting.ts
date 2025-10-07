@@ -1,4 +1,3 @@
-
 'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
@@ -47,7 +46,7 @@ export async function initiateMonthEndClose(initiatedByUid: string): Promise<Mon
 
   await closureRef.set(newClosure);
 
-  await addAuditLog(adminDb, {
+  await addAuditLog({
     userEmail: userEmail,
     action: 'MONTH_END_INITIATE',
     details: { period: periodId },
@@ -84,7 +83,7 @@ export async function approveMonthEndClose(periodId: string, approvedByUid: stri
       return { ...closureDoc.data(), ...updatedClosureData } as MonthEndClosure;
   });
 
-  await addAuditLog(adminDb, {
+  await addAuditLog({
     userEmail: userEmail,
     action: 'MONTH_END_APPROVE',
     details: { period: periodId },
@@ -185,7 +184,7 @@ export async function processApprovedMonthEndClose(periodId: string, processedBy
     return closingJournalEntryData;
   });
 
-  await addAuditLog(adminDb, {
+  await addAuditLog({
     userEmail: userEmail,
     action: 'MONTH_END_PROCESS',
     details: { period: periodId },

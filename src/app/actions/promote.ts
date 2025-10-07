@@ -63,7 +63,7 @@ export async function promoteUserToAdmin(email: string): Promise<{
     const userDocRef = doc(db, 'users', uid);
     await updateDoc(userDocRef, { role: 'admin' });
 
-    await addAuditLog(db, {
+    await addAuditLog({
         userEmail: promoterEmail,
         action: 'USER_PROMOTE',
         details: {

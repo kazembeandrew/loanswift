@@ -108,7 +108,7 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
 
   // Log the audit event.
   if (currentUser) {
-    addAuditLog(db, {
+    addAuditLog({
       userEmail: currentUser.email || 'unknown',
       action: 'LOAN_DISBURSEMENT',
       details: {
