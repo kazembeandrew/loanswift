@@ -1,15 +1,34 @@
 'use server';
 
 import { serverDeleteAllData } from '@/services/server-reset-service';
+import { adminDb } from '@/lib/firebase-admin';
 
-export async function resetDataAction(): Promise<{ success: boolean; message: string }> {
+// Enhanced security version
+export async function resetDataAction(userId: string): Promise<{ success: boolean; message: string }> {
     try {
-        // Add admin check here if needed
-        // For example, using a session management library:
-        // const { user } = await getSession();
-        // if (user.role !== 'admin') {
-        //   throw new Error('Unauthorized');
-        // }
+        if (!userId) {
+            return {
+                success: false,
+                message: 'Unauthorized: User ID not provided.'
+            };
+        }
+        // Check if user is admin
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        
+        if (!userDoc.exists) {
+             return { 
+                success: false, 
+                message: 'Unauthorized: User not found.' 
+            };
+        }
+        const userData = userDoc.data();
+        
+        if (userData?.role !== 'admin') {
+            return { 
+                success: false, 
+                message: 'Unauthorized: Admin access required' 
+            };
+        }
         
         await serverDeleteAllData();
         

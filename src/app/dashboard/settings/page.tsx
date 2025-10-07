@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const [isSaving, startSavingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
   const { toast } = useToast();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const db = useDB();
 
   useEffect(() => {
@@ -86,9 +86,13 @@ export default function SettingsPage() {
   };
 
   const confirmDeleteAllData = () => {
+    if (!user) {
+        toast({ title: "Not Authenticated", description: "You must be logged in to perform this action.", variant: 'destructive'});
+        return;
+    }
     startDeletingTransition(async () => {
       try {
-        const result = await resetDataAction();
+        const result = await resetDataAction(user.uid);
         if (result.success) {
           toast({
             title: 'Data Deletion Successful',
