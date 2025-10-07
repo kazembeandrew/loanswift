@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Card } from '@/components/ui/card';
 import { Header } from '@/components/header';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 export default function ChatPage() {
   const { user, userProfile } = useAuth();

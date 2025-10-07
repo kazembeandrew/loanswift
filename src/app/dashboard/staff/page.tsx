@@ -50,7 +50,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 import { Badge } from '@/components/ui/badge';
 import { doc, updateDoc } from 'firebase/firestore';
 

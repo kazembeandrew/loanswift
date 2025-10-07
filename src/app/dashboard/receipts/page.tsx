@@ -11,7 +11,7 @@ import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import ReceiptGenerator from '../borrowers/components/receipt-generator';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 
 const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { loanId: string })[], loans: Loan[], borrowers: Borrower[] }) => {

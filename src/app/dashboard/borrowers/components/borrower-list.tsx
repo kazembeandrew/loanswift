@@ -52,7 +52,7 @@ import { addBorrower, updateBorrower } from '@/services/borrower-service';
 import { addLoan } from '@/services/loan-service';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 const collateralSchema = z.object({
   name: z.string().min(1, 'Collateral name is required'),

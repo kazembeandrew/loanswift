@@ -38,7 +38,7 @@ import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { getAccounts } from '@/services/account-service';
 import { getSettings } from '@/services/settings-service';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 import FinancialAnalysis from './financial-analysis';
 
 

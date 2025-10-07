@@ -22,7 +22,7 @@ import { getBorrowers } from '@/services/borrower-service';
 import type { SituationReport, Borrower } from '@/types';
 import { Loader2, ClipboardList, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 

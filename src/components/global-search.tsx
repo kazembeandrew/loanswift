@@ -11,7 +11,7 @@ import type { Borrower, Loan } from '@/types';
 import { FileText, User, Search } from 'lucide-react';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 type SearchResult = {
   type: 'borrower' | 'loan';

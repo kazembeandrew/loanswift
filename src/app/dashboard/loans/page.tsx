@@ -39,7 +39,7 @@ import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { handleRecordPayment } from '@/app/actions/payment';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 
 export default function LoansPage() {

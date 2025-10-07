@@ -17,7 +17,7 @@ import { getSettings } from '@/services/settings-service';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '@/context/auth-context';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 type ReceiptGeneratorProps = {
   isOpen: boolean;

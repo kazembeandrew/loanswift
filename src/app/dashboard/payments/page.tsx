@@ -38,7 +38,7 @@ import { getAllPayments } from '@/services/payment-service';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { useAuth } from '@/context/auth-context';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 
 export default function PaymentsPage() {

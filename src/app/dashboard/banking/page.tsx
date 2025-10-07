@@ -18,7 +18,7 @@ import { getAccounts } from '@/services/account-service';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 type CashTransaction = {
   date: string;

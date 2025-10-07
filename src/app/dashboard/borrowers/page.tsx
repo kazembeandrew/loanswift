@@ -7,7 +7,7 @@ import type { Borrower, Loan, Payment } from '@/types';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 import { useAuth } from '@/context/auth-context';
 
 export default function BorrowersPage() {

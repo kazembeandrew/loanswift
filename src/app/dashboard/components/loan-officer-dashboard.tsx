@@ -12,7 +12,7 @@ import BorrowerList from '../borrowers/components/borrower-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, isAfter } from 'date-fns';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 import MyTasks from './my-tasks';
 
 type LoanOfficerDashboardProps = {

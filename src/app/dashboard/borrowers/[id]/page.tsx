@@ -38,7 +38,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 const situationReportSchema = z.object({
   situationType: z.enum(['Client Dispute', 'Business Disruption', 'Collateral Issue', 'Personal Emergency', 'Fraud Concern', 'Other']),

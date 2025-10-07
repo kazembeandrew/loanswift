@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { getAccounts } from '@/services/account-service';
 import type { Account } from '@/types';
 import { useAuth } from '@/context/auth-context';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 export default function IncomeStatement() {
   const [incomeAccounts, setIncomeAccounts] = useState<Account[]>([]);

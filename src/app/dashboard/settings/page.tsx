@@ -29,7 +29,7 @@ import { useAuth } from '@/context/auth-context';
 import { getSettings, updateSettings } from '@/services/settings-service';
 import type { BusinessSettings } from '@/types';
 import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
-import { useDB } from '@/lib/firebase-provider';
+import { useDB } from '@/lib/firebase-client-provider';
 
 
 export default function SettingsPage() {
