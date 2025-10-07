@@ -6,8 +6,8 @@ export type UserProfile = {
   role: 'admin' | 'ceo' | 'loan_officer' | 'cfo' | 'hr';
   displayName: string;
   photoURL?: string;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Borrower = {

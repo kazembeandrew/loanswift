@@ -81,13 +81,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     if (!auth) throw new Error('Auth not initialized');
-    return signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    if(db && userCredential.user) {
+        const profile = await ensureUserDocument(db, userCredential.user);
+        setUserProfile(profile);
+    }
+    return userCredential;
   };
 
   const signInWithGoogle = async () => {
     if (!auth) throw new Error('Auth not initialized');
     const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    const userCredential = await signInWithPopup(auth, provider);
+     if(db && userCredential.user) {
+        const profile = await ensureUserDocument(db, userCredential.user);
+        setUserProfile(profile);
+    }
+    return userCredential;
   };
 
   const signOut = useCallback(async () => {

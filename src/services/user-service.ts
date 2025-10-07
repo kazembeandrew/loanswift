@@ -5,7 +5,6 @@ import {
   updateDoc, 
   getDocs, 
   collection, 
-  serverTimestamp,
   type Firestore 
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
@@ -27,8 +26,8 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
         role: 'loan_officer', // Default role for new users
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
       await setDoc(userRef, userProfile);
