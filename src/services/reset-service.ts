@@ -1,8 +1,7 @@
 
-import { collection, getDocs, writeBatch, collectionGroup, getFirestore } from 'firebase/firestore';
-import { getFirebase } from '@/lib/firebase';
 
-const db = getFirestore(getFirebase());
+import { collection, getDocs, writeBatch, collectionGroup } from 'firebase/firestore';
+import { adminDb as db } from '@/lib/firebase-admin';
 
 const collectionsToDelete = [
     'borrowers',
@@ -22,14 +21,14 @@ const groupCollectionsToDelete = ['payments', 'messages'];
 
 async function deleteCollectionInBatches(collectionName: string) {
     const BATCH_SIZE = 499;
-    const q = collection(db, collectionName);
-    const snapshot = await getDocs(q);
+    const q = db.collection(collectionName);
+    const snapshot = await q.get();
     
     if(snapshot.empty) return;
 
-    const batches: Promise<void>[] = [];
+    const batches: Promise<FirebaseFirestore.WriteResult[]>[] = [];
     for (let i = 0; i < snapshot.docs.length; i += BATCH_SIZE) {
-        const batch = writeBatch(db);
+        const batch = db.batch();
         const chunk = snapshot.docs.slice(i, i + BATCH_SIZE);
         chunk.forEach(doc => batch.delete(doc.ref));
         batches.push(batch.commit());
@@ -39,14 +38,14 @@ async function deleteCollectionInBatches(collectionName: string) {
 
 async function deleteGroupCollectionInBatches(collectionName: string) {
     const BATCH_SIZE = 499;
-    const q = collectionGroup(db, collectionName);
-    const snapshot = await getDocs(q);
+    const q = db.collectionGroup(collectionName);
+    const snapshot = await q.get();
 
     if(snapshot.empty) return;
 
-    const batches: Promise<void>[] = [];
+    const batches: Promise<FirebaseFirestore.WriteResult[]>[] = [];
     for (let i = 0; i < snapshot.docs.length; i += BATCH_SIZE) {
-        const batch = writeBatch(db);
+        const batch = db.batch();
         const chunk = snapshot.docs.slice(i, i + BATCH_SIZE);
         chunk.forEach(doc => batch.delete(doc.ref));
         batches.push(batch.commit());
