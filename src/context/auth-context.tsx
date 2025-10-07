@@ -3,11 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
 import { getUserProfile, type UserProfile } from '@/services/user-service';
-import { useRouter } from 'next/navigation';
 import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
 import { Loader2 } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
-import ClientOnly from '@/components/client-only';
 
 interface AuthContextType {
   user: User | null;
@@ -15,7 +12,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   signInWithGoogle: () => Promise<any>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,7 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const auth = useFirebaseAuth();
   const db = useDB();
 
@@ -75,9 +71,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
 
+  // This is the crucial part: we don't render children until we know the auth state.
+  // The DashboardLayout checks for loading and user, but this adds another layer.
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider value={value}>
-        {children}
+      {children}
     </AuthContext.Provider>
   );
 }
