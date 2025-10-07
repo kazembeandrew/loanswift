@@ -3,20 +3,20 @@ import type { User } from 'firebase/auth';
 import type { UserProfile } from '@/types';
 
 
-export const ensureUserDocument = async (db: Firestore, user: User | null): Promise<UserProfile | null> => {
-  if (!user) return null;
-  
+export const ensureUserDocument = async (db: Firestore, user: User): Promise<UserProfile | null> => {
   const userRef = doc(db, 'users', user.uid);
   const userSnap = await getDoc(userRef);
 
   if (userSnap.exists()) {
+    // If the document exists, return its data.
     return userSnap.data() as UserProfile;
+  } else {
+    // This case should ideally be handled by the backend user creation process (e.g., cloud function or seed script)
+    // where the document is created along with the user.
+    // For robustness, we check here, but if it's missing for a logged-in user, it indicates an inconsistent state.
+    console.error(`User document not found for uid: ${user.uid}. The user might not have a role assigned.`);
+    return null;
   }
-  
-  // If the document doesn't exist, it should have been created on the backend
-  // during sign-up. We return null and let the auth context handle it,
-  // which might involve logging the user out or showing an error.
-  return null;
 };
 
 
@@ -27,6 +27,7 @@ export async function getUserProfile(db: Firestore, uid: string): Promise<UserPr
         if (docSnap.exists()) {
             return docSnap.data() as UserProfile;
         }
+        console.warn(`User profile document does not exist for uid: ${uid}`);
         return null;
     } catch (error) {
         console.error("Error getting user profile:", error);

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
-import { ensureUserDocument, type UserProfile } from '@/services/user-service';
+import { getUserProfile, type UserProfile } from '@/services/user-service';
 import { useRouter, usePathname } from 'next/navigation';
 import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
 import { Loader2 } from 'lucide-react';
@@ -40,13 +40,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!auth || !db) return;
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
-      if (user) {
-        setUser(user);
-        const userDoc = await ensureUserDocument(db, user);
-        setUserProfile(userDoc);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in, fetch their profile
+        const profile = await getUserProfile(db, firebaseUser.uid);
+        setUser(firebaseUser);
+        setUserProfile(profile);
       } else {
+        // User is signed out
         setUser(null);
         setUserProfile(null);
       }
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, userProfile, loading, pathname, router]);
 
 
+  // While loading, show a spinner unless on the login page.
   if (loading && pathname !== '/login') {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
@@ -91,6 +93,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  
+  // If not loading and no user, and not on the login page, redirect to login.
+  // This logic is also handled in the dashboard layout, but this is an extra layer of protection.
+  if (!loading && !user && pathname !== '/login') {
+     router.push('/login');
+     return (
+        <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+     );
+  }
+
 
   return (
     <AuthContext.Provider value={value}>
