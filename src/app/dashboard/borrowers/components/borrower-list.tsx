@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import type { Borrower, Loan, Payment } from '@/types';
 import {
   Dialog,
@@ -50,7 +50,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { addBorrower, updateBorrower } from '@/services/borrower-service';
 import { addLoan } from '@/services/loan-service';
-import { addPayment } from '@/services/payment-service';
+import { handleRecordPayment } from '@/app/actions/payment';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDB } from '@/lib/firebase-provider';
 
@@ -107,6 +107,8 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [isAddNewLoanOpen, setAddNewLoanOpen] = useState(false);
+  const [isSubmittingPayment, startPaymentTransition] = useTransition();
+
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
@@ -139,7 +141,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
     return totalOwed - totalPaid;
   };
 
-  const handleRecordPayment = (borrower: Borrower, loan: Loan) => {
+  const handleRecordPaymentClick = (borrower: Borrower, loan: Loan) => {
     setSelectedBorrower(borrower);
     setSelectedLoan(loan);
     setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
@@ -148,47 +150,33 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
   
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBorrower || !selectedLoan || !paymentDetails.amount) return;
+    if (!selectedBorrower || !selectedLoan || !paymentDetails.amount || !userProfile) return;
 
-    const newPaymentAmount = parseFloat(paymentDetails.amount);
-    const balance = getLoanBalance(selectedLoan);
-
-    if (newPaymentAmount > balance) {
-      toast({
-        title: 'Overpayment Not Allowed',
-        description: `Payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-        await addPayment(db, selectedLoan.id, {
+    startPaymentTransition(async () => {
+        const result = await handleRecordPayment({
             loanId: selectedLoan.id,
-            amount: newPaymentAmount,
+            amount: parseFloat(paymentDetails.amount),
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedBy: userProfile?.email || 'Staff Admin',
-            method: 'cash',
+            recordedByEmail: userProfile.email,
         });
 
-        setReceiptBalance(balance - newPaymentAmount);
-        
-        toast({
-          title: 'Payment Recorded',
-          description: `Payment of MWK ${newPaymentAmount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
-        });
-
-        setRecordPaymentOpen(false);
-        setReceiptGeneratorOpen(true);
-
-        await fetchData();
-    } catch(error: any) {
-         toast({
-            title: 'Payment Failed',
-            description: error.message || 'An unexpected error occurred while recording the payment.',
-            variant: 'destructive',
-        });
-    }
+        if (result.success) {
+            setReceiptBalance(result.newBalance);
+            toast({
+                title: 'Payment Recorded',
+                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+            });
+            setRecordPaymentOpen(false);
+            setReceiptGeneratorOpen(true);
+            await fetchData();
+        } else {
+            toast({
+                title: 'Payment Failed',
+                description: result.message || 'An unexpected error occurred.',
+                variant: 'destructive',
+            });
+        }
+    });
   };
 
   const handleEditBorrowerClick = (borrower: Borrower) => {
@@ -376,7 +364,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
                                 key={loan.id}
                                 variant={getLoanStatusVariant(status)}
                                 className="cursor-pointer"
-                                onClick={() => status !== 'closed' && handleRecordPayment(borrower, loan)}
+                                onClick={() => status !== 'closed' && handleRecordPaymentClick(borrower, loan)}
                             >
                                 {loan.id} ({status})
                             </Badge>
@@ -402,7 +390,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
                             {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
-                                <DropdownMenuItem key={loan.id} onClick={() => handleRecordPayment(borrower, loan)}>
+                                <DropdownMenuItem key={loan.id} onClick={() => handleRecordPaymentClick(borrower, loan)}>
                                 For Loan {loan.id}
                                 </DropdownMenuItem>
                             ))}
@@ -465,13 +453,16 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Generate Receipt</Button>
+              <Button type="submit" disabled={isSubmittingPayment}>
+                {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generate Receipt
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       
-      {selectedBorrower && (
+      {selectedBorrower && selectedLoan && (
         <Dialog open={isAddNewLoanOpen} onOpenChange={setAddNewLoanOpen}>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>

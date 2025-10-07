@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { Input } from '@/components/ui/input';
 import type { Borrower, Loan, Payment, RepaymentScheduleItem, SituationReport } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,7 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getBorrowerById } from '@/services/borrower-service';
 import { getLoansByBorrowerId } from '@/services/loan-service';
-import { addPayment, getPaymentsByLoanId } from '@/services/payment-service';
+import { getPaymentsByLoanId } from '@/services/payment-service';
+import { handleRecordPayment } from '@/app/actions/payment';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
@@ -62,6 +63,8 @@ export default function BorrowerDetailPage() {
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [isFileReportOpen, setFileReportOpen] = useState(false);
   const [isViewReportOpen, setViewReportOpen] = useState(false);
+  const [isSubmittingPayment, startPaymentTransition] = useTransition();
+
   const [selectedReport, setSelectedReport] = useState<SituationReport | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
@@ -136,47 +139,33 @@ export default function BorrowerDetailPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLoan || !paymentDetails.amount) return;
+    if (!selectedLoan || !paymentDetails.amount || !userProfile) return;
 
-    const newPaymentAmount = parseFloat(paymentDetails.amount);
-    const balance = getLoanBalance(selectedLoan);
-
-    if (newPaymentAmount > balance) {
-      toast({
-        title: 'Overpayment Not Allowed',
-        description: `Payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-        await addPayment(db, selectedLoan.id, {
+    startPaymentTransition(async () => {
+        const result = await handleRecordPayment({
             loanId: selectedLoan.id,
-            amount: newPaymentAmount,
+            amount: parseFloat(paymentDetails.amount),
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedBy: userProfile?.email || 'Staff Admin',
-            method: 'cash',
+            recordedByEmail: userProfile.email,
         });
 
-        setReceiptBalance(balance - newPaymentAmount);
-        
-        toast({
-          title: 'Payment Recorded',
-          description: `Payment of MWK ${newPaymentAmount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
-        });
-
-        setRecordPaymentOpen(false);
-        setReceiptGeneratorOpen(true);
-
-        await fetchData();
-    } catch(error: any) {
-         toast({
-            title: 'Payment Failed',
-            description: error.message || 'An unexpected error occurred while recording the payment.',
-            variant: 'destructive',
-        });
-    }
+        if (result.success) {
+            setReceiptBalance(result.newBalance);
+            toast({
+                title: 'Payment Recorded',
+                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+            });
+            setRecordPaymentOpen(false);
+            setReceiptGeneratorOpen(true);
+            await fetchData();
+        } else {
+            toast({
+                title: 'Payment Failed',
+                description: result.message || 'An unexpected error occurred.',
+                variant: 'destructive',
+            });
+        }
+    });
   };
 
   const handleFileReportSubmit = async (values: z.infer<typeof situationReportSchema>) => {
@@ -559,7 +548,10 @@ export default function BorrowerDetailPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Generate Receipt</Button>
+              <Button type="submit" disabled={isSubmittingPayment}>
+                {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generate Receipt
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

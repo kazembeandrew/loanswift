@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import {
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +37,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
-import { getAllPayments, addPayment } from '@/services/payment-service';
+import { getAllPayments } from '@/services/payment-service';
+import { handleRecordPayment } from '@/app/actions/payment';
 import { useDB } from '@/lib/firebase-provider';
 
 
@@ -48,6 +49,7 @@ export default function LoansPage() {
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [isSubmittingPayment, startPaymentTransition] = useTransition();
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [receiptBalance, setReceiptBalance] = useState(0);
@@ -124,41 +126,33 @@ export default function LoansPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLoan || !paymentDetails.amount) return;
-    
-    const newPaymentAmount = parseFloat(paymentDetails.amount);
-    const balance = getLoanBalance(selectedLoan);
+    if (!selectedLoan || !paymentDetails.amount || !userProfile) return;
 
-    if (newPaymentAmount > balance) {
-      toast({
-        title: 'Overpayment Not Allowed',
-        description: `Payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
+    startPaymentTransition(async () => {
+        const result = await handleRecordPayment({
+            loanId: selectedLoan.id,
+            amount: parseFloat(paymentDetails.amount),
+            date: paymentDetails.date || new Date().toISOString().split('T')[0],
+            recordedByEmail: userProfile.email,
+        });
 
-    const newPaymentData: Omit<Payment, 'id'> = {
-      loanId: selectedLoan.id,
-      amount: newPaymentAmount,
-      date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: userProfile?.email || 'Staff Admin',
-      method: 'cash',
-    };
-
-    await addPayment(db, selectedLoan.id, newPaymentData);
-
-    setReceiptBalance(balance - newPaymentAmount);
-    
-    toast({
-      title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount} for loan ${selectedLoan.id} has been recorded.`,
+        if (result.success) {
+            setReceiptBalance(result.newBalance);
+            toast({
+                title: 'Payment Recorded',
+                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+            });
+            setRecordPaymentOpen(false);
+            setReceiptGeneratorOpen(true);
+            await fetchData();
+        } else {
+            toast({
+                title: 'Payment Failed',
+                description: result.message || 'An unexpected error occurred.',
+                variant: 'destructive',
+            });
+        }
     });
-
-    setRecordPaymentOpen(false);
-    setReceiptGeneratorOpen(true);
-    
-    await fetchData();
   };
 
   const handleViewDetails = (loan: Loan) => {
@@ -260,7 +254,10 @@ export default function LoansPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Generate Receipt</Button>
+              <Button type="submit" disabled={isSubmittingPayment}>
+                {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generate Receipt
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

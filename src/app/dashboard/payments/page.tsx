@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,11 +30,12 @@ import {
 import type { Borrower, Loan, Payment } from '@/types';
 import ReceiptGenerator from '../borrowers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
-import { getAllPayments, addPayment } from '@/services/payment-service';
+import { getAllPayments } from '@/services/payment-service';
+import { handleRecordPayment } from '@/app/actions/payment';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { useAuth } from '@/context/auth-context';
 import { useDB } from '@/lib/firebase-provider';
@@ -47,6 +48,7 @@ export default function PaymentsPage() {
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [isSubmittingPayment, startPaymentTransition] = useTransition();
 
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function PaymentsPage() {
     e.preventDefault();
     const selectedLoan = getLoanById(selectedLoanId);
 
-    if (!selectedLoan || !paymentDetails.amount) {
+    if (!selectedLoan || !paymentDetails.amount || !userProfile) {
       toast({
         title: 'Error',
         description: 'Please select a borrower, loan and enter an amount.',
@@ -96,39 +98,31 @@ export default function PaymentsPage() {
       return;
     }
 
-    const newPaymentAmount = parseFloat(paymentDetails.amount);
-    const balance = getLoanBalance(selectedLoan);
+    startPaymentTransition(async () => {
+        const result = await handleRecordPayment({
+            loanId: selectedLoan.id,
+            amount: parseFloat(paymentDetails.amount),
+            date: paymentDetails.date || new Date().toISOString().split('T')[0],
+            recordedByEmail: userProfile.email,
+        });
 
-    if (newPaymentAmount > balance) {
-      toast({
-        title: 'Overpayment Not Allowed',
-        description: `Payment of MWK ${newPaymentAmount.toLocaleString()} exceeds the outstanding balance of MWK ${balance.toLocaleString()}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const newPaymentData: Omit<Payment, 'id'> = {
-      loanId: selectedLoan.id,
-      amount: newPaymentAmount,
-      date: paymentDetails.date || new Date().toISOString().split('T')[0],
-      recordedBy: userProfile?.email || 'Staff Admin',
-      method: 'cash',
-    };
-
-    await addPayment(db, selectedLoan.id, newPaymentData);
-
-    setReceiptBalance(balance - newPaymentAmount);
-
-    toast({
-      title: 'Payment Recorded',
-      description: `Payment of MWK ${newPaymentData.amount} for loan ${newPaymentData.loanId} has been recorded.`,
+        if (result.success) {
+            setReceiptBalance(result.newBalance);
+            toast({
+                title: 'Payment Recorded',
+                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+            });
+            setRecordPaymentOpen(false);
+            setReceiptGeneratorOpen(true);
+            await fetchData();
+        } else {
+            toast({
+                title: 'Payment Failed',
+                description: result.message || 'An unexpected error occurred.',
+                variant: 'destructive',
+            });
+        }
     });
-
-    setRecordPaymentOpen(false);
-    setReceiptGeneratorOpen(true);
-
-    await fetchData();
   };
 
   const handleOpenRecordPayment = () => {
@@ -265,7 +259,10 @@ export default function PaymentsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">Generate Receipt</Button>
+              <Button type="submit" disabled={isSubmittingPayment}>
+                {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Generate Receipt
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
