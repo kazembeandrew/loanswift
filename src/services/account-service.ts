@@ -1,9 +1,9 @@
 'use client';
 
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, runTransaction, getDoc, type Firestore } from 'firebase/firestore';
+import { collection, getDocs, type Firestore } from 'firebase/firestore';
 import type { Account } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors';
+import { FirestorePermissionError } from '@/lib/errors';
 
 
 export async function getAccounts(db: Firestore): Promise<Account[]> {
@@ -19,7 +19,7 @@ export async function getAccounts(db: Firestore): Promise<Account[]> {
       });
       errorEmitter.emit('permission-error', permissionError);
     }
-    // Re-throw the original error to be handled by the calling function if needed
+    // Re-throw so the calling component knows the fetch failed.
     throw serverError;
   }
 }

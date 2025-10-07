@@ -36,11 +36,25 @@ export default function LoginForm() {
     setIsLoading(true);
     try {
       await signIn(email, password);
-    } catch (error) {
-      console.error('Login error details:', error); // Add detailed logging
+    } catch (error: any) {
+      let description = 'An unexpected error occurred. Please try again.';
+      if (error.code) {
+        switch (error.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                description = 'Invalid email or password. Please check your credentials and try again.';
+                break;
+            case 'auth/too-many-requests':
+                description = 'Access to this account has been temporarily disabled due to many failed login attempts. You can reset your password or try again later.';
+                break;
+            default:
+                description = error.message;
+        }
+      }
       toast({
         title: 'Login Failed',
-        description: 'Please check your email and password.',
+        description: description,
         variant: 'destructive',
       });
     } finally {

@@ -2,7 +2,6 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  updateDoc, 
   getDocs, 
   collection, 
   type Firestore 
@@ -20,11 +19,10 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
 
     if (userSnap.exists()) {
       // If the document exists, return its data.
-      return { id: userSnap.id, ...userSnap.data() } as UserProfile;
+      return { uid: userSnap.id, ...userSnap.data() } as UserProfile;
     } else {
       // Create the user document if it doesn't exist
-      const userProfileData: Omit<UserProfile, 'id'> = {
-        uid: user.uid,
+      const userProfileData: Omit<UserProfile, 'uid'> = {
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
         role: 'loan_officer', // Default role for new users
@@ -34,7 +32,7 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
       };
 
       await setDoc(userRef, userProfileData);
-      return { id: user.uid, ...userProfileData };
+      return { uid: user.uid, ...userProfileData };
     }
   } catch (serverError: any) {
      if (serverError.code === 'permission-denied') {
@@ -54,7 +52,7 @@ export async function getUserProfile(db: Firestore, uid: string): Promise<UserPr
     try {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as UserProfile;
+            return { uid: docSnap.id, ...docSnap.data() } as UserProfile;
         }
         return null;
     } catch (serverError: any) {
@@ -73,7 +71,7 @@ export async function getAllUsers(db: Firestore): Promise<UserProfile[]> {
     const usersCollection = collection(db, 'users');
     try {
       const snapshot = await getDocs(usersCollection);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile));
+      return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
     } catch (serverError: any) {
         if (serverError.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({

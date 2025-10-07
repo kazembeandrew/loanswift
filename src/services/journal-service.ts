@@ -1,9 +1,9 @@
 'use client';
 
-import { collection, addDoc, getDocs, doc, writeBatch, runTransaction, query, type Firestore } from 'firebase/firestore';
-import type { JournalEntry, TransactionLine } from '@/types';
+import { collection, getDocs, type Firestore } from 'firebase/firestore';
+import type { JournalEntry } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/lib/errors';
+import { FirestorePermissionError } from '@/lib/errors';
 
 
 export async function getJournalEntries(db: Firestore): Promise<JournalEntry[]> {

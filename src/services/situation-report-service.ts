@@ -13,17 +13,20 @@ export async function addSituationReport(db: Firestore, reportData: Omit<Situati
     reportDate: new Date().toISOString(),
     status: 'Open',
   };
-  const docRef = await addDoc(reportsCollection, newReport)
-    .catch(async (serverError) => {
+  try {
+    const docRef = await addDoc(reportsCollection, newReport);
+    return docRef.id;
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
             path: reportsCollection.path,
             operation: 'create',
             requestResourceData: newReport,
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
-  return docRef.id;
+    }
+    throw serverError;
+  }
 }
 
 export async function getSituationReportsByBorrower(db: Firestore, borrowerId: string): Promise<SituationReport[]> {
@@ -70,14 +73,17 @@ export async function updateSituationReportStatus(db: Firestore, id: string, sta
         status: status,
         updatedAt: new Date().toISOString()
     };
-    await updateDoc(reportRef, updateData)
-    .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: reportRef.path,
-            operation: 'update',
-            requestResourceData: { status },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    try {
+        await updateDoc(reportRef, updateData);
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: reportRef.path,
+                operation: 'update',
+                requestResourceData: { status },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }

@@ -24,15 +24,7 @@ export async function getSettings(db: Firestore): Promise<BusinessSettings> {
             return { id: docSnap.id, ...docSnap.data() } as BusinessSettings;
         } else {
             // If settings don't exist, create them with default values
-            await setDoc(settingsDocRef, defaultSettings).catch(async (serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: settingsDocRef.path,
-                    operation: 'create',
-                    requestResourceData: defaultSettings,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw permissionError;
-            });
+            await setDoc(settingsDocRef, defaultSettings);
             return { id: SETTINGS_DOC_ID, ...defaultSettings };
         }
     } catch (serverError: any) {
@@ -51,14 +43,17 @@ export async function updateSettings(db: Firestore, settings: Omit<BusinessSetti
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     // The 'id' is not stored in the document itself.
     const { id, ...settingsData } = settings as BusinessSettings;
-    await setDoc(settingsDocRef, settingsData, { merge: true })
-    .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: settingsDocRef.path,
-            operation: 'update',
-            requestResourceData: settingsData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    try {
+        await setDoc(settingsDocRef, settingsData, { merge: true });
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: settingsDocRef.path,
+                operation: 'update',
+                requestResourceData: settingsData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }

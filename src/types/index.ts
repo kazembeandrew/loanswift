@@ -80,6 +80,7 @@ export type Conversation = {
   lastMessage: {
     text: string;
     timestamp: string;
+    senderId: string;
   } | null;
 };
 

@@ -4,6 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { Belleza, Alegreya } from 'next/font/google';
 import { FirebaseClientProvider } from '@/lib/firebase-client-provider';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import ClientOnly from '@/components/client-only';
 
 const belleza = Belleza({
   subsets: ['latin'],
@@ -37,6 +39,9 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <AuthProvider>
             {children}
+            <ClientOnly>
+                <FirebaseErrorListener />
+            </ClientOnly>
           </AuthProvider>
         </FirebaseClientProvider>
         <Toaster />

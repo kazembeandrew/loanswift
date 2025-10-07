@@ -6,11 +6,11 @@ import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { addAuditLog } from './audit-log-service';
 import { getAuth } from 'firebase/auth';
-import { getFirebase, db } from '@/lib/firebase';
+import { getFirebase } from '@/lib/firebase';
 import { adminDb } from '@/lib/firebase-admin';
 
 
-export async function getLoans(): Promise<Loan[]> {
+export async function getLoans(db: Firestore): Promise<Loan[]> {
   const loansCollection = collection(db, 'loans');
   try {
     const snapshot = await getDocs(loansCollection);
@@ -27,7 +27,7 @@ export async function getLoans(): Promise<Loan[]> {
   }
 }
 
-export async function getLoanById(id: string): Promise<Loan | null> {
+export async function getLoanById(db: Firestore, id: string): Promise<Loan | null> {
     const docRef = doc(db, 'loans', id);
     try {
         const docSnap = await getDoc(docRef);
@@ -47,7 +47,7 @@ export async function getLoanById(id: string): Promise<Loan | null> {
     }
 }
 
-export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> {
+export async function getLoansByBorrowerId(db: Firestore, borrowerId: string): Promise<Loan[]> {
     const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId));
     try {
         const snapshot = await getDocs(q);
@@ -85,7 +85,7 @@ function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>)
 }
 
 
-export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
+export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
   const auth = getAuth(getFirebase().app);
   const currentUser = auth.currentUser;
 
@@ -93,73 +93,80 @@ export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>):
   const repaymentSchedule = generateRepaymentSchedule(loanData);
   const loanWithSchedule = { ...loanData, repaymentSchedule };
 
-  const docRef = await addDoc(loansCollection, loanWithSchedule)
-    .catch(async (serverError) => {
+  try {
+    const docRef = await addDoc(loansCollection, loanWithSchedule);
+
+      // Log the audit event.
+    if (currentUser) {
+        await addAuditLog({
+        userEmail: currentUser.email || 'unknown',
+        action: 'LOAN_DISBURSEMENT',
+        details: {
+            loanId: docRef.id,
+            borrowerId: loanData.borrowerId,
+            amount: loanData.principal,
+        }
+        });
+    }
+    
+    // Automated Journal Entry for Loan Disbursement
+        const accountsSnapshot = await adminDb.collection('accounts').get();
+        const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const loanPortfolioAccount = allAccounts.find(a => a.name === 'Loan Portfolio');
+        const cashAccount = allAccounts.find(a => a.name === 'Cash on Hand');
+
+        if (loanPortfolioAccount && cashAccount) {
+            const entryData = {
+                date: loanData.startDate,
+                description: `Loan disbursement for ${docRef.id}`,
+                lines: [
+                    {
+                        accountId: loanPortfolioAccount.id,
+                        accountName: loanPortfolioAccount.name,
+                        type: 'debit',
+                        amount: loanData.principal,
+                    },
+                    {
+                        accountId: cashAccount.id,
+                        accountName: cashAccount.name,
+                        type: 'credit',
+                        amount: loanData.principal,
+                    }
+                ]
+            };
+            // Use the Admin SDK to create the journal entry directly
+            await adminDb.collection('journal').add(entryData);
+        }
+
+    return docRef.id;
+
+  } catch (serverError: any) {
+    if (serverError.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
             path: loansCollection.path,
             operation: 'create',
             requestResourceData: loanWithSchedule,
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
-
-  // Log the audit event.
-  if (currentUser) {
-    await addAuditLog({
-      userEmail: currentUser.email || 'unknown',
-      action: 'LOAN_DISBURSEMENT',
-      details: {
-        loanId: docRef.id,
-        borrowerId: loanData.borrowerId,
-        amount: loanData.principal,
-      }
-    });
-  }
-  
-  // Automated Journal Entry for Loan Disbursement
-    const accountsSnapshot = await adminDb.collection('accounts').get();
-    const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const loanPortfolioAccount = allAccounts.find(a => a.name === 'Loan Portfolio');
-    const cashAccount = allAccounts.find(a => a.name === 'Cash on Hand');
-
-    if (loanPortfolioAccount && cashAccount) {
-        const entryData = {
-            date: loanData.startDate,
-            description: `Loan disbursement for ${docRef.id}`,
-            lines: [
-                {
-                    accountId: loanPortfolioAccount.id,
-                    accountName: loanPortfolioAccount.name,
-                    type: 'debit',
-                    amount: loanData.principal,
-                },
-                {
-                    accountId: cashAccount.id,
-                    accountName: cashAccount.name,
-                    type: 'credit',
-                    amount: loanData.principal,
-                }
-            ]
-        };
-        // Use the Admin SDK to create the journal entry directly
-        await adminDb.collection('journal').add(entryData);
     }
-
-  return docRef.id;
+    throw serverError;
+  }
 }
 
-export async function updateLoan(id: string, updates: Partial<Loan>): Promise<void> {
+export async function updateLoan(db: Firestore, id: string, updates: Partial<Loan>): Promise<void> {
     const docRef = doc(db, 'loans', id);
-    await updateDoc(docRef, updates)
-    .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: updates,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    });
+    try {
+        await updateDoc(docRef, updates);
+    } catch (serverError: any) {
+        if (serverError.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: updates,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        throw serverError;
+    }
 }
