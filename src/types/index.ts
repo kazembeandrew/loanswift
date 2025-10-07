@@ -8,6 +8,9 @@ export type UserProfile = {
   photoURL?: string;
   createdAt: string;
   updatedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
 };
 
 export type Borrower = {

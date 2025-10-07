@@ -32,8 +32,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       return;
     }
     
-    // Only set up timers if the user is logged in
-    if(user) {
+    // Redirect if user status is not approved
+    if (!loading && userProfile && userProfile.status !== 'approved') {
+      if (userProfile.status === 'pending') {
+        router.push('/pending-approval');
+      } else {
+        // For rejected or other statuses, log out and go to login
+        signOut();
+        router.push('/login');
+      }
+      return;
+    }
+    
+    // Only set up timers if the user is logged in and approved
+    if(user && userProfile?.status === 'approved') {
         let inactivityTimer: NodeJS.Timeout;
 
         const resetTimer = () => {
@@ -63,9 +75,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         };
     }
 
-  }, [user, loading, router, handleSignOut]);
+  }, [user, userProfile, loading, router, handleSignOut, signOut]);
 
-  if (loading || !user || !userProfile) {
+  if (loading || !user || !userProfile || userProfile.status !== 'approved') {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

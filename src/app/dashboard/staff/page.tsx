@@ -24,7 +24,7 @@ import { getAllUsers } from '@/services/user-service';
 import { handleCreateUser, handleUpdateUserRole } from '@/app/actions/user';
 import { promoteUserToAdmin } from '@/app/actions/promote';
 import type { UserProfile } from '@/types';
-import { Loader2, ShieldAlert, PlusCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, ShieldAlert, PlusCircle, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import {
@@ -51,6 +51,89 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDB } from '@/lib/firebase-provider';
+import { Badge } from '@/components/ui/badge';
+import { doc, updateDoc } from 'firebase/firestore';
+
+
+function UserApprovalList({ users, onUpdate }: { users: UserProfile[], onUpdate: () => void }) {
+  const [isProcessing, startTransition] = useTransition();
+  const db = useDB();
+  const { userProfile } = useAuth();
+  const { toast } = useToast();
+
+  const pendingUsers = users.filter(u => u.status === 'pending');
+
+  const handleApproval = (userId: string, newStatus: 'approved' | 'rejected') => {
+    if (!userProfile) return;
+    startTransition(async () => {
+      try {
+        const userRef = doc(db, 'users', userId);
+        const updates: any = {
+          status: newStatus,
+          updatedAt: new Date().toISOString(),
+        };
+        if (newStatus === 'approved') {
+          updates.approvedBy = userProfile.uid;
+          updates.approvedAt = new Date().toISOString();
+        }
+        await updateDoc(userRef, updates);
+        toast({ title: `User ${newStatus}`, description: `The user has been successfully ${newStatus}.` });
+        onUpdate();
+      } catch (error: any) {
+        toast({ title: 'Error', description: `Failed to update user status: ${error.message}`, variant: 'destructive' });
+      }
+    });
+  };
+
+  if (pendingUsers.length === 0) {
+    return null;
+  }
+
+  return (
+     <Card>
+      <CardHeader>
+        <CardTitle>User Approval Queue</CardTitle>
+        <CardDescription>
+          {pendingUsers.length} user(s) waiting for approval.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+          <div className="space-y-4">
+            {pendingUsers.map(user => (
+              <div key={user.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{user.displayName || user.email}</p>
+                    <Badge variant="secondary">{user.role}</Badge>
+                    <Badge variant="outline">Pending</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => handleApproval(user.uid, 'approved')}
+                    variant="default"
+                    size="sm"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />} Approve
+                  </Button>
+                  <Button 
+                    onClick={() => handleApproval(user.uid, 'rejected')}
+                    variant="destructive"
+                    size="sm"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserX className="mr-2 h-4 w-4"/>} Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 
 export default function StaffPage() {
@@ -172,11 +255,15 @@ export default function StaffPage() {
     );
   }
 
+  const approvedUsers = users.filter(u => u.status === 'approved' || u.status === undefined);
+
 
   return (
     <>
       <Header title="User Management" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {userProfile.role === 'admin' && <UserApprovalList users={users} onUpdate={fetchData} />}
+        
         <Card>
           <CardHeader className="flex flex-row items-center">
             <div className="grid gap-2">
@@ -196,7 +283,7 @@ export default function StaffPage() {
                     <DialogHeader>
                         <DialogTitle>Add New User</DialogTitle>
                         <DialogDescription>
-                            Create a new user account and assign them a role.
+                            Create a new user account and assign them a role. The user will need to be approved before they can log in.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddUserSubmit}>
@@ -247,7 +334,7 @@ export default function StaffPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {approvedUsers.map((user) => (
                       <TableRow key={user.uid}>
                         <TableCell>
                            <div className="flex items-center gap-3">
@@ -255,7 +342,7 @@ export default function StaffPage() {
                                     <AvatarImage src={getBorrowerAvatar(user.uid)} alt="User Avatar" />
                                     <AvatarFallback>{user.email.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <span className="font-medium">{user.email.split('@')[0]}</span>
+                                <span className="font-medium">{user.displayName || user.email.split('@')[0]}</span>
                             </div>
                         </TableCell>
                         <TableCell>{user.email}</TableCell>

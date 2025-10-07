@@ -6,6 +6,7 @@ import { getUserProfile, ensureUserDocument, type UserProfile } from '@/services
 import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
 import { Loader2 } from 'lucide-react';
 import { auth } from '@/lib/firebase';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -32,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const auth = useFirebaseAuth();
   const db = useDB();
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!auth || !db) return;
@@ -50,7 +53,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (mounted) {
             if (userDoc) {
               setUserProfile(userDoc);
-              console.log(`✅ User profile loaded with role: ${userDoc.role}`);
+              console.log(`✅ User profile loaded with role: ${userDoc.role}, status: ${userDoc.status}`);
+              
+              if (userDoc.status === 'approved') {
+                 if (pathname === '/login' || pathname === '/pending-approval') {
+                    router.push('/dashboard');
+                 }
+              } else if (userDoc.status === 'pending') {
+                 if (pathname !== '/pending-approval') {
+                    router.push('/pending-approval');
+                 }
+              } else if (userDoc.status === 'rejected') {
+                  await signOutUser(auth);
+                  router.push('/login?message=account_rejected');
+              }
+
             } else {
               console.error('❌ Failed to ensure user document - signing out user');
               // If we can't create the user document, sign them out
@@ -77,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [auth, db]);
+  }, [auth, db, pathname, router]);
 
   const signIn = async (email: string, password: string) => {
     if (!auth) throw new Error('Auth not initialized');
@@ -107,6 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
 
+  // Don't show a global loader for login/pending pages
+  if (loading && (pathname === '/login' || pathname === '/pending-approval')) {
+    return <>{children}</>;
+  }
+  
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
