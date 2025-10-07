@@ -1,19 +1,12 @@
 
-
-
-
-
-
-
-
 export type UserProfile = {
   uid: string;
   email: string;
   role: 'admin' | 'ceo' | 'loan_officer' | 'cfo' | 'hr';
-  displayName?: string;
+  displayName: string;
   photoURL?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: any;
+  updatedAt: any;
 };
 
 export type Borrower = {
@@ -128,7 +121,7 @@ export type MonthEndClosure = {
   initiatedAt: string; // ISO String
   approvedBy?: string; // UID of the CEO
   approvedByEmail?: string;
-  approvedAt?: string; // ISO String
+a  pprovedAt?: string; // ISO String
   processedBy?: string; // UID of the CFO who processed it
   processedByEmail?: string;
   processedAt?: string; // ISO String
