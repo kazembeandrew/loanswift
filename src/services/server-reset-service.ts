@@ -1,4 +1,3 @@
-'use client';
 // services/server-reset-service.ts
 import { adminDb } from '@/lib/firebase-admin';
 

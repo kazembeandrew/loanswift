@@ -12,7 +12,7 @@ const firebaseAdminConfig = {
 };
 
 // Initialize only if not already initialized
-export const getAdminApp = () => {
+export function getAdminApp() {
   if (getApps().length === 0) {
     return initializeApp(firebaseAdminConfig);
   }
