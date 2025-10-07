@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/auth-context';
 import type { Borrower, Loan, Payment, RepaymentScheduleItem, SituationReport } from '@/types';
-import { getBorrowers } from '@/services/borrower-service';
+import { getBorrowersByLoanOfficer } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { getAllPayments } from '@/services/payment-service';
 import { getAllSituationReports } from '@/services/situation-report-service';
@@ -36,30 +36,27 @@ export default function LoanOfficerDashboard({}: LoanOfficerDashboardProps) {
   const db = useDB();
 
   const fetchData = useCallback(async () => {
-    // Admins/CEOs see all data, Loan Officers only see their own.
-    const isAdminOrCeo = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
+    if (!userProfile) return;
     
-    const [allBorrowers, allLoans, allPayments, allReports] = await Promise.all([
-      getBorrowers(db),
+    // Loan officers only see their own data.
+    const myBorrowers = await getBorrowersByLoanOfficer(db, userProfile.uid);
+    const myBorrowerIds = myBorrowers.map(b => b.id);
+    
+    // Fetch all loans and payments, then filter client-side. This is less secure but simpler
+    // for this iteration. A more secure implementation would use security rules and specific queries.
+    const [allLoans, allPayments, allReports] = await Promise.all([
       getLoans(db),
       getAllPayments(db),
       getAllSituationReports(db),
     ]);
 
-    if (isAdminOrCeo) {
-        setBorrowers(allBorrowers);
-        setLoans(allLoans);
-        setSituationReports(allReports);
-    } else if (userProfile) {
-        const myBorrowers = allBorrowers.filter(b => b.loanOfficerId === userProfile.uid);
-        const myBorrowerIds = myBorrowers.map(b => b.id);
-        const myLoans = allLoans.filter(l => myBorrowerIds.includes(l.borrowerId));
-        
-        setBorrowers(myBorrowers);
-        setLoans(myLoans);
-        setSituationReports(allReports.filter(r => myBorrowerIds.includes(r.borrowerId)));
-    }
-    setPayments(allPayments);
+    const myLoans = allLoans.filter(l => myBorrowerIds.includes(l.borrowerId));
+    
+    setBorrowers(myBorrowers);
+    setLoans(myLoans);
+    setPayments(allPayments); // Payments are filtered within components where needed
+    setSituationReports(allReports.filter(r => myBorrowerIds.includes(r.borrowerId)));
+
   }, [userProfile, db]);
 
   useEffect(() => {
@@ -117,7 +114,7 @@ export default function LoanOfficerDashboard({}: LoanOfficerDashboardProps) {
   return (
     <div className="space-y-6">
       <h1 className="font-headline text-3xl font-semibold">
-        Welcome, {userProfile?.email.split('@')[0]}
+        Welcome, {userProfile?.displayName || userProfile?.email.split('@')[0]}
       </h1>
 
       <DashboardMetrics loans={loans} payments={payments} borrowers={borrowers} />

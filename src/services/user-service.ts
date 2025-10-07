@@ -23,7 +23,7 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
       console.log(`✅ User document found for: ${user.uid}`);
       return userSnap.data() as UserProfile;
     } else {
-      // ✅ FIX: Create the user document if it doesn't exist
+      // Create the user document if it doesn't exist
       const userProfile: UserProfile = {
         uid: user.uid,
         email: user.email!,

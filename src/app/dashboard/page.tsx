@@ -1,4 +1,3 @@
-
 'use client';
 import { useAuth } from '@/context/auth-context';
 import { Header } from '@/components/header';
@@ -17,7 +16,25 @@ function HrDashboard() {
                 <CardHeader>
                     <CardTitle>HR Dashboard</CardTitle>
                     <CardDescription>
-                        This is the Human Resources dashboard. Your primary functions are user management. Please use the "Staff" link in the Admin section of the sidebar.
+                        Your primary function is user management. Please use the "Staff" link in the Admin section of the sidebar.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        </div>
+    )
+}
+
+function AdminDashboard() {
+    return (
+         <div className="space-y-6">
+             <h1 className="font-headline text-3xl font-semibold">
+                Welcome, Administrator
+            </h1>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Administrator Dashboard</CardTitle>
+                    <CardDescription>
+                        You have access to all system features, including user management and system settings. Please use the sidebar to navigate.
                     </CardDescription>
                 </CardHeader>
             </Card>
@@ -43,7 +60,9 @@ export default function DashboardPage() {
     switch (userProfile?.role) {
       case 'ceo':
       case 'cfo':
+        return <CeoDashboard />;
       case 'admin':
+        // Admin gets the CEO dashboard view plus their admin capabilities via the sidebar.
         return <CeoDashboard />;
       case 'hr':
         return <HrDashboard />;
@@ -64,5 +83,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
