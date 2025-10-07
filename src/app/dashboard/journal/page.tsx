@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -32,10 +32,8 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Trash2, BookCopy } from 'lucide-react';
+import { PlusCircle, Trash2, BookCopy, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getAccounts } from '@/services/account-service';
-import { getJournalEntries, addJournalEntry } from '@/services/journal-service';
 import type { Account, JournalEntry } from '@/types';
 import {
   Form,
@@ -45,7 +43,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useDB } from '@/lib/firebase-provider';
+import { useAuth } from '@/context/auth-context';
+
 
 const transactionLineSchema = z.object({
   accountId: z.string().min(1, 'Account is required'),
@@ -70,10 +69,12 @@ const journalFormSchema = z.object({
 export default function JournalPage() {
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isProcessing, startTransition] = useTransition();
     const [isAddDialogOpen, setAddDialogOpen] = useState(false);
     const { toast } = useToast();
-    const db = useDB();
-
+    const { user } = useAuth();
+    
     const form = useForm<z.infer<typeof journalFormSchema>>({
         resolver: zodResolver(journalFormSchema),
         defaultValues: {
@@ -92,13 +93,29 @@ export default function JournalPage() {
     });
 
     const fetchData = useCallback(async () => {
-        const [entriesData, accountsData] = await Promise.all([
-            getJournalEntries(db),
-            getAccounts(db)
-        ]);
-        setJournalEntries(entriesData);
-        setAccounts(accountsData);
-    }, [db]);
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const idToken = await user.getIdToken();
+            const [entriesRes, accountsRes] = await Promise.all([
+                fetch('/api/accounting/journal', { headers: { Authorization: `Bearer ${idToken}` } }),
+                fetch('/api/accounting/accounts', { headers: { Authorization: `Bearer ${idToken}` } })
+            ]);
+            
+            const entriesResult = await entriesRes.json();
+            if (!entriesRes.ok) throw new Error(entriesResult.message || 'Failed to fetch journal entries.');
+            setJournalEntries(entriesResult.data);
+
+            const accountsResult = await accountsRes.json();
+            if (!accountsRes.ok) throw new Error(accountsResult.message || 'Failed to fetch accounts.');
+            setAccounts(accountsResult.data);
+
+        } catch (error: any) {
+             toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
 
     useEffect(() => {
         fetchData();
@@ -111,33 +128,48 @@ export default function JournalPage() {
 
 
     const handleAddEntry = async (values: z.infer<typeof journalFormSchema>) => {
-        const linesWithNames = values.lines.map(line => {
-            const account = accounts.find(a => a.id === line.accountId);
-            return {...line, accountName: account?.name || 'Unknown' };
-        });
+        if (!user) return;
+        startTransition(async () => {
+            try {
+                const idToken = await user.getIdToken();
+                const response = await fetch('/api/accounting/journal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify(values),
+                });
+                 const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'An error occurred.');
 
-        try {
-            await addJournalEntry(db, { ...values, lines: linesWithNames });
-            toast({
-                title: 'Journal Entry Created',
-                description: `The entry "${values.description}" has been posted.`,
-            });
-            setAddDialogOpen(false);
-            form.reset();
-            await fetchData();
-        } catch (error: any) {
-            toast({
-                title: 'Error creating entry',
-                description: error.message || 'An unknown error occurred.',
-                variant: 'destructive',
-            });
-        }
+                toast({
+                    title: 'Journal Entry Created',
+                    description: `The entry "${values.description}" has been posted.`,
+                });
+                setAddDialogOpen(false);
+                form.reset();
+                await fetchData();
+            } catch (error: any) {
+                toast({
+                    title: 'Error creating entry',
+                    description: error.message || 'An unknown error occurred.',
+                    variant: 'destructive',
+                });
+            }
+        });
     };
     
-    const getAccountName = (accountId: string) => {
-        return accounts.find(a => a.id === accountId)?.name || 'Unknown Account';
+    if (isLoading) {
+      return (
+        <>
+          <Header title="Journal Entries" />
+          <main className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </main>
+        </>
+      );
     }
-
 
   return (
     <>
@@ -165,10 +197,10 @@ export default function JournalPage() {
                           <form id="journal-form" onSubmit={form.handleSubmit(handleAddEntry)} className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <FormField control={form.control} name="date" render={({ field }) => (
-                                    <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} disabled={isProcessing} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                                 <FormField control={form.control} name="description" render={({ field }) => (
-                                    <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Paid monthly office rent" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="e.g., Paid monthly office rent" {...field} disabled={isProcessing} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             </div>
                             
@@ -189,7 +221,7 @@ export default function JournalPage() {
                                                 <TableRow key={field.id}>
                                                     <TableCell>
                                                         <FormField control={form.control} name={`lines.${index}.accountId`} render={({ field }) => (
-                                                            <FormItem><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormItem><Select onValueChange={field.onChange} defaultValue={field.value} disabled={isProcessing}>
                                                                 <FormControl><SelectTrigger><SelectValue placeholder="Select an account" /></SelectTrigger></FormControl>
                                                                 <SelectContent>{accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({acc.type})</SelectItem>)}</SelectContent>
                                                             </Select><FormMessage /></FormItem>
@@ -197,7 +229,7 @@ export default function JournalPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <FormField control={form.control} name={`lines.${index}.amount`} render={({ field }) => (
-                                                            <FormItem><FormControl><Input type="number" {...field} value={field.value || ''} disabled={watchLines[index].type === 'credit'} onChange={e => {
+                                                            <FormItem><FormControl><Input type="number" {...field} value={field.value || ''} disabled={watchLines[index].type === 'credit' || isProcessing} onChange={e => {
                                                                 field.onChange(e.target.valueAsNumber);
                                                                 form.setValue(`lines.${index}.type`, 'debit');
                                                             }} /></FormControl><FormMessage /></FormItem>
@@ -205,21 +237,21 @@ export default function JournalPage() {
                                                     </TableCell>
                                                      <TableCell>
                                                         <FormField control={form.control} name={`lines.${index}.amount`} render={({ field }) => (
-                                                            <FormItem><FormControl><Input type="number" {...field} value={field.value || ''} disabled={watchLines[index].type === 'debit'} onChange={e => {
+                                                            <FormItem><FormControl><Input type="number" {...field} value={field.value || ''} disabled={watchLines[index].type === 'debit' || isProcessing} onChange={e => {
                                                                 field.onChange(e.target.valueAsNumber);
                                                                 form.setValue(`lines.${index}.type`, 'credit');
                                                             }} /></FormControl><FormMessage /></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell>
-                                                        {fields.length > 2 && <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>}
+                                                        {fields.length > 2 && <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={isProcessing}><Trash2 className="h-4 w-4" /></Button>}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
                                     </Table>
                                 </div>
-                                <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ accountId: '', type: 'debit', amount: 0 })}>Add Line</Button>
+                                <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ accountId: '', type: 'debit', amount: 0 })} disabled={isProcessing}>Add Line</Button>
                             </div>
                             {form.formState.errors.lines && <p className="text-sm font-medium text-destructive">{form.formState.errors.lines.message}</p>}
                           </form>
@@ -232,7 +264,10 @@ export default function JournalPage() {
                                     <p>Totals: <span className="font-mono">D: {totalDebits.toLocaleString()}</span> / <span className="font-mono">C: {totalCredits.toLocaleString()}</span></p>
                                     <p className={difference !== 0 ? 'text-destructive' : 'text-green-600'}>Difference: <span className="font-mono">{difference.toLocaleString()}</span></p>
                                 </div>
-                                <Button type="submit" form="journal-form">Post Entry</Button>
+                                <Button type="submit" form="journal-form" disabled={isProcessing}>
+                                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Post Entry
+                                </Button>
                             </div>
                         </DialogFooter>
                     </DialogContent>

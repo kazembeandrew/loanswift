@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,9 +37,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { addAccount, getAccounts, updateAccount } from '@/services/account-service';
 import type { Account } from '@/types';
 import {
   Form,
@@ -49,7 +48,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useDB } from '@/lib/firebase-provider';
+import { useAuth } from '@/context/auth-context';
+
 
 const accountFormSchema = z.object({
   name: z.string().min(1, 'Account name is required'),
@@ -60,12 +60,14 @@ const accountFormSchema = z.object({
 
 export default function AccountsPage() {
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isProcessing, startTransition] = useTransition();
     const [isAddDialogOpen, setAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
     const { toast } = useToast();
-    const db = useDB();
-
+    const { user } = useAuth();
+    
     const form = useForm<z.infer<typeof accountFormSchema>>({
         resolver: zodResolver(accountFormSchema),
         defaultValues: {
@@ -75,36 +77,62 @@ export default function AccountsPage() {
     });
 
     const fetchData = useCallback(async () => {
-        const data = await getAccounts(db);
-        setAccounts(data);
-    }, [db]);
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const idToken = await user.getIdToken();
+            const response = await fetch('/api/accounting/accounts', {
+                headers: { Authorization: `Bearer ${idToken}` },
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to fetch accounts.');
+            setAccounts(result.data);
+        } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+    
+    const apiRequest = async (method: 'POST' | 'PUT', body: any, successTitle: string) => {
+        if (!user) return;
+        startTransition(async () => {
+            try {
+                const idToken = await user.getIdToken();
+                const response = await fetch('/api/accounting/accounts', {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify(body),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'An error occurred.');
+                
+                toast({ title: successTitle, description: `The account "${body.name}" has been processed.` });
+                await fetchData();
+                setAddDialogOpen(false);
+                setEditDialogOpen(false);
+                form.reset();
+
+            } catch (error: any) {
+                toast({ title: 'Operation Failed', description: error.message, variant: 'destructive' });
+            }
+        });
+    }
 
     const handleAddAccount = async (values: z.infer<typeof accountFormSchema>) => {
-        await addAccount(db, values);
-        toast({
-            title: 'Account Created',
-            description: `The account "${values.name}" has been added.`,
-        });
-        setAddDialogOpen(false);
-        form.reset();
-        await fetchData();
+        await apiRequest('POST', values, 'Account Created');
     };
 
     const handleUpdateAccount = async (values: z.infer<typeof accountFormSchema>) => {
         if (!selectedAccount) return;
-        
-        await updateAccount(db, selectedAccount.id, values);
-        toast({
-            title: 'Account Updated',
-            description: `The account "${values.name}" has been updated.`,
-        });
-        setEditDialogOpen(false);
-        form.reset();
-        await fetchData();
+        await apiRequest('PUT', { id: selectedAccount.id, ...values }, 'Account Updated');
     };
     
     const handleEditClick = (account: Account) => {
@@ -120,6 +148,17 @@ export default function AccountsPage() {
         (acc[account.type] = acc[account.type] || []).push(account);
         return acc;
     }, {} as Record<Account['type'], Account[]>);
+
+  if (isLoading) {
+      return (
+        <>
+          <Header title="Chart of Accounts" />
+          <main className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </main>
+        </>
+      );
+  }
 
   return (
     <>
@@ -151,7 +190,7 @@ export default function AccountsPage() {
                                     <FormItem>
                                         <FormLabel>Account Name</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="e.g., Cash on Hand" {...field} />
+                                            <Input placeholder="e.g., Cash on Hand" {...field} disabled={isProcessing} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -163,7 +202,7 @@ export default function AccountsPage() {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Account Type</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isProcessing}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select a type" />
@@ -182,7 +221,10 @@ export default function AccountsPage() {
                                 )}
                             />
                             <DialogFooter>
-                                <Button type="submit">Save Account</Button>
+                                <Button type="submit" disabled={isProcessing}>
+                                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Account
+                                </Button>
                             </DialogFooter>
                           </form>
                         </Form>
@@ -255,7 +297,7 @@ export default function AccountsPage() {
                             <FormItem>
                                 <FormLabel>Account Name</FormLabel>
                                 <FormControl>
-                                    <Input {...field} />
+                                    <Input {...field} disabled={isProcessing} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -267,7 +309,7 @@ export default function AccountsPage() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Account Type</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isProcessing}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select a type" />
@@ -286,7 +328,10 @@ export default function AccountsPage() {
                         )}
                     />
                     <DialogFooter>
-                        <Button type="submit">Save Changes</Button>
+                        <Button type="submit" disabled={isProcessing}>
+                             {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Changes
+                        </Button>
                     </DialogFooter>
                   </form>
                 </Form>
