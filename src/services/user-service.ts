@@ -14,8 +14,23 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
     // This case should ideally be handled by the backend user creation process (e.g., cloud function or seed script)
     // where the document is created along with the user.
     // For robustness, we check here, but if it's missing for a logged-in user, it indicates an inconsistent state.
-    console.error(`User document not found for uid: ${user.uid}. The user might not have a role assigned.`);
-    return null;
+    const userProfile: UserProfile = {
+      uid: user.uid,
+      email: user.email!,
+      displayName: user.displayName || user.email!.split('@')[0],
+      role: 'loan_officer', // Default role for new users
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    try {
+      await setDoc(userRef, userProfile);
+      console.log(`✅ Created user document for: ${user.uid}`);
+      return userProfile;
+    } catch (error) {
+      console.error(`❌ Failed to create user document: ${error}`);
+      return null;
+    }
   }
 };
 
