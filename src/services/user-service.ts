@@ -20,11 +20,10 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
 
     if (userSnap.exists()) {
       // If the document exists, return its data.
-      console.log(`✅ User document found for: ${user.uid}`);
       return { id: userSnap.id, ...userSnap.data() } as UserProfile;
     } else {
       // Create the user document if it doesn't exist
-      const userProfile: Omit<UserProfile, 'id'> = {
+      const userProfileData: Omit<UserProfile, 'id'> = {
         uid: user.uid,
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
@@ -34,20 +33,18 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
         updatedAt: new Date().toISOString()
       };
 
-      await setDoc(userRef, userProfile);
-      console.log(`✅ Created user document for: ${user.uid} with status: pending`);
-      return { id: user.uid, ...userProfile } as UserProfile;
+      await setDoc(userRef, userProfileData);
+      return { id: user.uid, ...userProfileData };
     }
   } catch (serverError: any) {
      if (serverError.code === 'permission-denied') {
-      // This is a special case. If we can't even get or create the user's own doc, it's a fundamental rules issue.
       const permissionError = new FirestorePermissionError({
           path: userRef.path,
-          operation: 'write', // Assume write since create is the more likely failure point
+          operation: 'write',
       });
       errorEmitter.emit('permission-error', permissionError);
     }
-    console.error(`❌ Failed to ensure user document for ${user.uid}:`, serverError);
+    console.error(`Failed to ensure user document for ${user.uid}:`, serverError);
     return null;
   }
 };

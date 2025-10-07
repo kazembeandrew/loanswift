@@ -262,7 +262,7 @@ export default function StaffPage() {
     <>
       <Header title="User Management" />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        {userProfile.role === 'admin' && <UserApprovalList users={users} onUpdate={fetchData} />}
+        {(userProfile.role === 'admin' || userProfile.role === 'hr') && <UserApprovalList users={users} onUpdate={fetchData} />}
         
         <Card>
           <CardHeader className="flex flex-row items-center">

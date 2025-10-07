@@ -38,97 +38,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!auth || !db) return;
 
-    let mounted = true;
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!mounted) return;
-
-      if (user) {
-        setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
         try {
-          console.log(`🔄 Ensuring user document for: ${user.uid}`);
-          const userDoc = await ensureUserDocument(db, user);
-          
-          if (mounted) {
-            if (userDoc) {
-              setUserProfile(userDoc);
-              console.log(`✅ User profile loaded with role: ${userDoc.role}, status: ${userDoc.status}`);
-              
-              if (userDoc.status === 'approved') {
-                 if (pathname === '/login' || pathname === '/pending-approval') {
-                    router.push('/dashboard');
-                 }
-              } else if (userDoc.status === 'pending') {
-                 if (pathname !== '/pending-approval') {
-                    router.push('/pending-approval');
-                 }
-              } else if (userDoc.status === 'rejected') {
-                  await signOutUser(auth);
-                  router.push('/login?message=account_rejected');
-              }
+          const profile = await ensureUserDocument(db, currentUser);
+          setUserProfile(profile);
 
-            } else {
-              console.error('❌ Failed to ensure user document - signing out user');
-              // If we can't create the user document, sign them out
-              await signOutUser(auth);
+          if (profile?.status === 'approved') {
+            if (pathname === '/login' || pathname === '/pending-approval') {
+              router.push('/dashboard');
             }
+          } else if (profile?.status === 'pending') {
+            if (pathname !== '/pending-approval') {
+              router.push('/pending-approval');
+            }
+          } else if (profile?.status === 'rejected') {
+            await signOutUser(auth);
           }
         } catch (error) {
-          console.error('❌ Error ensuring user document:', error);
-          if (mounted) {
-            setUserProfile(null);
-          }
+          console.error("Error processing user state:", error);
+          await signOutUser(auth);
+        } finally {
+          setLoading(false);
         }
       } else {
         setUser(null);
         setUserProfile(null);
-      }
-      
-      if (mounted) {
         setLoading(false);
       }
     });
 
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [auth, db, pathname, router]);
 
   const signIn = async (email: string, password: string) => {
     if (!auth) throw new Error('Auth not initialized');
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    if(db && userCredential.user) {
-        const profile = await ensureUserDocument(db, userCredential.user);
-        setUserProfile(profile);
-    }
-    return userCredential;
+    return signInWithEmailAndPassword(auth, email, password);
   };
 
   const signInWithGoogle = async () => {
     if (!auth) throw new Error('Auth not initialized');
     const provider = new GoogleAuthProvider();
-    const userCredential = await signInWithPopup(auth, provider);
-     if(db && userCredential.user) {
-        const profile = await ensureUserDocument(db, userCredential.user);
-        setUserProfile(profile);
-    }
-    return userCredential;
+    return signInWithPopup(auth, provider);
   };
 
   const signOut = useCallback(async () => {
     if (!auth) throw new Error('Auth not initialized');
     await signOutUser(auth);
-  }, [auth]);
+    router.push('/login');
+  }, [auth, router]);
 
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
-
-  // Don't show a global loader for login/pending pages
-  if (loading && (pathname === '/login' || pathname === '/pending-approval')) {
-    return <>{children}</>;
-  }
   
-  if (loading) {
+  if (loading && !pathname.startsWith('/login') && !pathname.startsWith('/pending-approval')) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
