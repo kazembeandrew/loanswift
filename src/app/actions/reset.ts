@@ -1,10 +1,10 @@
 'use server';
 
-import { deleteAllData } from '@/services/reset-service';
+import { serverDeleteAllData } from '@/services/server-reset-service';
 
 export async function handleDeleteAllData(): Promise<{ success: boolean; error?: string }> {
   try {
-    await deleteAllData();
+    await serverDeleteAllData();
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
