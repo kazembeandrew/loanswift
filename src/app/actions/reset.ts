@@ -30,12 +30,10 @@ export async function resetDataAction(userId: string): Promise<{ success: boolea
             };
         }
         
-        await serverDeleteAllData();
+        // serverDeleteAllData now returns the success/error object
+        const result = await serverDeleteAllData();
         
-        return { 
-            success: true, 
-            message: 'All data has been successfully reset.' 
-        };
+        return result;
         
     } catch (error) {
         console.error('Reset action failed:', error);

@@ -1,10 +1,11 @@
+'use client';
 // services/server-reset-service.ts
 import { adminDb } from '@/lib/firebase-admin';
 
 const collectionsToDelete = [
     'borrowers',
     'conversations',
-    'settings', 
+    'settings',
     'loans',
     'accounts',
     'journal',
@@ -16,65 +17,71 @@ const collectionsToDelete = [
 
 const groupCollectionsToDelete = ['payments', 'messages'];
 
-export async function serverDeleteAllData(): Promise<void> {
-    console.log("Starting server-side data reset...");
-    
-    // Delete top-level collections
-    for (const collectionName of collectionsToDelete) {
-        await deleteCollection(collectionName);
-    }
-    
-    // Delete collection group documents (subcollections)
-    for (const collectionName of groupCollectionsToDelete) {
-        await deleteCollectionGroup(collectionName);
-    }
-    
-    console.log("Server-side data reset completed.");
-}
-
-async function deleteCollection(collectionName: string): Promise<void> {
+export async function serverDeleteAllData(): Promise<{ success: boolean; message: string }> {
     try {
-        const collectionRef = adminDb.collection(collectionName);
-        const snapshot = await collectionRef.get();
+        console.log("🚀 Starting server-side data reset...");
         
-        if (snapshot.empty) {
-            console.log(`Collection ${collectionName} is empty, skipping...`);
-            return;
+        let totalDeleted = 0;
+
+        // Delete collection group documents (subcollections) first
+        for (const collectionName of groupCollectionsToDelete) {
+            const count = await deleteCollectionGroup(collectionName);
+            totalDeleted += count;
+            console.log(`✅ Deleted ${count} documents from collection group: ${collectionName}`);
         }
         
-        const batch = adminDb.batch();
-        snapshot.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
+        // Delete top-level collections
+        for (const collectionName of collectionsToDelete) {
+            const count = await deleteCollection(collectionName);
+            totalDeleted += count;
+            console.log(`✅ Deleted ${count} documents from collection: ${collectionName}`);
+        }
         
-        await batch.commit();
-        console.log(`✅ Deleted ${snapshot.size} documents from ${collectionName}`);
+        console.log(`🎉 Server-side data reset completed. Total documents deleted: ${totalDeleted}`);
+        
+        return { 
+            success: true, 
+            message: `Successfully reset all data. Deleted ${totalDeleted} documents across ${collectionsToDelete.length + groupCollectionsToDelete.length} collections.`
+        };
         
     } catch (error) {
-        console.error(`❌ Error deleting collection ${collectionName}:`, error);
-        throw error;
+        console.error('❌ Server-side data reset failed:', error);
+        return { 
+            success: false, 
+            message: `Reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        };
     }
 }
 
-async function deleteCollectionGroup(collectionName: string): Promise<void> {
-    try {
-        const snapshot = await adminDb.collectionGroup(collectionName).get();
-        
-        if (snapshot.empty) {
-            console.log(`Collection group ${collectionName} is empty, skipping...`);
-            return;
-        }
-        
-        const batch = adminDb.batch();
-        snapshot.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-        
-        await batch.commit();
-        console.log(`✅ Deleted ${snapshot.size} documents from collection group ${collectionName}`);
-        
-    } catch (error) {
-        console.error(`❌ Error deleting collection group ${collectionName}:`, error);
-        throw error;
+async function deleteCollection(collectionName: string): Promise<number> {
+    const collectionRef = adminDb.collection(collectionName);
+    const snapshot = await collectionRef.get();
+    
+    if (snapshot.empty) {
+        return 0;
     }
+    
+    const batch = adminDb.batch();
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    return snapshot.size;
+}
+
+async function deleteCollectionGroup(collectionName: string): Promise<number> {
+    const snapshot = await adminDb.collectionGroup(collectionName).get();
+    
+    if (snapshot.empty) {
+        return 0;
+    }
+    
+    const batch = adminDb.batch();
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    return snapshot.size;
 }
