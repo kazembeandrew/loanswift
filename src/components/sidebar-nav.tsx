@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -74,6 +75,7 @@ export function SidebarNav() {
 
   const showFinancials = isAdmin || isCeo || isCfo;
   const showPortfolio = !isHr; // Everyone except HR sees this
+  const showSettings = isAdmin || isCeo || isCfo;
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
@@ -230,7 +232,7 @@ export function SidebarNav() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarMenu>
-         {isAdmin && (
+         {showSettings && (
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild

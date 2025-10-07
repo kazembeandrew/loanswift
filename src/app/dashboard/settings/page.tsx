@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
@@ -40,6 +41,8 @@ export default function SettingsPage() {
   const { user, userProfile } = useAuth();
   const db = useDB();
 
+  const canAccessSettings = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
+
   useEffect(() => {
     async function fetchSettings() {
       setIsLoading(true);
@@ -47,12 +50,12 @@ export default function SettingsPage() {
       setSettings(settingsData);
       setIsLoading(false);
     }
-    if (userProfile?.role === 'admin') {
+    if (canAccessSettings) {
       fetchSettings();
     } else {
         setIsLoading(false);
     }
-  }, [userProfile, db]);
+  }, [canAccessSettings, db]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -133,7 +136,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (!userProfile || userProfile.role !== 'admin') {
+  if (!canAccessSettings) {
     return (
         <>
             <Header title="Settings" />
