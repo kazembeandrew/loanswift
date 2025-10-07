@@ -26,7 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getSettings, updateSettings } from '@/services/settings-service';
-import { handleDeleteAllData } from '@/app/actions/reset';
+import { resetDataAction } from '@/app/actions/reset';
 import type { BusinessSettings } from '@/types';
 import { Loader2, Trash2, ShieldAlert, BookLock } from 'lucide-react';
 import { useDB } from '@/lib/firebase-provider';
@@ -88,14 +88,14 @@ export default function SettingsPage() {
   const confirmDeleteAllData = () => {
     startDeletingTransition(async () => {
       try {
-        const result = await handleDeleteAllData();
+        const result = await resetDataAction();
         if (result.success) {
           toast({
             title: 'Data Deletion Successful',
             description: 'All application data has been permanently deleted. Please refresh the page.',
           });
         } else {
-            throw new Error(result.error);
+            throw new Error(result.message);
         }
       } catch (error) {
         toast({
