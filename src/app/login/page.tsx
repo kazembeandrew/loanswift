@@ -15,6 +15,8 @@ import { Loader2, Landmark } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,6 +32,20 @@ export default function LoginPage() {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
+  
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log('✅ User authenticated:', user.uid);
+        
+        // Check for custom claims (roles)
+        const tokenResult = await user.getIdTokenResult();
+        console.log('🔑 User claims:', tokenResult.claims);
+        console.log('👤 User role:', tokenResult.claims.role);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -37,15 +53,17 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signIn(email, password);
+      
       // Add this debug line:
       console.log('Login successful, checking auth state...');
+      
     } catch (error) {
-        console.error('Login error details:', error); // Add detailed logging
-        toast({
-            title: 'Login Failed',
-            description: 'Please check your email and password.',
-            variant: 'destructive',
-        });
+      console.error('Login error details:', error); // Add detailed logging
+      toast({
+        title: 'Login Failed',
+        description: 'Please check your email and password.',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
