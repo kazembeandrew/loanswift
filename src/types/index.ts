@@ -1,4 +1,5 @@
 
+
 export type UserProfile = {
   uid: string;
   email: string;
@@ -121,7 +122,7 @@ export type MonthEndClosure = {
   initiatedAt: string; // ISO String
   approvedBy?: string; // UID of the CEO
   approvedByEmail?: string;
-a  pprovedAt?: string; // ISO String
+  approvedAt?: string; // ISO String
   processedBy?: string; // UID of the CFO who processed it
   processedByEmail?: string;
   processedAt?: string; // ISO String
