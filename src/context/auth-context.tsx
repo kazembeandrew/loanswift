@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, signOut as signOutUser, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from 'firebase/auth';
-import { getUserProfile, type UserProfile } from '@/services/user-service';
+import { getUserProfile, ensureUserDocument, type UserProfile } from '@/services/user-service';
 import { useFirebaseAuth, useDB } from '@/lib/firebase-provider';
 import { Loader2 } from 'lucide-react';
+import { auth } from '@/lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -35,22 +36,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!auth || !db) return;
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
-      if (firebaseUser) {
-        // User is signed in, fetch their profile
-        const profile = await getUserProfile(db, firebaseUser.uid);
-        setUser(firebaseUser);
-        setUserProfile(profile);
+    let mounted = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!mounted) return;
+
+      if (user) {
+        setUser(user);
+        try {
+          console.log(`🔄 Ensuring user document for: ${user.uid}`);
+          const userDoc = await ensureUserDocument(db, user);
+          
+          if (mounted) {
+            if (userDoc) {
+              setUserProfile(userDoc);
+              console.log(`✅ User profile loaded with role: ${userDoc.role}`);
+            } else {
+              console.error('❌ Failed to ensure user document - signing out user');
+              // If we can't create the user document, sign them out
+              await signOutUser(auth);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error ensuring user document:', error);
+          if (mounted) {
+            setUserProfile(null);
+          }
+        }
       } else {
-        // User is signed out
         setUser(null);
         setUserProfile(null);
       }
-      setLoading(false);
+      
+      if (mounted) {
+        setLoading(false);
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, [auth, db]);
 
   const signIn = async (email: string, password: string) => {
@@ -71,8 +97,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = { user, userProfile, loading, signIn, signInWithGoogle, signOut };
 
-  // This is the crucial part: we don't render children until we know the auth state.
-  // The DashboardLayout checks for loading and user, but this adds another layer.
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
