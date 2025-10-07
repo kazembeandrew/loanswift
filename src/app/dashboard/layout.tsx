@@ -12,15 +12,16 @@ import { useToast } from '@/hooks/use-toast';
 const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, loading, signOut } = useAuth();
+  const { user, userProfile, loading, signOut } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSignOut = useCallback(() => {
-    signOut();
-    toast({
-      title: 'Session Expired',
-      description: 'You have been logged out due to inactivity.',
+    signOut().then(() => {
+        toast({
+          title: 'Session Expired',
+          description: 'You have been logged out due to inactivity.',
+        });
     });
   }, [signOut, toast]);
 
@@ -30,40 +31,43 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       router.push('/login');
       return;
     }
-
-    let inactivityTimer: NodeJS.Timeout;
-
-    const resetTimer = () => {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(handleSignOut, INACTIVITY_TIMEOUT);
-    };
     
-    const activityEvents = [
-      'mousemove',
-      'mousedown',
-      'keypress',
-      'touchstart',
-      'scroll'
-    ];
+    // Only set up timers if the user is logged in
+    if(user) {
+        let inactivityTimer: NodeJS.Timeout;
 
-    activityEvents.forEach(event => {
-      window.addEventListener(event, resetTimer);
-    });
+        const resetTimer = () => {
+          clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(handleSignOut, INACTIVITY_TIMEOUT);
+        };
+        
+        const activityEvents = [
+          'mousemove',
+          'mousedown',
+          'keypress',
+          'touchstart',
+          'scroll'
+        ];
 
-    resetTimer(); // Initialize timer
+        activityEvents.forEach(event => {
+          window.addEventListener(event, resetTimer);
+        });
 
-    return () => {
-      clearTimeout(inactivityTimer);
-       activityEvents.forEach(event => {
-        window.removeEventListener(event, resetTimer);
-      });
-    };
+        resetTimer(); // Initialize timer
+
+        return () => {
+          clearTimeout(inactivityTimer);
+           activityEvents.forEach(event => {
+            window.removeEventListener(event, resetTimer);
+          });
+        };
+    }
 
   }, [user, loading, router, handleSignOut]);
 
-  if (loading || !user) {
+  if (loading || !user || !userProfile) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background-light dark:bg-background-dark">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
