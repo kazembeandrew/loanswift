@@ -1,16 +1,16 @@
 'use server';
-import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Loan, RepaymentScheduleItem } from '@/types';
 import { addMonths } from 'date-fns';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 import { addAuditLog } from './audit-log-service';
 import { getAuth } from 'firebase/auth';
-import { getFirebase } from '@/lib/firebase';
+import { getFirebase, db } from '@/lib/firebase';
 import { adminDb } from '@/lib/firebase-admin';
 
 
-export async function getLoans(db: Firestore): Promise<Loan[]> {
+export async function getLoans(): Promise<Loan[]> {
   const loansCollection = collection(db, 'loans');
   try {
     const snapshot = await getDocs(loansCollection);
@@ -27,7 +27,7 @@ export async function getLoans(db: Firestore): Promise<Loan[]> {
   }
 }
 
-export async function getLoanById(db: Firestore, id: string): Promise<Loan | null> {
+export async function getLoanById(id: string): Promise<Loan | null> {
     const docRef = doc(db, 'loans', id);
     try {
         const docSnap = await getDoc(docRef);
@@ -47,7 +47,7 @@ export async function getLoanById(db: Firestore, id: string): Promise<Loan | nul
     }
 }
 
-export async function getLoansByBorrowerId(db: Firestore, borrowerId: string): Promise<Loan[]> {
+export async function getLoansByBorrowerId(borrowerId: string): Promise<Loan[]> {
     const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId));
     try {
         const snapshot = await getDocs(q);
@@ -85,8 +85,8 @@ function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>)
 }
 
 
-export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
-  const auth = getAuth(getFirebase());
+export async function addLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>): Promise<string> {
+  const auth = getAuth(getFirebase().app);
   const currentUser = auth.currentUser;
 
   const loansCollection = collection(db, 'loans');
@@ -150,7 +150,7 @@ export async function addLoan(db: Firestore, loanData: Omit<Loan, 'id' | 'repaym
   return docRef.id;
 }
 
-export async function updateLoan(db: Firestore, id: string, updates: Partial<Loan>): Promise<void> {
+export async function updateLoan(id: string, updates: Partial<Loan>): Promise<void> {
     const docRef = doc(db, 'loans', id);
     await updateDoc(docRef, updates)
     .catch(async (serverError) => {

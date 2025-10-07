@@ -14,16 +14,18 @@ export default function BorrowersPage() {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const db = useDB();
   const { userProfile } = useAuth();
   
   const isManager = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
   const fetchData = useCallback(async () => {
+    setIsLoading(true);
     // Managers see all borrowers, loan officers see only their own.
     const borrowersData = await getBorrowers(db, isManager ? undefined : userProfile?.uid);
     const [loansData, paymentsData] = await Promise.all([
-      getLoans(db),
+      getLoans(),
       getAllPayments(db),
     ]);
     
@@ -37,6 +39,7 @@ export default function BorrowersPage() {
     
     setLoans(filteredLoans);
     setPayments(filteredPayments);
+    setIsLoading(false);
 
   }, [db, userProfile, isManager]);
 
@@ -50,7 +53,13 @@ export default function BorrowersPage() {
     <>
       <Header title="Borrowers" />
       <main className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <BorrowerList borrowers={borrowers} loans={loans} payments={payments} fetchData={fetchData} />
+        <BorrowerList 
+            borrowers={borrowers} 
+            loans={loans} 
+            payments={payments} 
+            fetchData={fetchData} 
+            isLoading={isLoading}
+        />
       </main>
     </>
   );

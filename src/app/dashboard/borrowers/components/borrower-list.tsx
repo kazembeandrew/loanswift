@@ -98,9 +98,10 @@ type BorrowerListProps = {
   loans: Loan[];
   payments: (Payment & { loanId: string })[];
   fetchData: () => Promise<void>;
+  isLoading: boolean;
 };
 
-export default function BorrowerList({ borrowers, loans, payments, fetchData }: BorrowerListProps) {
+export default function BorrowerList({ borrowers, loans, payments, fetchData, isLoading }: BorrowerListProps) {
   
   const [isAddBorrowerOpen, setAddBorrowerOpen] = useState(false);
   const [isEditBorrowerOpen, setEditBorrowerOpen] = useState(false);
@@ -244,7 +245,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
       collateral: values.collateral,
     };
     
-    await addLoan(db, newLoanData);
+    await addLoan(newLoanData);
     await fetchData();
     setAddNewLoanOpen(false);
     newLoanForm.reset(newLoanFormDefaultValues);
@@ -334,75 +335,81 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData }: 
         </Dialog>
       </CardHeader>
       <CardContent>
-        <div className="rounded-lg border">
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead className="w-[150px] sm:w-auto">Borrower</TableHead>
-                <TableHead className="hidden md:table-cell">ID Number</TableHead>
-                <TableHead>Active Loans</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {borrowers.map((borrower) => {
-                const borrowerLoans = loans.filter((loan) => loan.borrowerId === borrower.id);
-                return (
-                    <TableRow key={borrower.id}>
-                    <TableCell className="font-medium">
-                        <Link href={`/dashboard/borrowers/${borrower.id}`} className="hover:underline">
-                        {borrower.name}
-                        </Link>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{borrower.idNumber}</TableCell>
-                    <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                        {borrowerLoans.map((loan) => {
-                            const status = getLoanStatus(loan);
-                            return (
-                            <Badge
-                                key={loan.id}
-                                variant={getLoanStatusVariant(status)}
-                                className="cursor-pointer"
-                                onClick={() => status !== 'closed' && handleRecordPaymentClick(borrower, loan)}
-                            >
-                                {loan.id} ({status})
-                            </Badge>
-                            )
-                        })}
-                        </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleAddNewLoanClick(borrower)}>Add New Loan</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditBorrowerClick(borrower)}>Edit Borrower</DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/borrowers/${borrower.id}`}>View Dashboard</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
-                            {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
-                                <DropdownMenuItem key={loan.id} onClick={() => handleRecordPaymentClick(borrower, loan)}>
-                                For Loan {loan.id}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                );
-                })}
-            </TableBody>
-            </Table>
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-40">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="rounded-lg border">
+              <Table>
+              <TableHeader>
+                  <TableRow>
+                  <TableHead className="w-[150px] sm:w-auto">Borrower</TableHead>
+                  <TableHead className="hidden md:table-cell">ID Number</TableHead>
+                  <TableHead>Active Loans</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {borrowers.map((borrower) => {
+                  const borrowerLoans = loans.filter((loan) => loan.borrowerId === borrower.id);
+                  return (
+                      <TableRow key={borrower.id}>
+                      <TableCell className="font-medium">
+                          <Link href={`/dashboard/borrowers/${borrower.id}`} className="hover:underline">
+                          {borrower.name}
+                          </Link>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">{borrower.idNumber}</TableCell>
+                      <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                          {borrowerLoans.map((loan) => {
+                              const status = getLoanStatus(loan);
+                              return (
+                              <Badge
+                                  key={loan.id}
+                                  variant={getLoanStatusVariant(status)}
+                                  className="cursor-pointer"
+                                  onClick={() => status !== 'closed' && handleRecordPaymentClick(borrower, loan)}
+                              >
+                                  {loan.id} ({status})
+                              </Badge>
+                              )
+                          })}
+                          </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                          <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleAddNewLoanClick(borrower)}>Add New Loan</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditBorrowerClick(borrower)}>Edit Borrower</DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/borrowers/${borrower.id}`}>View Dashboard</Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
+                              {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
+                                  <DropdownMenuItem key={loan.id} onClick={() => handleRecordPaymentClick(borrower, loan)}>
+                                  For Loan {loan.id}
+                                  </DropdownMenuItem>
+                              ))}
+                          </DropdownMenuContent>
+                          </DropdownMenu>
+                      </TableCell>
+                      </TableRow>
+                  );
+                  })}
+              </TableBody>
+              </Table>
+          </div>
+        )}
       </CardContent>
 
        <Dialog open={isEditBorrowerOpen} onOpenChange={setEditBorrowerOpen}>
