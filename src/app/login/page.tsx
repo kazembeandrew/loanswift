@@ -37,8 +37,10 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signIn(email, password);
-      // On successful sign-in, the useEffect above will handle the redirect.
+      // Add this debug line:
+      console.log('Login successful, checking auth state...');
     } catch (error) {
+        console.error('Login error details:', error); // Add detailed logging
         toast({
             title: 'Login Failed',
             description: 'Please check your email and password.',
