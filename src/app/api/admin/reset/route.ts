@@ -1,33 +1,13 @@
 'use server';
 
-import { NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { serverDeleteAllData } from '@/services/server-reset-service';
-import { getAdminApp, adminDb } from '@/lib/firebase-admin';
+import { verifyUser } from '@/lib/auth-helpers';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Ensure the admin app is initialized
-    getAdminApp();
-
-    const body = await request.json();
-    const idToken = request.headers.get('Authorization')?.split('Bearer ')[1];
-
-    if (!idToken) {
-      return NextResponse.json({ success: false, message: 'Unauthorized: No token provided.' }, { status: 401 });
-    }
-
-    // Verify the token and get the user's UID
-    const decodedToken = await getAuth().verifyIdToken(idToken);
-    const uid = decodedToken.uid;
-    
-    // Check the user's role in Firestore
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    const userData = userDoc.data();
-
-    if (userData?.role !== 'admin') {
-      return NextResponse.json({ success: false, message: 'Forbidden: Admin access required.' }, { status: 403 });
-    }
+    // Only allow users with the 'admin' role to perform this action.
+    await verifyUser(request, ['admin']);
 
     // If the user is an admin, proceed with data deletion
     const result = await serverDeleteAllData();
@@ -40,13 +20,8 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('API Reset Error:', error);
-    let message = 'An unknown error occurred.';
-    let status = 500;
-
-    if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
-        message = 'Unauthorized: Invalid or expired token.';
-        status = 401;
-    }
+    const message = error.message || 'An unknown error occurred.';
+    const status = error.status || 500;
     
     return NextResponse.json({ success: false, message }, { status });
   }

@@ -1,45 +1,16 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, getAdminApp } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase-admin';
 import type { Account, JournalEntry, TransactionLine, MonthEndClosure } from '@/types';
-import { format } from 'date-fns';
 import { addAuditLog } from '@/services/audit-log-service';
-import { getAuth } from 'firebase-admin/auth';
+import { verifyUser, getUser } from '@/lib/auth-helpers';
+import { C_LEVEL_ROLES } from '@/lib/auth-helpers';
 
-// Helper to get user email and role from UID using Admin SDK
-async function getUser(uid: string): Promise<{ email: string; role: string }> {
-  try {
-    const userRecord = await getAuth(getAdminApp()).getUser(uid);
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    const role = userDoc.exists ? userDoc.data()?.role : 'unknown';
-    return { email: userRecord.email || 'unknown', role };
-  } catch (error) {
-    console.error(`Failed to get user data for UID: ${uid}`, error);
-    return { email: 'unknown', role: 'unknown' };
-  }
-}
-
-async function verifyUser(request: NextRequest, allowedRoles: string[]) {
-    const idToken = request.headers.get('Authorization')?.split('Bearer ')[1];
-
-    if (!idToken) {
-      throw { message: 'Unauthorized: No token provided.', status: 401 };
-    }
-
-    const decodedToken = await getAuth(getAdminApp()).verifyIdToken(idToken);
-    const user = await getUser(decodedToken.uid);
-
-    if (!allowedRoles.includes(user.role)) {
-       throw { message: 'Forbidden: You do not have permission to perform this action.', status: 403 };
-    }
-
-    return { uid: decodedToken.uid, email: user.email };
-}
 
 export async function GET(request: NextRequest) {
     try {
-        await verifyUser(request, ['ceo', 'cfo', 'admin']);
+        await verifyUser(request, C_LEVEL_ROLES);
         const { searchParams } = new URL(request.url);
         const periodId = searchParams.get('periodId');
         

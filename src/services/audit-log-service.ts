@@ -1,16 +1,30 @@
-import { collection, addDoc, getDocs, query, orderBy, type Firestore } from 'firebase/firestore';
-import type { AuditLog } from '@/types';
-import { errorEmitter } from '@/lib/error-emitter';
-import { FirestorePermissionError } from '@/lib/errors';
+import { collection, addDoc } from 'firebase/firestore';
+import type { AuditLog, UserProfile } from '@/types';
 import { adminDb } from '@/lib/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 
 /**
  * Adds a new entry to the audit log using the Admin SDK. This is a server-only operation.
  * @param logData The data for the audit log entry.
  */
 export async function addAuditLog(logData: Omit<AuditLog, 'id' | 'timestamp'>): Promise<void> {
+
+  let userEmail = logData.userEmail;
+
+  // If email is a UID, try to get the email address from Firebase Auth
+  if (userEmail && !userEmail.includes('@')) {
+    try {
+      const userRecord = await getAuth().getUser(userEmail);
+      userEmail = userRecord.email || logData.userEmail; // Fallback to UID if email is not found
+    } catch (error) {
+        console.warn(`Could not resolve email for UID in audit log: ${userEmail}`);
+    }
+  }
+
+
   const fullLogData = {
     ...logData,
+    userEmail: userEmail,
     timestamp: new Date().toISOString(),
   };
 

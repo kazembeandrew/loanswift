@@ -49,7 +49,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { addBorrower, updateBorrower } from '@/services/borrower-service';
-import { addLoan } from '@/services/loan-service';
+import { handleAddLoan } from '@/app/actions/loan';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDB } from '@/lib/firebase-client-provider';
@@ -108,7 +108,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [isAddNewLoanOpen, setAddNewLoanOpen] = useState(false);
-  const [isSubmittingPayment, startPaymentTransition] = useTransition();
+  const [isSubmitting, startTransition] = useTransition();
 
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -153,7 +153,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
     e.preventDefault();
     if (!selectedBorrower || !selectedLoan || !paymentDetails.amount || !userProfile) return;
 
-    startPaymentTransition(async () => {
+    startTransition(async () => {
         const result = await handleRecordPayment({
             loanId: selectedLoan.id,
             amount: parseFloat(paymentDetails.amount),
@@ -189,15 +189,17 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
   const handleEditBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
     if (!selectedBorrower) return;
 
-    await updateBorrower(db, selectedBorrower.id, values);
-    
-    setEditBorrowerOpen(false);
-    borrowerForm.reset(borrowerFormDefaultValues);
-    toast({
-      title: 'Borrower Updated',
-      description: `${values.name}'s details have been successfully updated.`,
+    startTransition(async () => {
+        await updateBorrower(db, selectedBorrower.id, values);
+        
+        setEditBorrowerOpen(false);
+        borrowerForm.reset(borrowerFormDefaultValues);
+        toast({
+        title: 'Borrower Updated',
+        description: `${values.name}'s details have been successfully updated.`,
+        });
+        await fetchData();
     });
-    await fetchData();
   };
   
   const handleAddBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
@@ -206,21 +208,23 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
         return;
     }
     
-    const newBorrowerData: Omit<Borrower, 'id' | 'joinDate'> = {
-      ...values,
-      loanOfficerId: userProfile.uid,
-    };
-    
-    const newBorrower = await addBorrower(db, newBorrowerData);
-    
-    await fetchData();
-    setAddBorrowerOpen(false);
-    borrowerForm.reset(borrowerFormDefaultValues);
-    toast({
-      title: 'Borrower Added',
-      description: `${values.name} has been successfully added. Redirecting...`,
+    startTransition(async () => {
+        const newBorrowerData: Omit<Borrower, 'id' | 'joinDate'> = {
+            ...values,
+            loanOfficerId: userProfile.uid,
+        };
+        
+        const newBorrower = await addBorrower(db, newBorrowerData);
+        
+        await fetchData();
+        setAddBorrowerOpen(false);
+        borrowerForm.reset(borrowerFormDefaultValues);
+        toast({
+            title: 'Borrower Added',
+            description: `${values.name} has been successfully added. Redirecting...`,
+        });
+        router.push(`/dashboard/borrowers/${newBorrower.id}`);
     });
-    router.push(`/dashboard/borrowers/${newBorrower.id}`);
   };
 
   const handleAddNewLoanClick = (borrower: Borrower) => {
@@ -233,25 +237,36 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
   };
   
   const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>) => {
-    if (!selectedBorrower) return;
+    if (!selectedBorrower || !userProfile) return;
     
-    const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
-      borrowerId: selectedBorrower.id,
-      principal: values.loanAmount,
-      interestRate: values.interestRate,
-      repaymentPeriod: values.repaymentPeriod,
-      startDate: values.startDate,
-      outstandingBalance: values.loanAmount * (1 + values.interestRate / 100),
-      collateral: values.collateral,
-    };
-    
-    await addLoan(newLoanData);
-    await fetchData();
-    setAddNewLoanOpen(false);
-    newLoanForm.reset(newLoanFormDefaultValues);
-    toast({
-      title: 'New Loan Added',
-      description: `A new loan has been added for ${selectedBorrower.name}.`,
+    startTransition(async () => {
+        const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
+            borrowerId: selectedBorrower.id,
+            principal: values.loanAmount,
+            interestRate: values.interestRate,
+            repaymentPeriod: values.repaymentPeriod,
+            startDate: values.startDate,
+            outstandingBalance: values.loanAmount * (1 + values.interestRate / 100),
+            collateral: values.collateral,
+        };
+        
+        const result = await handleAddLoan(newLoanData, userProfile.email);
+        
+        if (result.success) {
+            await fetchData();
+            setAddNewLoanOpen(false);
+            newLoanForm.reset(newLoanFormDefaultValues);
+            toast({
+                title: 'New Loan Added',
+                description: `A new loan has been added for ${selectedBorrower.name}.`,
+            });
+        } else {
+            toast({
+                title: 'Failed to Add Loan',
+                description: result.message,
+                variant: 'destructive',
+            });
+        }
     });
   };
 
@@ -320,14 +335,17 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
             </DialogHeader>
             <Form {...borrowerForm}>
               <form onSubmit={borrowerForm.handleSubmit(handleAddBorrowerSubmit)} className="grid gap-4 py-4">
-                <FormField control={borrowerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={borrowerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormMessage>)} />
                 <DialogFooter className="mt-4">
-                    <Button type="submit">Save Borrower</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Borrower
+                    </Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -422,14 +440,17 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
             </DialogHeader>
             <Form {...borrowerForm}>
               <form onSubmit={borrowerForm.handleSubmit(handleEditBorrowerSubmit)} className="grid gap-4 py-4">
-                 <FormField control={borrowerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="idNumber" render={({ field }) => (<FormItem><FormLabel>ID Number</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="guarantorName" render={({ field }) => (<FormItem><FormLabel>Guarantor's Name</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField control={borrowerForm.control} name="guarantorPhone" render={({ field }) => (<FormItem><FormLabel>Guarantor's Phone</FormLabel><FormControl><Input {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
                 <DialogFooter>
-                  <Button type="submit">Save Changes</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                  </Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -460,8 +481,8 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={isSubmittingPayment}>
-                {isSubmittingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Generate Receipt
               </Button>
             </DialogFooter>
@@ -480,23 +501,26 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
                 </DialogHeader>
                 <Form {...newLoanForm}>
                     <form onSubmit={newLoanForm.handleSubmit(handleAddNewLoanSubmit)} className="grid gap-4 py-4">
-                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''} disabled={isSubmitting}/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
                          <div>
                           <Label>Collateral</Label>
                           {newLoanCollateralFields.map((field, index) => (
                             <div key={field.id} className="flex items-center gap-2 mt-2">
-                               <FormField control={newLoanForm.control} name={`collateral.${index}.name`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input placeholder="Item Name" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={newLoanForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                              <Button type="button" variant="ghost" size="icon" onClick={() => removeNewLoanCollateral(index)}><Trash2 className="h-4 w-4" /></Button>
+                               <FormField control={newLoanForm.control} name={`collateral.${index}.name`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input placeholder="Item Name" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                               <FormField control={newLoanForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeNewLoanCollateral(index)} disabled={isSubmitting}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           ))}
-                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => appendNewLoanCollateral({ name: '', value: 0 })}> Add Collateral </Button>
+                          <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => appendNewLoanCollateral({ name: '', value: 0 })} disabled={isSubmitting}> Add Collateral </Button>
                         </div>
                         <DialogFooter>
-                            <Button type="submit">Save loan</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save loan
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>
