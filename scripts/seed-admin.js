@@ -5,10 +5,16 @@ require('dotenv').config({ path: '.env' });
 const admin = require('firebase-admin');
 
 // --- Configuration ---
-// The user to be created. Change these values to your desired admin credentials.
-const ADMIN_EMAIL = 'info.ntchito@gmail.com';
-const ADMIN_PASSWORD = 'Jackliness@2';
+// The user to be created is now loaded from your .env file
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 // --- End Configuration ---
+
+
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.error('Error: Missing ADMIN_EMAIL or ADMIN_PASSWORD in your .env file.');
+    process.exit(1);
+}
 
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
@@ -67,8 +73,10 @@ async function seedAdminUser() {
     const userDocData = {
         uid,
         email,
+        displayName: email.split('@')[0],
         role: 'admin',
-        createdAt: userRecord.metadata.creationTime,
+        status: 'approved',
+        createdAt: userRecord.metadata.creationTime || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
     

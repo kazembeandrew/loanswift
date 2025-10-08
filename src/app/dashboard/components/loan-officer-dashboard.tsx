@@ -178,15 +178,13 @@ export default function LoanOfficerDashboard() {
       <DashboardMetrics loans={loans} payments={payments} borrowers={borrowers} />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardContent className="p-0">
+        <div className="lg:col-span-4">
             <BorrowerList 
                 borrowers={borrowers}
                 loans={loans}
                 payments={payments}
             />
-          </CardContent>
-        </Card>
+        </div>
         <div className="lg:col-span-3 space-y-6">
             <MyTasks 
                 loans={loans}
