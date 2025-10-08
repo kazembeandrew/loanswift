@@ -14,16 +14,26 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
 import type { SituationReport, Borrower } from '@/types';
-import { Loader2, ClipboardList, ShieldAlert } from 'lucide-react';
+import { Loader2, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { useRealtimeData } from '@/hooks/use-realtime-data';
+import { useMemo } from 'react';
 
 export default function SituationReportsPage() {
   const { userProfile, user } = useAuth();
-  const { situationReports: reports, borrowers, loading: isLoading } = useRealtimeData(user);
+  const { situationReports: allReports, borrowers, loading: isLoading } = useRealtimeData(user);
 
   const isManager = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
+
+  const reports = useMemo(() => {
+    if (isManager) {
+        return allReports;
+    }
+    // For loan officers, filter reports they have filed.
+    return allReports.filter(report => report.reportedBy === user?.uid);
+  }, [allReports, isManager, user?.uid]);
+
 
   const getBorrowerName = (borrowerId: string) => {
     return borrowers.find((b) => b.id === borrowerId)?.name || 'Unknown Borrower';
@@ -57,35 +67,19 @@ export default function SituationReportsPage() {
     );
   }
 
-  if (!isManager) {
-    return (
-        <>
-            <Header title="Situation Reports" />
-            <main className="flex flex-1 items-center justify-center p-4 md:p-8">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                       <div className="flex justify-center">
-                         <ShieldAlert className="h-12 w-12 text-destructive" />
-                       </div>
-                        <CardTitle className="mt-4">Access Denied</CardTitle>
-                        <CardDescription>
-                            You do not have permission to view this page. This feature is for managerial roles only.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </main>
-        </>
-    );
-  }
-
   return (
     <>
       <Header title="Situation Reports" />
       <main className="flex-1 space-y-4 p-4 md:p-8">
         <Card>
           <CardHeader>
-            <CardTitle>Portfolio Situation Reports</CardTitle>
-            <CardDescription>A centralized log of all qualitative reports filed for all borrowers.</CardDescription>
+            <CardTitle>Situation Reports</CardTitle>
+            <CardDescription>
+                {isManager 
+                    ? "A centralized log of all qualitative reports filed for all borrowers." 
+                    : "A log of all situation reports you have filed."
+                }
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {reports.length > 0 ? (

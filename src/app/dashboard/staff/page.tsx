@@ -40,7 +40,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDB } from '@/lib/firebase-client-provider';
 import { Badge } from '@/components/ui/badge';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 
 function UserApprovalList({ users, onUpdate }: { users: UserProfile[], onUpdate: () => void }) {
@@ -56,16 +56,20 @@ function UserApprovalList({ users, onUpdate }: { users: UserProfile[], onUpdate:
     startTransition(async () => {
       try {
         const userRef = doc(db, 'users', userId);
-        const updates: any = {
-          status: newStatus,
-          updatedAt: new Date().toISOString(),
-        };
         if (newStatus === 'approved') {
-          updates.approvedBy = userProfile.uid;
-          updates.approvedAt = new Date().toISOString();
+          const updates = {
+            status: 'approved',
+            approvedBy: userProfile.uid,
+            approvedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await updateDoc(userRef, updates);
+          toast({ title: `User Approved`, description: `The user has been successfully approved.` });
+        } else {
+          // If rejected, delete the user document. The backend function would handle deleting the Auth user.
+          await deleteDoc(userRef);
+          toast({ title: `User Rejected`, description: `The user's registration has been rejected and deleted.` });
         }
-        await updateDoc(userRef, updates);
-        toast({ title: `User ${newStatus}`, description: `The user has been successfully ${newStatus}.` });
         onUpdate();
       } catch (error: any) {
         toast({ title: 'Error', description: `Failed to update user status: ${error.message}`, variant: 'destructive' });
@@ -132,7 +136,7 @@ export default function StaffPage() {
   const [isAddUserOpen, setAddUserOpen] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', role: 'loan_officer' as UserProfile['role'] });
   const { toast } = useToast();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const db = useDB();
 
   const fetchData = useCallback(async () => {
@@ -232,7 +236,7 @@ export default function StaffPage() {
     );
   }
 
-  const approvedUsers = users.filter(u => u.status === 'approved' || u.status === undefined);
+  const approvedUsers = users.filter(u => u.status === 'approved');
 
 
   return (
@@ -310,23 +314,23 @@ export default function StaffPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {approvedUsers.map((user) => (
-                      <TableRow key={user.uid}>
+                    {approvedUsers.map((userItem) => (
+                      <TableRow key={userItem.uid}>
                         <TableCell>
                            <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9">
-                                    <AvatarImage src={getBorrowerAvatar(user.uid)} alt="User Avatar" />
-                                    <AvatarFallback>{user.email.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                    <AvatarImage src={getBorrowerAvatar(userItem.uid)} alt="User Avatar" />
+                                    <AvatarFallback>{userItem.email.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
-                                <span className="font-medium">{user.displayName || user.email.split('@')[0]}</span>
+                                <span className="font-medium">{userItem.displayName || userItem.email.split('@')[0]}</span>
                             </div>
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{userItem.email}</TableCell>
                         <TableCell>
                           <Select
-                            value={user.role}
-                            onValueChange={(newRole: UserProfile['role']) => onRoleChange(user.uid, newRole)}
-                            disabled={isUpdating || (user.uid === userProfile?.uid && userProfile?.role === 'admin') || userProfile?.role !== 'admin'}
+                            value={userItem.role}
+                            onValueChange={(newRole: UserProfile['role']) => onRoleChange(userItem.uid, newRole)}
+                            disabled={isUpdating || (userItem.uid === user?.uid && userProfile?.role === 'admin') || (userProfile?.role !== 'admin' && userProfile?.role !== 'hr')}
                           >
                             <SelectTrigger className="w-40">
                                 <SelectValue />

@@ -73,7 +73,7 @@ export function SidebarNav() {
 
   const showFinancials = isAdmin || isCeo || isCfo;
   const showPortfolio = !isHr; // Everyone except HR sees this
-  const showSettings = isAdmin || isCeo || isCfo;
+  const showSettings = isAdmin || isCeo;
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
