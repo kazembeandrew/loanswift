@@ -143,10 +143,15 @@ async function processApprovedMonthEndClose(processedByUid: string, processedByE
     const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
     const incomeAccounts = allAccounts.filter(a => a.type === 'income');
     const expenseAccounts = allAccounts.filter(a => a.type === 'expense');
-    let capitalAccount = allAccounts.find(a => a.name === 'Retained Earnings' && a.type === 'equity') || allAccounts.find(a => a.type === 'equity');
+    
+    // Find a suitable equity account, preferring 'Retained Earnings' but falling back to any equity account.
+    let capitalAccount = allAccounts.find(a => a.name === 'Retained Earnings' && a.type === 'equity') 
+                        || allAccounts.find(a => a.type === 'equity');
+
     if (!capitalAccount) {
-      throw { message: 'No capital/equity account found to close the books into.', status: 500 };
+      throw { message: 'No capital/equity account found to close the books into. Please create one.', status: 500 };
     }
+
     const totalRevenue = incomeAccounts.reduce((sum, acc) => sum + acc.balance, 0);
     const totalExpenses = expenseAccounts.reduce((sum, acc) => sum + acc.balance, 0);
     const netProfit = totalRevenue - totalExpenses;
