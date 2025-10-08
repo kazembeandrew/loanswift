@@ -106,11 +106,16 @@ export default function LoanOfficerDashboard() {
   });
 
   const loans = allLoans.filter(l => myBorrowerIds.includes(l.borrowerId));
+  const loanIds = new Set(loans.map(l => l.id));
 
-  const { data: payments = [], isLoading: isLoadingPayments } = useQuery({
+
+  const { data: allPayments = [], isLoading: isLoadingPayments } = useQuery({
       queryKey: ['allPayments'],
       queryFn: () => getAllPayments(db),
   });
+  
+  const payments = allPayments.filter(p => loanIds.has(p.loanId));
+
 
   const { data: situationReports = [], isLoading: isLoadingReports } = useQuery({
     queryKey: ['situationReports', myBorrowerIds],

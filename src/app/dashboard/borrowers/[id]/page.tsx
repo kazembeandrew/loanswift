@@ -5,7 +5,7 @@ import { Header } from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Paperclip, Upload, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag, Edit } from 'lucide-react';
+import { MapPin, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useTransition } from 'react';

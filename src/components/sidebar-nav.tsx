@@ -11,7 +11,6 @@ import {
   Receipt,
   ArrowLeftRight,
   Banknote,
-  PiggyBank,
   ChevronDown,
   LogOut,
   MessageCircle,
