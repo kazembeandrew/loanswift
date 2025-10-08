@@ -308,7 +308,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
   const renderActionsDropdown = (borrower: Borrower, borrowerLoans: Loan[]) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button variant="ghost" className="h-8 w-8 p-0" aria-label={`Open menu for ${borrower.name}`}>
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
