@@ -22,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookLock, CheckCircle, Hourglass, ShieldCheck, User, Calendar, ExternalLink } from 'lucide-react';
+import { Loader2, BookLock, CheckCircle, Hourglass, ShieldCheck, User, Calendar, ExternalLink, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import type { MonthEndClosure } from '@/types';
 import { format, parseISO } from 'date-fns';
@@ -37,8 +37,10 @@ export default function AccountingPage() {
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
 
-  const isCfo = userProfile?.role === 'cfo';
-  const isCeo = userProfile?.role === 'ceo';
+  const isCfoOrAdmin = userProfile?.role === 'cfo' || userProfile?.role === 'admin';
+  const isCeoOrAdmin = userProfile?.role === 'ceo' || userProfile?.role === 'admin';
+  const canViewPage = isCfoOrAdmin || isCeoOrAdmin;
+
   const periodId = format(new Date(), 'yyyy-MM');
 
   const fetchClosureStatus = useCallback(async () => {
@@ -63,10 +65,12 @@ export default function AccountingPage() {
   }, [periodId, user]);
 
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && canViewPage) {
         fetchClosureStatus();
+    } else {
+        setIsLoading(false);
     }
-  }, [userProfile, fetchClosureStatus]);
+  }, [userProfile, canViewPage, fetchClosureStatus]);
 
   const performAction = (action: 'initiate' | 'approve' | 'process') => {
     startTransition(async () => {
@@ -133,8 +137,8 @@ export default function AccountingPage() {
       return <p className="text-sm text-green-600 font-medium flex items-center"><ShieldCheck className="mr-2 h-4 w-4"/>This period has been closed.</p>;
     }
 
-    // CFO View
-    if (isCfo) {
+    // CFO or Admin View
+    if (isCfoOrAdmin) {
         if (!closure) {
             return <Button onClick={handleInitiate} disabled={isProcessing}> <BookLock className="mr-2 h-4 w-4" /> Initiate Month-End Close</Button>;
         }
@@ -154,8 +158,8 @@ export default function AccountingPage() {
         }
     }
 
-    // CEO View
-    if (isCeo) {
+    // CEO or Admin View
+    if (isCeoOrAdmin) {
         if (closure?.status === 'pending_approval') {
             return (
                  <AlertDialog>
@@ -222,12 +226,22 @@ export default function AccountingPage() {
     );
   }
 
-  if (!isCfo && !isCeo && userProfile?.role !== 'admin') {
+  if (!canViewPage) {
      return (
         <>
             <Header title="Accounting Procedures" />
-            <main className="flex-1 flex items-center justify-center">
-                <Card><CardHeader><CardTitle>Access Denied</CardTitle><CardDescription>You do not have permission to view this page.</CardDescription></CardHeader></Card>
+            <main className="flex-1 flex items-center justify-center p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center">
+                       <div className="flex justify-center">
+                         <ShieldAlert className="h-12 w-12 text-destructive" />
+                       </div>
+                        <CardTitle className="mt-4">Access Denied</CardTitle>
+                        <CardDescription>
+                            You do not have permission to view this page. This feature is for managerial roles only.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
             </main>
         </>
     );

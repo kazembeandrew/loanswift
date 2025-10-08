@@ -23,7 +23,7 @@ import { useAuth } from '@/context/auth-context';
 import { getAllUsers } from '@/services/user-service';
 import { handleCreateUser, handleUpdateUserRole } from '@/app/actions/user';
 import type { UserProfile } from '@/types';
-import { Loader2, ShieldAlert, PlusCircle, ShieldCheck, UserCheck, UserX } from 'lucide-react';
+import { Loader2, ShieldAlert, PlusCircle, UserCheck, UserX } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import {
@@ -190,7 +190,7 @@ export default function StaffPage() {
     startCreatingTransition(async () => {
         const result = await handleCreateUser(newUser.email, newUser.password, newUser.role, userProfile.email);
         if (result.success) {
-            toast({ title: "User Created", description: "The new user has been successfully created."});
+            toast({ title: "User Created", description: "The new user has been successfully created and is awaiting approval."});
             setAddUserOpen(false);
             setNewUser({email: '', password: '', role: 'loan_officer'});
             await fetchData();
@@ -283,8 +283,8 @@ export default function StaffPage() {
                                         <SelectItem value="loan_officer">Loan Officer</SelectItem>
                                         <SelectItem value="hr">HR</SelectItem>
                                         <SelectItem value="cfo">CFO</SelectItem>
-                                        <SelectItem value="admin">Admin</SelectItem>
                                         <SelectItem value="ceo">CEO</SelectItem>
+                                        {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
                                     </SelectContent>
                                 </Select>
                             </div>

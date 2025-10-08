@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const { user, userProfile } = useAuth();
   const db = useDB();
 
-  const canAccessSettings = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
+  const canAccessSettings = userProfile?.role === 'admin' || userProfile?.role === 'ceo';
 
   useEffect(() => {
     async function fetchSettings() {
@@ -92,6 +92,10 @@ export default function SettingsPage() {
     if (!user) {
         toast({ title: "Not Authenticated", description: "You must be logged in to perform this action.", variant: 'destructive'});
         return;
+    }
+    if (userProfile?.role !== 'admin') {
+      toast({ title: 'Permission Denied', description: 'Only administrators can perform this action.', variant: 'destructive' });
+      return;
     }
     startDeletingTransition(async () => {
       try {
@@ -230,40 +234,42 @@ export default function SettingsPage() {
           </Button>
         </form>
 
-        <Card className="border-destructive">
-            <CardHeader>
-                <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                <CardDescription>These actions are irreversible. Please proceed with caution.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
-                <div>
-                    <h3 className="font-semibold">Delete All Application Data</h3>
-                    <p className="text-sm text-muted-foreground">Permanently delete all borrowers, loans, payments, and other data.</p>
-                </div>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" disabled={isDeleting}>
-                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            Delete All Data
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete all data from your application, including all borrowers, loans, payments, financial records, and messages.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={confirmDeleteAllData} className="bg-destructive hover:bg-destructive/90">
-                                Confirm Deletion
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </CardContent>
-        </Card>
+       {userProfile?.role === 'admin' && (
+          <Card className="border-destructive">
+              <CardHeader>
+                  <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                  <CardDescription>These actions are irreversible and restricted to administrators.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between">
+                  <div>
+                      <h3 className="font-semibold">Delete All Application Data</h3>
+                      <p className="text-sm text-muted-foreground">Permanently delete all borrowers, loans, payments, and other data.</p>
+                  </div>
+                  <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                          <Button variant="destructive" disabled={isDeleting}>
+                              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                              Delete All Data
+                          </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete all data from your application, including all borrowers, loans, payments, financial records, and messages.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={confirmDeleteAllData} className="bg-destructive hover:bg-destructive/90">
+                                  Confirm Deletion
+                              </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                  </AlertDialog>
+              </CardContent>
+          </Card>
+        )}
       </main>
     </>
   );

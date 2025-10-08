@@ -16,14 +16,12 @@ import { useAuth } from '@/context/auth-context';
 import type { SituationReport, Borrower } from '@/types';
 import { Loader2, ClipboardList, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 export default function SituationReportsPage() {
   const { userProfile, user } = useAuth();
   const { situationReports: reports, borrowers, loading: isLoading } = useRealtimeData(user);
-  const { toast } = useToast();
 
   const isManager = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
