@@ -60,8 +60,6 @@ const generateReceiptFlow = ai.defineFlow(
     outputSchema: GenerateReceiptOutputSchema,
   },
   async input => {
-    // The balance is now passed directly from the client, which has the most up-to-date view.
-    // This simplifies the logic and ensures accuracy.
     const promptInput = {
       ...input,
       balance: input.balance > 0 ? input.balance : 0, // Ensure balance is not negative
