@@ -11,7 +11,6 @@ import {
   Receipt,
   ArrowLeftRight,
   Banknote,
-  PiggyBank,
   ChevronDown,
   LogOut,
   MessageCircle,
@@ -53,7 +52,7 @@ const financialItems = [
     { href: '/dashboard/accounting', label: 'Accounting', icon: Calculator },
 ]
 
-const utilityItems = [
+const reportItems = [
     { href: '/dashboard/reports', label: 'Financial Reports', icon: FileText },
     { href: '/dashboard/situation-reports', label: 'Situation Reports', icon: ClipboardList },
 ]
@@ -74,10 +73,11 @@ export function SidebarNav() {
 
   const showFinancials = isAdmin || isCeo || isCfo;
   const showPortfolio = !isHr; // Everyone except HR sees this
+  const showSettings = isAdmin || isCeo || isCfo;
 
   const isPortfolioActive = portfolioItems.some(item => pathname.startsWith(item.href));
   const isFinancialsActive = financialItems.some(item => pathname.startsWith(item.href));
-  const isUtilitiesActive = utilityItems.some(item => pathname.startsWith(item.href));
+  const isReportsActive = reportItems.some(item => pathname.startsWith(item.href));
   const isAdminActive = adminItems.some(item => pathname.startsWith(item.href));
 
   return (
@@ -172,7 +172,7 @@ export function SidebarNav() {
           </Collapsible>
         )}
         
-         <Collapsible defaultOpen={isUtilitiesActive} className="mt-2">
+         <Collapsible defaultOpen={isReportsActive} className="mt-2">
           <CollapsibleTrigger className="w-full">
             <div className="group flex w-full items-center justify-between rounded-md px-2 py-1 text-sm font-semibold text-muted-foreground hover:bg-muted">
               <span>Reports</span>
@@ -181,7 +181,8 @@ export function SidebarNav() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenu className="mt-2">
-              {utilityItems.map((item) => {
+              {reportItems.map((item) => {
+                // Hide financial reports for non-financial roles
                 if (item.href === '/dashboard/reports' && !showFinancials) return null;
                 return (
                   <SidebarMenuItem key={item.href}>
@@ -230,7 +231,7 @@ export function SidebarNav() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarMenu>
-         {isAdmin && (
+         {showSettings && (
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild

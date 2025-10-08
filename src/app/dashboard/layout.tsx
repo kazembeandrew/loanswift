@@ -1,7 +1,7 @@
 'use client';
 import type { ReactNode } from 'react';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { SidebarNav } from '@/components/sidebar-nav';
+import { SidebarNav } from '@/app/dashboard/sidebar-nav';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useCallback } from 'react';
