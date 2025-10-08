@@ -472,7 +472,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
         </DialogContent>
       </Dialog>
       
-      {selectedBorrower && selectedLoan && (
+      {selectedBorrower && (
         <Dialog open={isAddNewLoanOpen} onOpenChange={(open) => { setAddNewLoanOpen(open); if(!open) newLoanForm.reset(newLoanFormDefaultValues); }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
