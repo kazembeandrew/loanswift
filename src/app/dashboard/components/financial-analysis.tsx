@@ -21,6 +21,9 @@ type FinancialAnalysisProps = {
     accounts: Account[];
 }
 
+// Simple function to strip HTML tags from a string.
+const sanitizeHTML = (str: string) => str.replace(/<[^>]*>?/gm, '');
+
 export default function FinancialAnalysis({ loans, payments, accounts }: FinancialAnalysisProps) {
   const [summary, setSummary] = useState<GenerateFinancialSummaryOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -129,27 +132,27 @@ export default function FinancialAnalysis({ loans, payments, accounts }: Financi
           <div className="grid gap-6 mt-6 md:grid-cols-2">
             <Card>
               <CardHeader><CardTitle>Capital Analysis</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{summary.capitalAnalysis}</p></CardContent>
+              <CardContent><p className="text-sm text-muted-foreground">{sanitizeHTML(summary.capitalAnalysis)}</p></CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle>Business Standing</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{summary.businessStanding}</p></CardContent>
+              <CardContent><p className="text-sm text-muted-foreground">{sanitizeHTML(summary.businessStanding)}</p></CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle>Financial Situation</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{summary.financialSituation}</p></CardContent>
+              <CardContent><p className="text-sm text-muted-foreground">{sanitizeHTML(summary.financialSituation)}</p></CardContent>
             </Card>
              <Card>
               <CardHeader><CardTitle>Expenditure Analysis</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{summary.expenditureAnalysis}</p></CardContent>
+              <CardContent><p className="text-sm text-muted-foreground">{sanitizeHTML(summary.expenditureAnalysis)}</p></CardContent>
             </Card>
             <Card className="md:col-span-2">
               <CardHeader><CardTitle>Forecast</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{summary.forecast}</p></CardContent>
+              <CardContent><p className="text-sm text-muted-foreground">{sanitizeHTML(summary.forecast)}</p></CardContent>
             </Card>
             <Card className="md:col-span-2 bg-primary/5 border-primary/20">
               <CardHeader><CardTitle>AI Suggestions</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-primary/90">{summary.suggestions}</p></CardContent>
+              <CardContent><p className="text-sm text-primary/90">{sanitizeHTML(summary.suggestions)}</p></CardContent>
             </Card>
           </div>
         )}

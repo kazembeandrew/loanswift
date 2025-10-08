@@ -47,6 +47,8 @@ const prompt = ai.definePrompt({
   output: { schema: GenerateFinancialSummaryOutputSchema },
   prompt: `You are an expert financial analyst for a micro-lending business. Your task is to provide a comprehensive financial summary based on the following data. The currency is Malawian Kwacha (MWK).
 
+  **IMPORTANT**: Your entire response must be plain text only. Do not include any HTML, Markdown, or any other formatting.
+
   **Loan Portfolio Data:**
   - Total Capital Deployed (Loan Principals): MWK {{{totalPrincipal}}}
   - Total Collected from Loan Payments: MWK {{{totalCollected}}}
