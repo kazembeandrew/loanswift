@@ -118,21 +118,21 @@ const monthlyCollectionsChartConfig = {
 
 export default function CeoDashboard() {
   const db = useDB();
-  const { userProfile } = useAuth();
-  const { borrowers, loans, payments, accounts, loading } = useRealtimeData(userProfile);
+  const { user } = useAuth();
+  const { borrowers, loans, payments, accounts, loading } = useRealtimeData(user);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   useEffect(() => {
     async function fetchSettings() {
-        if (!userProfile) return;
+        if (!user) return;
         setIsLoadingSettings(true);
         const settingsData = await getSettings(db);
         setSettings(settingsData);
         setIsLoadingSettings(false);
     }
     fetchSettings();
-  }, [db, userProfile]);
+  }, [db, user]);
 
   
   const isLoading = loading || isLoadingSettings;
@@ -387,5 +387,3 @@ export default function CeoDashboard() {
     </>
   );
 }
-
-    

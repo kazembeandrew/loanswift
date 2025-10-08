@@ -335,8 +335,8 @@ export default function StaffPage() {
                                 <SelectItem value="loan_officer">Loan Officer</SelectItem>
                                 <SelectItem value="hr">HR</SelectItem>
                                 <SelectItem value="cfo">CFO</SelectItem>
-                                {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
                                 <SelectItem value="ceo">CEO</SelectItem>
+                                {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
                             </SelectContent>
                           </Select>
                         </TableCell>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useDB } from '@/lib/firebase-client-provider';
 import type { User, UserProfile, Borrower, Loan, Payment, Account, JournalEntry, SituationReport } from '@/types';
-import { onSnapshot, collection, query, where, doc, orderBy } from 'firebase/firestore';
+import { onSnapshot, collection, query, where, doc, orderBy, collectionGroup } from 'firebase/firestore';
 import { useAuth } from '@/context/auth-context';
 
 export function useRealtimeData(user: User | null) {
@@ -96,6 +96,7 @@ export function useRealtimeData(user: User | null) {
     } else { // Loan Officer
         const myBorrowerIds = borrowers.map(b => b.id);
         if (myBorrowerIds.length > 0) {
+            // Firestore 'in' queries are limited to 30 elements. Chunk if necessary.
             const loansQuery = query(collection(db, 'loans'), where('borrowerId', 'in', myBorrowerIds.slice(0, 30)));
             const unsub = onSnapshot(loansQuery, (snapshot) => {
                 setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
@@ -124,10 +125,9 @@ export function useRealtimeData(user: User | null) {
     if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
         return situationReports; // Managers see all reports
     }
-    // This is a client-side filter. It assumes all reports are fetched if the user is a manager.
-    // For loan officers, we need to fetch them specifically if not already done.
-    // For this implementation, we will assume reports are fetched for managers and we need to fetch for officers.
-    return situationReports.filter(report => borrowers.some(b => b.id === report.borrowerId));
+    // This is a client-side filter based on the borrowers assigned to the loan officer.
+    const myBorrowerIds = new Set(borrowers.map(b => b.id));
+    return situationReports.filter(report => myBorrowerIds.has(report.borrowerId));
 
   }, [situationReports, borrowers, userProfile, db]);
 
