@@ -3,101 +3,95 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
-    function isUserAuthenticated() {
+    // --- Helper Functions ---
+    function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isUserApproved() {
-      return isUserAuthenticated() && getUserData(request.auth.uid).status == 'approved';
-    }
-
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+    function isRole(role) {
+      return request.auth.token.role == role;
     }
     
-    function isUserRole(roles) {
-      return isUserAuthenticated() && getUserData(request.auth.uid).role in roles;
+    function isOneOfRoles(roles) {
+        return request.auth.token.role in roles;
     }
 
-    function isLoanOfficer() {
-      return isUserRole(['loan_officer']);
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getRole() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function isCLevel() {
-      return isUserRole(['admin', 'ceo', 'cfo']);
-    }
+    // --- Collections ---
 
-    function isHrOrAdmin() {
-      return isUserRole(['admin', 'hr']);
-    }
-
-    //--- Collection Rules ---//
-
-    // Users: Users can see their own profile. HR and Admins can see everyone's.
+    // USERS: Users can read/update their own profile. Admins can read/write any profile.
     match /users/{userId} {
-      allow read: if isUserApproved() && (request.auth.uid == userId || isHrOrAdmin());
-      allow write: if isUserApproved() && isHrOrAdmin();
-      allow create: if isUserAuthenticated(); // Allow creation for initial signup
+      allow read, update: if isAuthenticated() && (isOwner(userId) || isRole('admin'));
+      allow create: if isAuthenticated(); // Handled by server-side action
+      allow delete: if isRole('admin');
     }
-    
-    // Borrowers: Loan officers can read/write their own borrowers. C-Level can read all.
+
+    // BORROWERS: Loan officers can manage their own borrowers. C-level/Admins can view all.
     match /borrowers/{borrowerId} {
-      allow read: if isUserApproved() && 
-                    (isCLevel() || (isLoanOfficer() && resource.data.loanOfficerId == request.auth.uid));
-      allow write: if isUserApproved() && isLoanOfficer();
+        allow read: if isAuthenticated() && (resource.data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+        allow create, update: if isAuthenticated() && (request.resource.data.loanOfficerId == request.auth.uid || isRole('admin'));
+        allow delete: if isRole('admin');
     }
-
-    // Loans & Payments (subcollection)
+    
+    // LOANS & PAYMENTS: Access is determined by access to the parent borrower.
     match /loans/{loanId} {
-      allow read: if isUserApproved() && 
-                    (isCLevel() || (isLoanOfficer() && get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid));
-      allow write: if isUserApproved() && isLoanOfficer();
+        // Allow read/write if the user is the assigned loan officer for the borrower of this loan.
+        allow read, create, update: if isAuthenticated() && (get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+        allow delete: if isRole('admin');
+        
+        // PAYMENTS SUBCOLLECTION
+        match /payments/{paymentId} {
+             allow read, create, update: if isAuthenticated() && (get(/databases/$(database)/documents/borrowers/$(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+             allow delete: if isRole('admin');
+        }
+    }
 
-      match /payments/{paymentId} {
-         allow read: if isUserApproved() && 
-                    (isCLevel() || (isLoanOfficer() && get(/databases/$(database)/documents/borrowers/$(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId)).data.loanOfficerId == request.auth.uid));
-        // Payments are only created via server-side action, so client write is not needed.
-        allow write: if false; 
-      }
-    }
-    
-    // Situation Reports
+    // SITUATION REPORTS: Loan officers can create for their borrowers. Management can read all.
     match /situationReports/{reportId} {
-       allow read, write: if isUserApproved() && 
-                    (isCLevel() || (isLoanOfficer() && resource.data.reportedBy == request.auth.uid));
+       allow create: if isAuthenticated() && (get(/databases/$(database)/documents/borrowers/$(request.resource.data.borrowerId)).data.loanOfficerId == request.auth.uid);
+       allow read, update: if isAuthenticated() && (get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid || isOneOfRoles(['admin', 'ceo', 'cfo']));
+       allow delete: if isRole('admin');
     }
     
-    // Financials: C-Level roles only
+    // FINANCIALS: C-level roles and Admin only
     match /accounts/{accountId} {
-      allow read, write: if isUserApproved() && isCLevel();
+        allow read, create, update, delete: if isAuthenticated() && isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
-    match /journal/{journalId} {
-       allow read, write: if isUserApproved() && isCLevel();
+    match /journal/{entryId} {
+        allow read, create, update, delete: if isAuthenticated() && isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
      match /monthEndClosures/{closureId} {
-       allow read, write: if isUserApproved() && isCLevel();
+        allow read, create, update, delete: if isAuthenticated() && isOneOfRoles(['admin', 'ceo', 'cfo']);
     }
 
-    // Chat: Participants of a conversation can read/write to it.
+    // SETTINGS: Admin and C-level can read, only admin/cfo can write.
+    match /settings/{settingId} {
+        allow read: if isAuthenticated() && isOneOfRoles(['admin', 'ceo', 'cfo']);
+        allow create, update: if isAuthenticated() && isOneOfRoles(['admin', 'cfo']);
+    }
+    
+    // CHAT: Only participants of a conversation can read/write to it.
     match /conversations/{conversationId} {
-      allow read, write: if isUserApproved() && request.auth.uid in resource.data.participants;
+      allow read, update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
       
       match /messages/{messageId} {
-        allow read, write: if isUserApproved() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow read, create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
       }
     }
 
-    // Settings: C-Level roles can read, Admins/CFO can write
-    match /settings/{settingId} {
-      allow read: if isUserApproved() && isCLevel();
-      allow write: if isUserApproved() && isUserRole(['admin', 'cfo']);
-    }
-    
-    // Audit Log: Read-only for Admins. No client-side writes.
+    // ADMIN ONLY
     match /audit_logs/{logId} {
-      allow read: if isUserApproved() && isUserRole(['admin']);
-      allow write: if false;
+        allow read: if isAuthenticated() && isRole('admin');
+        // Logs are created server-side only.
+        allow create, update, delete: if false;
     }
   }
 }
