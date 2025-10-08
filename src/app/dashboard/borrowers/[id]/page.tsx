@@ -39,14 +39,16 @@ import * as z from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useDB } from '@/lib/firebase-client-provider';
+import { SituationReportSchema } from '@/lib/schemas';
 
-const situationReportSchema = z.object({
-  situationType: z.enum(['Client Dispute', 'Business Disruption', 'Collateral Issue', 'Personal Emergency', 'Fraud Concern', 'Other']),
-  summary: z.string().min(1, "Summary is required").max(100, "Summary must be 100 characters or less"),
-  details: z.string().min(1, "Details are required"),
-  resolutionPlan: z.string().min(1, "Resolution plan is required"),
-  loanId: z.string().optional(),
+const situationReportFormSchema = SituationReportSchema.pick({
+    situationType: true,
+    summary: true,
+    details: true,
+    resolutionPlan: true,
+    loanId: true,
 });
+
 
 export default function BorrowerDetailPage() {
   const params = useParams();
@@ -74,8 +76,8 @@ export default function BorrowerDetailPage() {
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
   const db = useDB();
 
-  const reportForm = useForm<z.infer<typeof situationReportSchema>>({
-    resolver: zodResolver(situationReportSchema),
+  const reportForm = useForm<z.infer<typeof situationReportFormSchema>>({
+    resolver: zodResolver(situationReportFormSchema),
     defaultValues: {
       summary: "",
       details: "",
@@ -168,7 +170,7 @@ export default function BorrowerDetailPage() {
     });
   };
 
-  const handleFileReportSubmit = async (values: z.infer<typeof situationReportSchema>) => {
+  const handleFileReportSubmit = async (values: z.infer<typeof situationReportFormSchema>) => {
     if (!user || !borrower) return;
     try {
       await addSituationReport(db, {

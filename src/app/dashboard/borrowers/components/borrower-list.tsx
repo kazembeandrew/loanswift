@@ -54,33 +54,21 @@ import { handleRecordPayment } from '@/app/actions/payment';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDB } from '@/lib/firebase-client-provider';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { BorrowerSchema, LoanSchema, PaymentSchema, CollateralItemSchema } from '@/lib/schemas';
 
 
-const collateralSchema = z.object({
-  name: z.string().min(1, 'Collateral name is required'),
-  value: z.coerce.number().positive('Value must be positive'),
-});
-
-const borrowerFormSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone number is required'),
-  idNumber: z.string().min(1, 'ID number is required'),
-  address: z.string().min(1, 'Address is required'),
-  guarantorName: z.string().min(1, 'Guarantor name is required'),
-  guarantorPhone: z.string().min(1, 'Guarantor phone is required'),
-});
+const borrowerFormSchema = BorrowerSchema.omit({ id: true, joinDate: true, loanOfficerId: true });
+const newLoanFormSchema = LoanSchema.pick({ 
+    principal: true, 
+    interestRate: true,
+    repaymentPeriod: true,
+    startDate: true,
+    collateral: true,
+}).rename({principal: 'loanAmount'});
 
 type BorrowerFormData = z.infer<typeof borrowerFormSchema>;
-
-const newLoanFormSchema = z.object({
-  loanAmount: z.coerce.number().positive('Loan amount must be a positive number'),
-  interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative'),
-  repaymentPeriod: z.coerce.number().int().positive('Repayment period must be a positive integer'),
-  startDate: z.string().min(1, 'Date is required'),
-  collateral: z.array(collateralSchema).optional(),
-});
-
 type NewLoanFormData = z.infer<typeof newLoanFormSchema>;
+
 
 const borrowerFormDefaultValues: BorrowerFormData = {
   name: '',

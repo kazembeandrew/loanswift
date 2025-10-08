@@ -1,3 +1,12 @@
+import { z } from 'zod';
+import { 
+    BorrowerSchema, 
+    LoanSchema, 
+    PaymentSchema, 
+    CollateralItemSchema, 
+    RepaymentScheduleItemSchema,
+    SituationReportSchema,
+} from '@/lib/schemas';
 
 
 export type UserProfile = {
@@ -13,48 +22,13 @@ export type UserProfile = {
   approvedAt?: string;
 };
 
-export type Borrower = {
-  id: string;
-  name: string;
-  phone: string;
-  idNumber: string;
-  guarantorName: string;
-  guarantorPhone: string;
-  address: string;
-  joinDate: string;
-  loanOfficerId: string; // The UID of the loan officer who manages this borrower
-};
+export type CollateralItem = z.infer<typeof CollateralItemSchema>;
+export type RepaymentScheduleItem = z.infer<typeof RepaymentScheduleItemSchema>;
+export type Loan = z.infer<typeof LoanSchema>;
+export type Borrower = z.infer<typeof BorrowerSchema>;
+export type Payment = z.infer<typeof PaymentSchema>;
+export type SituationReport = z.infer<typeof SituationReportSchema>;
 
-export type CollateralItem = {
-  name: string;
-  value: number;
-};
-
-export type RepaymentScheduleItem = {
-  dueDate: string;
-  amountDue: number;
-};
-
-export type Loan = {
-  id:string;
-  borrowerId: string;
-  principal: number;
-  interestRate: number;
-  repaymentPeriod: number; // in months
-  startDate: string;
-  outstandingBalance: number;
-  collateral?: CollateralItem[];
-  repaymentSchedule: RepaymentScheduleItem[];
-};
-
-export type Payment = {
-    id: string;
-    loanId: string;
-    amount: number;
-    date: string;
-    method: 'cash' | 'bank' | 'mobile_money';
-    recordedBy: string;
-};
 
 export type BusinessSettings = {
   id: string;
@@ -103,20 +77,6 @@ export type JournalEntry = {
   date: string;
   description: string;
   lines: TransactionLine[];
-};
-
-export type SituationReport = {
-  id: string;
-  borrowerId: string;
-  loanId?: string;
-  reportDate: string; // ISO string
-  reportedBy: string; // UID of the loan officer
-  situationType: 'Client Dispute' | 'Business Disruption' | 'Collateral Issue' | 'Personal Emergency' | 'Fraud Concern' | 'Other';
-  summary: string;
-  details: string;
-  resolutionPlan: string;
-  status: 'Open' | 'Under Review' | 'Resolved' | 'Closed';
-  updatedAt?: string; // ISO string
 };
 
 export type MonthEndClosure = {
