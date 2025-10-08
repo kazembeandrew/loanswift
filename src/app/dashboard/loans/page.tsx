@@ -111,7 +111,7 @@ export default function LoansPage() {
         const result = await handleRecordPayment({
             loanId: selectedLoan.id,
             amount: parseFloat(paymentDetails.amount),
-            date: paymentDetails.date || new Date().toISOString().split('T[0]'),
+            date: paymentDetails.date || new Date().toISOString().split('T')[0],
             recordedByEmail: userProfile.email,
         });
 
@@ -197,7 +197,7 @@ export default function LoansPage() {
                     <TableCell className="text-right">
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={status === 'closed'} aria-label={`Open menu for Loan ${loan.id}`}>
+                          <Button aria-label={`Open menu for Loan ${loan.id}`} variant="ghost" className="h-8 w-8 p-0" disabled={status === 'closed'}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
@@ -268,3 +268,5 @@ export default function LoansPage() {
     </>
   );
 }
+
+    

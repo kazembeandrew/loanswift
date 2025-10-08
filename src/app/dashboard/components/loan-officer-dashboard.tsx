@@ -2,10 +2,7 @@
 
 import { useAuth } from '@/context/auth-context';
 import type { Borrower, Loan, Payment, SituationReport } from '@/types';
-import { getBorrowers } from '@/services/borrower-service';
-import { getLoans } from '@/services/loan-service';
-import { getAllPayments } from '@/services/payment-service';
-import { getAllSituationReports } from '@/services/situation-report-service';
+import { getSituationReportsByBorrower } from '@/services/situation-report-service';
 import DashboardMetrics from './dashboard-metrics';
 import BorrowerList from '../borrowers/components/borrower-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { useDB } from '@/lib/firebase-client-provider';
 import MyTasks from './my-tasks';
-import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
+import { useState, useEffect } from 'react';
 
 function LoanOfficerDashboardSkeleton() {
   return (
@@ -91,39 +89,26 @@ type UpcomingPayment = {
 export default function LoanOfficerDashboard() {
   const { userProfile } = useAuth();
   const db = useDB();
+  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
+  const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(true);
 
-  const { data: borrowers = [], isLoading: isLoadingBorrowers } = useQuery({
-      queryKey: ['borrowers', userProfile?.uid],
-      queryFn: () => getBorrowers(db, userProfile?.uid),
-      enabled: !!userProfile,
-  });
+  useEffect(() => {
+    async function fetchReports() {
+        if (!userProfile || borrowers.length === 0) {
+            setIsLoadingReports(false);
+            return;
+        };
+        setIsLoadingReports(true);
+        const borrowerIds = borrowers.map(b => b.id);
+        const reports = await getSituationReportsByBorrower(db, borrowerIds[0]); // TODO: Fix for multiple borrowers
+        setSituationReports(reports);
+        setIsLoadingReports(false);
+    }
+    fetchReports();
+  }, [borrowers, userProfile, db]);
 
-  const myBorrowerIds = borrowers.map(b => b.id);
-  
-  const { data: allLoans = [], isLoading: isLoadingLoans } = useQuery({
-      queryKey: ['loans'],
-      queryFn: () => getLoans(db),
-  });
-
-  const loans = allLoans.filter(l => myBorrowerIds.includes(l.borrowerId));
-  const loanIds = new Set(loans.map(l => l.id));
-
-
-  const { data: allPayments = [], isLoading: isLoadingPayments } = useQuery({
-      queryKey: ['allPayments'],
-      queryFn: () => getAllPayments(db),
-  });
-  
-  const payments = allPayments.filter(p => loanIds.has(p.loanId));
-
-
-  const { data: situationReports = [], isLoading: isLoadingReports } = useQuery({
-    queryKey: ['situationReports', myBorrowerIds],
-    queryFn: () => getAllSituationReports(db, myBorrowerIds),
-    enabled: myBorrowerIds.length > 0,
-  });
-
-  const isLoading = isLoadingBorrowers || isLoadingLoans || isLoadingPayments || isLoadingReports;
+  const isLoading = loading || isLoadingReports;
 
   if (isLoading) {
     return <LoanOfficerDashboardSkeleton />;
@@ -235,3 +220,5 @@ export default function LoanOfficerDashboard() {
     </div>
   );
 }
+
+    

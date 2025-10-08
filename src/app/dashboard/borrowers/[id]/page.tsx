@@ -25,8 +25,6 @@ import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getBorrowerById } from '@/services/borrower-service';
-import { getLoansByBorrowerId } from '@/services/loan-service';
-import { getPaymentsByLoanId } from '@/services/payment-service';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useDB } from '@/lib/firebase-client-provider';
 import { SituationReportSchema } from '@/lib/schemas';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 const situationReportFormSchema = SituationReportSchema.pick({
     situationType: true,
@@ -56,10 +55,11 @@ export default function BorrowerDetailPage() {
   const id = params.id as string;
   const defaultTab = searchParams.get('tab') || 'loans';
   const { user, userProfile } = useAuth();
+  const { loans, payments, loading: isRealtimeDataLoading } = useRealtimeData(userProfile);
+
   const [borrower, setBorrower] = useState<Borrower | null>(null);
-  const [borrowerLoans, setBorrowerLoans] = useState<Loan[]>([]);
-  const [allPayments, setAllPayments] = useState<(Payment)[]>([]);
   const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -76,6 +76,10 @@ export default function BorrowerDetailPage() {
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
   const db = useDB();
 
+  const borrowerLoans = loans.filter(loan => loan.borrowerId === id);
+  const allPayments = payments.filter(payment => borrowerLoans.some(loan => loan.id === payment.loanId));
+
+
   const reportForm = useForm<z.infer<typeof situationReportFormSchema>>({
     resolver: zodResolver(situationReportFormSchema),
     defaultValues: {
@@ -86,35 +90,30 @@ export default function BorrowerDetailPage() {
   });
 
   const fetchData = useCallback(async () => {
-    if (!id) return;
+    if (!id || !userProfile) return;
+    setIsDataLoading(true);
     
-    const borrowerData = await getBorrowerById(db, id);
-    setBorrower(borrowerData);
-
-    if (borrowerData) {
-        const [loansData, reportsData] = await Promise.all([
-            getLoansByBorrowerId(db, borrowerData.id),
-            getSituationReportsByBorrower(db, borrowerData.id),
+    try {
+        const [borrowerData, reportsData] = await Promise.all([
+            getBorrowerById(db, id),
+            getSituationReportsByBorrower(db, id),
         ]);
-        setBorrowerLoans(loansData);
+        setBorrower(borrowerData);
         setSituationReports(reportsData);
-
-        const allLoanPayments = await Promise.all(
-            loansData.map(loan => getPaymentsByLoanId(db, loan.id))
-        );
-        setAllPayments(allLoanPayments.flat());
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to fetch borrower details.", variant: 'destructive'});
+    } finally {
+        setIsDataLoading(false);
     }
 
-  }, [id, db]);
+  }, [id, db, userProfile, toast]);
 
   useEffect(() => {
-    if (userProfile) {
-        fetchData();
-    }
-  }, [fetchData, userProfile]);
+    fetchData();
+  }, [fetchData]);
 
 
-  if (!borrower) {
+  if (isDataLoading || isRealtimeDataLoading) {
     return (
       <>
         <Header title="Loading Borrower..." />
@@ -123,6 +122,17 @@ export default function BorrowerDetailPage() {
         </main>
       </>
     );
+  }
+
+  if (!borrower) {
+    return (
+      <>
+        <Header title="Borrower Not Found" />
+        <main className="flex-1 flex items-center justify-center">
+            <p>The requested borrower could not be found.</p>
+        </main>
+      </>
+    )
   }
 
   const getLoanBalance = (loan: Loan) => {
@@ -159,7 +169,7 @@ export default function BorrowerDetailPage() {
             });
             setRecordPaymentOpen(false);
             setReceiptGeneratorOpen(true);
-            await fetchData();
+            // No need to call fetchData(), realtime listener will update.
         } else {
             toast({
                 title: 'Payment Failed',
@@ -184,7 +194,7 @@ export default function BorrowerDetailPage() {
       });
       setFileReportOpen(false);
       reportForm.reset();
-      await fetchData();
+      await fetchData(); // Re-fetch reports
     } catch (error: any) {
       toast({
         title: "Failed to File Report",
@@ -211,7 +221,7 @@ export default function BorrowerDetailPage() {
     try {
       await updateSituationReportStatus(db, reportId, status);
       toast({ title: 'Status Updated', description: `Report status changed to ${status}.` });
-      await fetchData();
+      await fetchData(); // Re-fetch reports
       if (selectedReport?.id === reportId) {
         setSelectedReport(prev => prev ? { ...prev, status } : null);
       }
@@ -479,50 +489,22 @@ export default function BorrowerDetailPage() {
           </TabsContent>
         </Tabs>
         
-        {borrowerLoans.some(loan => loan.collateral && loan.collateral.length > 0) && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline"><ShieldCheck className="h-5 w-5"/> Collateral</CardTitle>
-                    <CardDescription>Collateral items held against this borrower's loans.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {borrowerLoans.map(loan => 
-                      loan.collateral && loan.collateral.length > 0 && (
-                        <div key={loan.id}>
-                            <h4 className="font-semibold mb-2">For Loan: {loan.id}</h4>
-                            <ul className="space-y-2">
-                            {loan.collateral.map((item, index) => (
-                                <li key={index} className="flex justify-between items-center text-sm p-2 bg-muted rounded-md">
-                                    <span>{item.name}</span>
-                                    <span className="font-mono text-xs">MWK {item.value.toLocaleString()}</span>
-                                </li>
-                            ))}
-                            </ul>
-                        </div>
-                      )
-                    )}
-                </CardContent>
-            </Card>
-        )}
-
-
-        
-          <Card>
-             <CardHeader className="flex flex-row items-center gap-2">
-               <MapPin className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="font-headline">Location</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="relative h-64 w-full rounded-lg overflow-hidden border">
-                 <iframe 
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=33.7823%2C-13.9626%2C33.7923%2C-13.9526&layer=mapnik&marker=-13.9576,33.7873`} 
-                    style={{border: 0, width: '100%', height: '100%'}}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  ></iframe>
-              </div>
-            </CardContent>
-          </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center gap-2">
+            <MapPin className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="font-headline">Location</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="relative h-64 w-full rounded-lg overflow-hidden border">
+                <iframe 
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=33.7823%2C-13.9626%2C33.7923%2C-13.9526&layer=mapnik&marker=-13.9576,33.7873`} 
+                style={{border: 0, width: '100%', height: '100%'}}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                ></iframe>
+            </div>
+        </CardContent>
+        </Card>
         
       </main>
       
@@ -704,3 +686,5 @@ export default function BorrowerDetailPage() {
     </>
   );
 }
+
+    

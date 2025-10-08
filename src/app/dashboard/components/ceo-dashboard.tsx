@@ -33,16 +33,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Borrower, Loan, Payment, Account, BusinessSettings } from '@/types';
 import { format, subMonths, getMonth, getYear, differenceInDays } from 'date-fns';
 import BorrowerList from '../borrowers/components/borrower-list';
-import { getBorrowers } from '@/services/borrower-service';
-import { getLoans } from '@/services/loan-service';
-import { getAllPayments } from '@/services/payment-service';
 import { getAccounts } from '@/services/account-service';
 import { getSettings } from '@/services/settings-service';
 import { useDB } from '@/lib/firebase-client-provider';
 import FinancialAnalysis from './financial-analysis';
-import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
+import { useAuth } from '@/context/auth-context';
+import { useEffect, useState } from 'react';
 
 function CeoDashboardSkeleton() {
   return (
@@ -120,29 +119,29 @@ const monthlyCollectionsChartConfig = {
 
 export default function CeoDashboard() {
   const db = useDB();
+  const { userProfile } = useAuth();
+  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [isLoadingFinancials, setIsLoadingFinancials] = useState(true);
 
-  const { data: borrowers = [], isLoading: isLoadingBorrowers } = useQuery({
-    queryKey: ['borrowers'],
-    queryFn: () => getBorrowers(db),
-  });
-  const { data: loans = [], isLoading: isLoadingLoans } = useQuery({
-    queryKey: ['loans'],
-    queryFn: () => getLoans(db),
-  });
-  const { data: payments = [], isLoading: isLoadingPayments } = useQuery({
-    queryKey: ['allPayments'],
-    queryFn: () => getAllPayments(db),
-  });
-  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
-    queryKey: ['accounts'],
-    queryFn: () => getAccounts(db),
-  });
-  const { data: settings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => getSettings(db),
-  });
+  useEffect(() => {
+    async function fetchFinancials() {
+        if (!userProfile) return;
+        setIsLoadingFinancials(true);
+        const [accountsData, settingsData] = await Promise.all([
+            getAccounts(db),
+            getSettings(db),
+        ]);
+        setAccounts(accountsData);
+        setSettings(settingsData);
+        setIsLoadingFinancials(false);
+    }
+    fetchFinancials();
+  }, [db, userProfile]);
+
   
-  const isLoading = isLoadingBorrowers || isLoadingLoans || isLoadingPayments || isLoadingAccounts || isLoadingSettings;
+  const isLoading = loading || isLoadingFinancials;
 
   if (isLoading) {
     return <CeoDashboardSkeleton />;
@@ -394,3 +393,5 @@ export default function CeoDashboard() {
     </>
   );
 }
+
+    
