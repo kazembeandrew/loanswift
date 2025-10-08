@@ -51,8 +51,9 @@ export default function FinancialAnalysis({ loans, payments, accounts }: Financi
     
     const totalCapital = accounts.filter(a => a.type === 'equity').reduce((sum, item) => sum + item.balance, 0);
     const totalMiscIncome = accounts.filter(a => a.type === 'income' && a.name !== 'Interest Income').reduce((sum, item) => sum + item.balance, 0);
-    const totalExpenses = accounts.filter(a => a.type === 'expense').reduce((sum, item) => sum + item.balance, 0);
-    const totalDrawings = 0; 
+    const totalExpenses = accounts.filter(a => a.type === 'expense' && a.name !== 'Drawings').reduce((sum, item) => sum + item.balance, 0);
+    const drawingsAccount = accounts.find(a => a.name === 'Drawings');
+    const totalDrawings = drawingsAccount ? drawingsAccount.balance : 0;
     
     setAnalysisInput({
         totalPrincipal,
