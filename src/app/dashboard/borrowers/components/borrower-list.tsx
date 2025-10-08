@@ -305,6 +305,32 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
 
   const isSubmitting = addBorrowerMutation.isPending || updateBorrowerMutation.isPending || addLoanMutation.isPending || recordPaymentMutation.isPending;
 
+  const renderActionsDropdown = (borrower: Borrower, borrowerLoans: Loan[]) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => handleAddNewLoanClick(borrower)}>Add New Loan</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleEditBorrowerClick(borrower)}>Edit Borrower</DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/dashboard/borrowers/${borrower.id}`}>View Dashboard</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
+        {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
+          <DropdownMenuItem key={loan.id} onClick={() => handleRecordPaymentClick(borrower, loan)}>
+            For Loan {loan.id}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center">
@@ -345,7 +371,50 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
         </Dialog>
       </CardHeader>
       <CardContent>
-          <div className="rounded-lg border">
+          {/* Mobile View */}
+          <div className="md:hidden space-y-4">
+            {borrowers.map((borrower) => {
+              const borrowerLoans = loans.filter((loan) => loan.borrowerId === borrower.id);
+              return (
+                <Card key={borrower.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>
+                                <Link href={`/dashboard/borrowers/${borrower.id}`} className="hover:underline">
+                                    {borrower.name}
+                                </Link>
+                            </CardTitle>
+                            <CardDescription>{borrower.idNumber}</CardDescription>
+                        </div>
+                        {renderActionsDropdown(borrower, borrowerLoans)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <h4 className="text-sm font-semibold mb-2">Active Loans</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {borrowerLoans.length > 0 ? borrowerLoans.map((loan) => {
+                        const status = getLoanStatus(loan);
+                        return (
+                          <Badge
+                            key={loan.id}
+                            variant={getLoanStatusVariant(status)}
+                            className="cursor-pointer"
+                            onClick={() => status !== 'closed' && handleRecordPaymentClick(borrower, loan)}
+                          >
+                            {loan.id} ({status})
+                          </Badge>
+                        )
+                      }) : <p className="text-xs text-muted-foreground">No active loans.</p>}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Desktop View */}
+          <div className="rounded-lg border hidden md:block">
               <Table>
               <TableHeader>
                   <TableRow>
@@ -384,29 +453,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
                           </div>
                       </TableCell>
                       <TableCell className="text-right">
-                          <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleAddNewLoanClick(borrower)}>Add New Loan</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditBorrowerClick(borrower)}>Edit Borrower</DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/borrowers/${borrower.id}`}>View Dashboard</Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuLabel>Record Payment</DropdownMenuLabel>
-                              {borrowerLoans.filter(l => getLoanBalance(l) > 0).map((loan) => (
-                                  <DropdownMenuItem key={loan.id} onClick={() => handleRecordPaymentClick(borrower, loan)}>
-                                  For Loan {loan.id}
-                                  </DropdownMenuItem>
-                              ))}
-                          </DropdownMenuContent>
-                          </DropdownMenu>
+                          {renderActionsDropdown(borrower, borrowerLoans)}
                       </TableCell>
                       </TableRow>
                   );
@@ -487,16 +534,16 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
                 </DialogHeader>
                 <Form {...newLoanForm}>
                     <form onSubmit={newLoanForm.handleSubmit(handleAddNewLoanSubmit)} className="grid gap-4 py-4">
-                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={newLoanForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''} disabled={isSubmitting}/></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
                          <div>
                           <Label>Collateral</Label>
                           {newLoanCollateralFields.map((field, index) => (
                             <div key={field.id} className="flex items-center gap-2 mt-2">
                                <FormField control={newLoanForm.control} name={`collateral.${index}.name`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input placeholder="Item Name" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={newLoanForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} value={field.value || ''} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                               <FormField control={newLoanForm.control} name={`collateral.${index}.value`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" placeholder="Item Value" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
                               <Button type="button" variant="ghost" size="icon" onClick={() => removeNewLoanCollateral(index)} disabled={isSubmitting}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           ))}

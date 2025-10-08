@@ -30,7 +30,7 @@ function generateRepaymentSchedule(loan: Omit<Loan, 'id' | 'repaymentSchedule'>)
 export async function handleAddLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedule'>, userEmail: string): Promise<{success: boolean, message: string, loanId?: string}> {
   
   const repaymentSchedule = generateRepaymentSchedule(loanData);
-  const loanWithSchedule = { ...loanData, repaymentSchedule };
+  const loanWithSchedule: Omit<Loan, 'id'> = { ...loanData, repaymentSchedule };
 
   try {
     const docRef = await adminDb.collection('loans').add(loanWithSchedule);

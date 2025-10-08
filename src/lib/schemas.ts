@@ -19,7 +19,7 @@ export const LoanSchema = z.object({
   startDate: z.string().min(1, 'Start date is required'),
   outstandingBalance: z.coerce.number(),
   collateral: z.array(CollateralItemSchema).optional(),
-  repaymentSchedule: z.array(RepaymentScheduleItemSchema),
+  repaymentSchedule: z.array(RepaymentScheduleItemSchema).optional(),
 });
 
 export const BorrowerSchema = z.object({
