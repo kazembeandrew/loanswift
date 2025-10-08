@@ -25,7 +25,7 @@ export default function BorrowersPage() {
     // Managers see all borrowers, loan officers see only their own.
     const borrowersData = await getBorrowers(db, isManager ? undefined : userProfile?.uid);
     const [loansData, paymentsData] = await Promise.all([
-      getLoans(),
+      getLoans(db),
       getAllPayments(db),
     ]);
     

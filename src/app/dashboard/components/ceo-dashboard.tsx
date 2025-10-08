@@ -56,10 +56,12 @@ export default function CeoDashboard() {
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const db = useDB();
 
   
   const fetchData = useCallback(async () => {
+    setIsLoading(true);
     const [borrowersData, loansData, paymentsData, accountsData, settingsData] = await Promise.all([
       getBorrowers(db),
       getLoans(db),
@@ -72,6 +74,7 @@ export default function CeoDashboard() {
     setPayments(paymentsData);
     setAccounts(accountsData);
     setSettings(settingsData);
+    setIsLoading(false);
   }, [db]);
 
   useEffect(() => {
@@ -319,6 +322,7 @@ export default function CeoDashboard() {
                 loans={loans}
                 payments={payments}
                 fetchData={fetchData}
+                isLoading={isLoading}
             />
         </div>
       </div>
