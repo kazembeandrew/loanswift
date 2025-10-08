@@ -1,0 +1,47 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "borrowers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "loanOfficerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "joinDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "loans",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "borrowerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "situationReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "borrowerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reportDate",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
