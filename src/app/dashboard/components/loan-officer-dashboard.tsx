@@ -14,7 +14,6 @@ import { format } from 'date-fns';
 import { useDB } from '@/lib/firebase-client-provider';
 import MyTasks from './my-tasks';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function LoanOfficerDashboardSkeleton() {
