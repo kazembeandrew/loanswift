@@ -1,36 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
-import { getAccounts } from '@/services/account-service';
 import type { Account } from '@/types';
 import { useAuth } from '@/context/auth-context';
-import { useDB } from '@/lib/firebase-client-provider';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
+import { useMemo } from 'react';
 
 export default function IncomeStatement() {
-  const [incomeAccounts, setIncomeAccounts] = useState<Account[]>([]);
-  const [expenseAccounts, setExpenseAccounts] = useState<Account[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { userProfile } = useAuth();
-  const db = useDB();
+  const { userProfile, user } = useAuth();
+  const { accounts, loading: isLoading } = useRealtimeData(user);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    const allAccounts = await getAccounts(db);
-    setIncomeAccounts(allAccounts.filter(a => a.type === 'income'));
-    setExpenseAccounts(allAccounts.filter(a => a.type === 'expense'));
-    setIsLoading(false);
-  }, [db]);
+  const showFinancialReports = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
-  useEffect(() => {
-    if (userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo') {
-      fetchData();
+  const { incomeAccounts, expenseAccounts } = useMemo(() => {
+    return {
+      incomeAccounts: accounts.filter(a => a.type === 'income'),
+      expenseAccounts: accounts.filter(a => a.type === 'expense'),
     }
-  }, [fetchData, userProfile]);
+  }, [accounts]);
 
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo' && userProfile.role !== 'cfo')) {
+  if (!showFinancialReports) {
     return null; 
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,6 +44,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useAuth } from '@/context/auth-context';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 const transactionLineSchema = z.object({
@@ -67,13 +68,11 @@ const journalFormSchema = z.object({
 
 
 export default function JournalPage() {
-    const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-    const [accounts, setAccounts] = useState<Account[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { user } = useAuth();
+    const { journalEntries, accounts, loading: isLoading } = useRealtimeData(user);
     const [isProcessing, startTransition] = useTransition();
     const [isAddDialogOpen, setAddDialogOpen] = useState(false);
     const { toast } = useToast();
-    const { user } = useAuth();
     
     const form = useForm<z.infer<typeof journalFormSchema>>({
         resolver: zodResolver(journalFormSchema),
@@ -91,35 +90,6 @@ export default function JournalPage() {
         control: form.control,
         name: "lines",
     });
-
-    const fetchData = useCallback(async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-            const idToken = await user.getIdToken();
-            const [entriesRes, accountsRes] = await Promise.all([
-                fetch('/api/accounting/journal', { headers: { Authorization: `Bearer ${idToken}` } }),
-                fetch('/api/accounting/accounts', { headers: { Authorization: `Bearer ${idToken}` } })
-            ]);
-            
-            const entriesResult = await entriesRes.json();
-            if (!entriesRes.ok) throw new Error(entriesResult.message || 'Failed to fetch journal entries.');
-            setJournalEntries(entriesResult.data);
-
-            const accountsResult = await accountsRes.json();
-            if (!accountsRes.ok) throw new Error(accountsResult.message || 'Failed to fetch accounts.');
-            setAccounts(accountsResult.data);
-
-        } catch (error: any) {
-             toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [user, toast]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
     
     const watchLines = form.watch('lines');
     const totalDebits = watchLines.filter(l => l.type === 'debit').reduce((sum, l) => sum + (l.amount || 0), 0);
@@ -149,7 +119,7 @@ export default function JournalPage() {
                 });
                 setAddDialogOpen(false);
                 form.reset();
-                await fetchData();
+                // No need to fetch data, real-time listener will update
             } catch (error: any) {
                 toast({
                     title: 'Error creating entry',

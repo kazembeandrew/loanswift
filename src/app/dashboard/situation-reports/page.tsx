@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/header';
 import {
   Table,
@@ -14,81 +13,22 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
-import {
-  getAllSituationReports,
-  updateSituationReportStatus,
-} from '@/services/situation-report-service';
-import { getBorrowers } from '@/services/borrower-service';
 import type { SituationReport, Borrower } from '@/types';
 import { Loader2, ClipboardList, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
-import { useDB } from '@/lib/firebase-client-provider';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 export default function SituationReportsPage() {
-  const [reports, setReports] = useState<SituationReport[]>([]);
-  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { userProfile } = useAuth();
-  const db = useDB();
+  const { userProfile, user } = useAuth();
+  const { situationReports: reports, borrowers, loading: isLoading } = useRealtimeData(user);
   const { toast } = useToast();
 
   const isManager = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
-  const fetchData = useCallback(async () => {
-    if (!isManager) {
-        setIsLoading(false);
-        return;
-    }
-    setIsLoading(true);
-    try {
-      const [reportsData, borrowersData] = await Promise.all([
-        getAllSituationReports(db),
-        getBorrowers(db),
-      ]);
-      setReports(reportsData);
-      setBorrowers(borrowersData);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      toast({
-        title: 'Error',
-        description: 'Could not load situation reports.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [db, toast, isManager]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   const getBorrowerName = (borrowerId: string) => {
     return borrowers.find((b) => b.id === borrowerId)?.name || 'Unknown Borrower';
-  };
-
-  const handleUpdateStatus = async (reportId: string, status: SituationReport['status']) => {
-    if (!isManager) {
-      toast({
-        title: 'Permission Denied',
-        description: 'You do not have permission to update status.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    try {
-      await updateSituationReportStatus(db, reportId, status);
-      toast({ title: 'Status Updated', description: `Report status set to ${status}.` });
-      fetchData(); // Refresh data
-    } catch (error: any) {
-      toast({
-        title: 'Update Failed',
-        description: error.message || 'An unexpected error occurred.',
-        variant: 'destructive',
-      });
-    }
   };
 
   const getReportStatusVariant = (

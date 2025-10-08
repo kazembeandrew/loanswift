@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/header';
 import {
   Table,
@@ -12,13 +11,13 @@ import {
 } from '@/components/ui/table';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { ArrowDownLeft, ArrowUpRight, Scale } from 'lucide-react';
-import type { JournalEntry } from '@/types';
-import { getJournalEntries } from '@/services/journal-service';
-import { getAccounts } from '@/services/account-service';
+import type { JournalEntry, Account } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { useDB } from '@/lib/firebase-client-provider';
+import { useAuth } from '@/context/auth-context';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
+import { useMemo } from 'react';
 
 type CashTransaction = {
   date: string;
@@ -29,31 +28,18 @@ type CashTransaction = {
 };
 
 export default function BankingPage() {
-  const [transactions, setTransactions] = useState<CashTransaction[]>([]);
-  const [cashBalance, setCashBalance] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const db = useDB();
+  const { user } = useAuth();
+  const { journalEntries, accounts, loading: isLoading } = useRealtimeData(user);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    const [journalEntriesData, accountsData] = await Promise.all([
-      getJournalEntries(db),
-      getAccounts(db),
-    ]);
+  const cashAccount = accounts.find(a => a.name === 'Cash on Hand');
+  const cashBalance = cashAccount ? cashAccount.balance : 0;
 
-    const cashAccount = accountsData.find(a => a.name === 'Cash on Hand');
-    if (cashAccount) {
-        setCashBalance(cashAccount.balance);
-    }
-
+  const transactions: CashTransaction[] = useMemo(() => {
     const cashTransactions: CashTransaction[] = [];
-
-    journalEntriesData.forEach(j => {
-      // Find a line affecting the "Cash on Hand" account
+    journalEntries.forEach(j => {
       const cashLine = j.lines.find(line => line.accountName === 'Cash on Hand');
       
       if (cashLine) {
-        // Determine the category from the other side of the transaction
         const otherLine = j.lines.find(line => line.accountName !== 'Cash on Hand');
         const category = otherLine ? otherLine.accountName : 'Journal Entry';
 
@@ -66,16 +52,9 @@ export default function BankingPage() {
         });
       }
     });
-    
-    const sortedTransactions = cashTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
-    setTransactions(sortedTransactions);
-    setIsLoading(false);
-  }, [db]);
+    return cashTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [journalEntries]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   const totalInflows = transactions.filter(t => t.type === 'inflow').reduce((sum, t) => sum + t.amount, 0);
   const totalOutflows = transactions.filter(t => t.type === 'outflow').reduce((sum, t) => sum + t.amount, 0);

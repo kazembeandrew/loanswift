@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -49,6 +49,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useAuth } from '@/context/auth-context';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 const accountFormSchema = z.object({
@@ -59,14 +60,13 @@ const accountFormSchema = z.object({
 });
 
 export default function AccountsPage() {
-    const [accounts, setAccounts] = useState<Account[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { user } = useAuth();
+    const { accounts, loading: isLoading } = useRealtimeData(user);
     const [isProcessing, startTransition] = useTransition();
     const [isAddDialogOpen, setAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
     const { toast } = useToast();
-    const { user } = useAuth();
     
     const form = useForm<z.infer<typeof accountFormSchema>>({
         resolver: zodResolver(accountFormSchema),
@@ -76,28 +76,6 @@ export default function AccountsPage() {
         },
     });
 
-    const fetchData = useCallback(async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-            const idToken = await user.getIdToken();
-            const response = await fetch('/api/accounting/accounts', {
-                headers: { Authorization: `Bearer ${idToken}` },
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Failed to fetch accounts.');
-            setAccounts(result.data);
-        } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [user, toast]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-    
     const apiRequest = async (method: 'POST' | 'PUT', body: any, successTitle: string) => {
         if (!user) return;
         startTransition(async () => {
@@ -115,7 +93,7 @@ export default function AccountsPage() {
                 if (!response.ok) throw new Error(result.message || 'An error occurred.');
                 
                 toast({ title: successTitle, description: `The account "${body.name}" has been processed.` });
-                await fetchData();
+                // No need to fetch data, real-time listener will update
                 setAddDialogOpen(false);
                 setEditDialogOpen(false);
                 form.reset();

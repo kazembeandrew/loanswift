@@ -1,34 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import { getAccounts } from '@/services/account-service';
 import type { Account } from '@/types';
 import { useAuth } from '@/context/auth-context';
-import { useDB } from '@/lib/firebase-client-provider';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 export default function BalanceSheet() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { userProfile } = useAuth();
-  const db = useDB();
+  const { userProfile, user } = useAuth();
+  const { accounts, loading: isLoading } = useRealtimeData(user);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    const allAccounts = await getAccounts(db);
-    setAccounts(allAccounts);
-    setIsLoading(false);
-  }, [db]);
+  const showFinancialReports = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
-  useEffect(() => {
-    if (userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo') {
-      fetchData();
-    }
-  }, [fetchData, userProfile]);
-
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'ceo' && userProfile.role !== 'cfo')) {
+  if (!showFinancialReports) {
     return null;
   }
 
