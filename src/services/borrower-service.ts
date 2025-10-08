@@ -1,20 +1,25 @@
 'use client';
 
-import { collection, addDoc, getDocs, doc, getDoc, query, where, updateDoc, type Firestore } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, getDoc, query, where, updateDoc, type Firestore, limit, orderBy } from 'firebase/firestore';
 import type { Borrower } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
 
 /**
- * Fetches all borrowers assigned to a specific loan officer.
+ * Fetches all borrowers assigned to a specific loan officer, ordered by join date.
  * @param db The Firestore instance.
  * @param loanOfficerId The UID of the loan officer.
  * @returns A promise that resolves to an array of borrowers.
  */
 export async function getBorrowersByLoanOfficer(db: Firestore, loanOfficerId: string): Promise<Borrower[]> {
   const borrowersCollection = collection(db, 'borrowers');
-  const q = query(borrowersCollection, where("loanOfficerId", "==", loanOfficerId));
+  const q = query(
+      borrowersCollection, 
+      where("loanOfficerId", "==", loanOfficerId),
+      orderBy('joinDate', 'desc'),
+      limit(50)
+  );
   try {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
@@ -43,8 +48,10 @@ export async function getBorrowers(db: Firestore, loanOfficerId?: string): Promi
   }
 
   const borrowersCollection = collection(db, 'borrowers');
+  const q = query(borrowersCollection, orderBy('joinDate', 'desc'), limit(50));
+
   try {
-    const snapshot = await getDocs(borrowersCollection);
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
   } catch (serverError: any) {
     if (serverError.code === 'permission-denied') {

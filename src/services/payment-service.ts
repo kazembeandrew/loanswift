@@ -1,6 +1,6 @@
 'use client';
 
-import { collection, getDocs, query, collectionGroup, type Firestore } from 'firebase/firestore';
+import { collection, getDocs, query, collectionGroup, type Firestore, orderBy, limit } from 'firebase/firestore';
 import type { Payment } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -10,8 +10,9 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 export async function getPaymentsByLoanId(db: Firestore, loanId: string): Promise<Payment[]> {
     const paymentsCollection = collection(db, `loans/${loanId}/payments`);
+    const q = query(paymentsCollection, orderBy('date', 'desc'));
     try {
-        const snapshot = await getDocs(paymentsCollection);
+        const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
     } catch (serverError: any) {
         if (serverError.code === 'permission-denied') {
@@ -27,7 +28,7 @@ export async function getPaymentsByLoanId(db: Firestore, loanId: string): Promis
 
 
 export async function getAllPayments(db: Firestore): Promise<(Payment & {loanId: string})[]> {
-    const paymentsQuery = query(collectionGroup(db, 'payments'));
+    const paymentsQuery = query(collectionGroup(db, 'payments'), orderBy('date', 'desc'), limit(200));
     try {
         const querySnapshot = await getDocs(paymentsQuery);
         const payments: (Payment & { loanId: string })[] = [];

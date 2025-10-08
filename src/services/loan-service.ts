@@ -1,6 +1,6 @@
 'use client';
 
-import { collection, getDocs, query, where, doc, getDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, updateDoc, type Firestore, orderBy, limit } from 'firebase/firestore';
 import type { Loan } from '@/types';
 import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
@@ -8,8 +8,9 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 export async function getLoans(db: Firestore): Promise<Loan[]> {
   const loansCollection = collection(db, 'loans');
+  const q = query(loansCollection, orderBy('startDate', 'desc'), limit(100));
   try {
-    const snapshot = await getDocs(loansCollection);
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
   } catch (serverError: any) {
     if (serverError.code === 'permission-denied') {
@@ -44,7 +45,7 @@ export async function getLoanById(db: Firestore, id: string): Promise<Loan | nul
 }
 
 export async function getLoansByBorrowerId(db: Firestore, borrowerId: string): Promise<Loan[]> {
-    const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId));
+    const q = query(collection(db, 'loans'), where("borrowerId", "==", borrowerId), orderBy('startDate', 'desc'));
     try {
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
