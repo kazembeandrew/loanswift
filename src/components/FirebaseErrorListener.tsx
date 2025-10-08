@@ -17,7 +17,17 @@ export function FirebaseErrorListener() {
 
   useEffect(() => {
     const handleError = (error: FirestorePermissionError) => {
-      console.error("Firestore Permission Error Caught:", error.toJSON());
+      console.error(
+        JSON.stringify(
+          {
+            timestamp: new Date().toISOString(),
+            error: error.toJSON(),
+            user: user ? { uid: user.uid, email: user.email } : 'unauthenticated',
+          },
+          null,
+          2
+        )
+      );
 
       let description = "You do not have permission to perform this action. Please contact your administrator if you believe this is an error.";
 
