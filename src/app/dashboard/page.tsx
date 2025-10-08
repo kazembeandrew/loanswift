@@ -3,7 +3,6 @@ import { useAuth } from '@/context/auth-context';
 import { Header } from '@/components/header';
 import CeoDashboard from './components/ceo-dashboard';
 import LoanOfficerDashboard from './components/loan-officer-dashboard';
-import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
