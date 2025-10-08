@@ -22,7 +22,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { getAllUsers } from '@/services/user-service';
 import { handleCreateUser, handleUpdateUserRole } from '@/app/actions/user';
-import { promoteUserToAdmin } from '@/app/actions/promote';
 import type { UserProfile } from '@/types';
 import { Loader2, ShieldAlert, PlusCircle, ShieldCheck, UserCheck, UserX } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -36,17 +35,6 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,7 +129,6 @@ export default function StaffPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, startUpdatingTransition] = useTransition();
   const [isCreating, startCreatingTransition] = useTransition();
-  const [isPromoting, startPromotingTransition] = useTransition();
   const [isAddUserOpen, setAddUserOpen] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', role: 'loan_officer' as UserProfile['role'] });
   const { toast } = useToast();
@@ -209,19 +196,6 @@ export default function StaffPage() {
         }
     });
   };
-
-  const handlePromoteUser = (email: string) => {
-    startPromotingTransition(async () => {
-        const result = await promoteUserToAdmin(email);
-        if (result.status === 'success') {
-            toast({ title: 'Promotion Successful', description: result.message });
-            await fetchData();
-        } else {
-            toast({ title: 'Promotion Failed', description: result.message, variant: 'destructive' });
-        }
-    });
-  };
-
 
   if (isLoading) {
     return (
@@ -330,7 +304,6 @@ export default function StaffPage() {
                       <TableHead>User</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -363,32 +336,6 @@ export default function StaffPage() {
                                 <SelectItem value="ceo">CEO</SelectItem>
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {user.role !== 'admin' && userProfile?.role === 'admin' && (
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="outline" size="sm" disabled={isPromoting}>
-                                      {isPromoting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                                        Promote to Admin
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will grant full administrative privileges to {user.email}. This action is reversible but should be done with caution.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handlePromoteUser(user.email)}>
-                                            Yes, Promote
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                          )}
                         </TableCell>
                       </TableRow>
                     ))}
