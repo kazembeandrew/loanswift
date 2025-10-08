@@ -12,6 +12,7 @@ import { FileText, User, Search } from 'lucide-react';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
 import { useDB } from '@/lib/firebase-client-provider';
+import { useDebounce } from '@/hooks/use-debounce';
 
 type SearchResult = {
   type: 'borrower' | 'loan';
@@ -27,6 +28,7 @@ type GlobalSearchProps = {
 
 export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -49,8 +51,8 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
   }, [isOpen, fetchData]);
 
   useEffect(() => {
-    if (query.length > 1) {
-      const lowerCaseQuery = query.toLowerCase();
+    if (debouncedQuery.length > 1) {
+      const lowerCaseQuery = debouncedQuery.toLowerCase();
 
       const borrowerResults: SearchResult[] = borrowers
         .filter(
@@ -81,7 +83,7 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
     } else {
       setResults([]);
     }
-  }, [query, borrowers, loans]);
+  }, [debouncedQuery, borrowers, loans]);
   
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -138,7 +140,7 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
                     ))}
                 </div>
             ) : (
-                query.length > 1 && (
+                debouncedQuery.length > 1 && (
                     <div className="py-6 text-center text-sm">
                         No results found.
                     </div>
