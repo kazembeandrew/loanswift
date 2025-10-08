@@ -8,7 +8,7 @@ import admin from 'firebase-admin';
 import { getAdminApp } from '@/lib/firebase-admin';
 
 
-export async function handleCreateUser(email: string, password: string, role: UserProfile['role']): Promise<{ success: boolean; error?: string }> {
+export async function handleCreateUser(email: string, password: string, role: UserProfile['role'], actorEmail: string): Promise<{ success: boolean; error?: string }> {
   const adminApp = getAdminApp();
   if (!adminApp) {
     return { success: false, error: 'Firebase Admin not configured on the server.' };
@@ -27,7 +27,9 @@ export async function handleCreateUser(email: string, password: string, role: Us
     const userData: UserProfile = {
       uid: userRecord.uid,
       email: userRecord.email || '',
+      displayName: userRecord.email?.split('@')[0] || '',
       role: role,
+      status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -37,7 +39,7 @@ export async function handleCreateUser(email: string, password: string, role: Us
     await adminAuth.setCustomUserClaims(userRecord.uid, { role });
     
     await addAuditLog({
-        userEmail: 'system@admin', // Should be replaced with actual admin user email from session
+        userEmail: actorEmail,
         action: 'USER_CREATE',
         details: {
             newUserEmail: email,
@@ -51,7 +53,7 @@ export async function handleCreateUser(email: string, password: string, role: Us
   }
 }
 
-export async function handleUpdateUserRole(uid: string, role: UserProfile['role']): Promise<void> {
+export async function handleUpdateUserRole(uid: string, role: UserProfile['role'], actorEmail: string): Promise<void> {
     const adminApp = getAdminApp();
     if (!adminApp) {
       throw new Error("Cannot update user role. Firebase Admin is not initialized.");
@@ -70,7 +72,7 @@ export async function handleUpdateUserRole(uid: string, role: UserProfile['role'
     await updateDoc(docRef, { role, updatedAt: new Date().toISOString() });
 
     await addAuditLog({
-        userEmail: 'system@admin', // Should be replaced with actual admin user email from session
+        userEmail: actorEmail,
         action: 'USER_ROLE_UPDATE',
         details: {
             updatedUserEmail: userToUpdate.email,

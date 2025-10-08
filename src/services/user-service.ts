@@ -22,7 +22,8 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
       return { uid: userSnap.id, ...userSnap.data() } as UserProfile;
     } else {
       // Create the user document if it doesn't exist
-      const userProfileData: Omit<UserProfile, 'uid'> = {
+      const userProfileData: UserProfile = {
+        uid: user.uid,
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
         role: 'loan_officer', // Default role for new users
@@ -32,7 +33,7 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
       };
 
       await setDoc(userRef, userProfileData);
-      return { uid: user.uid, ...userProfileData };
+      return userProfileData;
     }
   } catch (serverError: any) {
      if (serverError.code === 'permission-denied') {

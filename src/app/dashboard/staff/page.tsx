@@ -160,9 +160,10 @@ export default function StaffPage() {
   }, [fetchData, userProfile]);
   
   const onRoleChange = (uid: string, newRole: UserProfile['role']) => {
+    if (!userProfile) return;
     startUpdatingTransition(async () => {
       try {
-        await handleUpdateUserRole(uid, newRole);
+        await handleUpdateUserRole(uid, newRole, userProfile.email);
         toast({
           title: 'Role Updated',
           description: `The user's role has been successfully changed to ${newRole}.`,
@@ -184,8 +185,10 @@ export default function StaffPage() {
         toast({ title: "Missing fields", description: "Please enter email and password.", variant: "destructive"});
         return;
     }
+    if (!userProfile) return;
+
     startCreatingTransition(async () => {
-        const result = await handleCreateUser(newUser.email, newUser.password, newUser.role);
+        const result = await handleCreateUser(newUser.email, newUser.password, newUser.role, userProfile.email);
         if (result.success) {
             toast({ title: "User Created", description: "The new user has been successfully created."});
             setAddUserOpen(false);
