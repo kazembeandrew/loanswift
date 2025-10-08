@@ -6,6 +6,7 @@ import { Belleza, Alegreya } from 'next/font/google';
 import { FirebaseClientProvider } from '@/lib/firebase-client-provider';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import ClientOnly from '@/components/client-only';
+import { QueryProvider } from '@/components/query-provider';
 
 const belleza = Belleza({
   subsets: ['latin'],
@@ -36,14 +37,16 @@ export default function RootLayout({
           <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
         </head>
       <body className={`${belleza.variable} ${alegreya.variable} font-body text-slate-800 dark:text-slate-200`}>
-        <FirebaseClientProvider>
-          <AuthProvider>
-            {children}
-            <ClientOnly>
-                <FirebaseErrorListener />
-            </ClientOnly>
-          </AuthProvider>
-        </FirebaseClientProvider>
+        <QueryProvider>
+          <FirebaseClientProvider>
+            <AuthProvider>
+              {children}
+              <ClientOnly>
+                  <FirebaseErrorListener />
+              </ClientOnly>
+            </AuthProvider>
+          </FirebaseClientProvider>
+        </QueryProvider>
         <Toaster />
       </body>
     </html>

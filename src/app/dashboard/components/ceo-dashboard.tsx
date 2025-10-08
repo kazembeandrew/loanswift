@@ -6,6 +6,7 @@ import {
   TrendingDown,
   Wallet,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import {
   Card,
@@ -31,7 +32,6 @@ import type { ChartConfig } from '@/components/ui/chart';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Borrower, Loan, Payment, Account, BusinessSettings } from '@/types';
 import { format, subMonths, getMonth, getYear, differenceInDays } from 'date-fns';
-import { useState, useEffect, useCallback } from 'react';
 import BorrowerList from '../borrowers/components/borrower-list';
 import { getBorrowers } from '@/services/borrower-service';
 import { getLoans } from '@/services/loan-service';
@@ -40,6 +40,7 @@ import { getAccounts } from '@/services/account-service';
 import { getSettings } from '@/services/settings-service';
 import { useDB } from '@/lib/firebase-client-provider';
 import FinancialAnalysis from './financial-analysis';
+import { useQuery } from '@tanstack/react-query';
 
 
 const monthlyCollectionsChartConfig = {
@@ -51,35 +52,38 @@ const monthlyCollectionsChartConfig = {
 
 
 export default function CeoDashboard() {
-  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [settings, setSettings] = useState<BusinessSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const db = useDB();
 
+  const { data: borrowers = [], isLoading: isLoadingBorrowers } = useQuery({
+    queryKey: ['borrowers'],
+    queryFn: () => getBorrowers(db),
+  });
+  const { data: loans = [], isLoading: isLoadingLoans } = useQuery({
+    queryKey: ['loans'],
+    queryFn: () => getLoans(db),
+  });
+  const { data: payments = [], isLoading: isLoadingPayments } = useQuery({
+    queryKey: ['allPayments'],
+    queryFn: () => getAllPayments(db),
+  });
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => getAccounts(db),
+  });
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => getSettings(db),
+  });
   
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    const [borrowersData, loansData, paymentsData, accountsData, settingsData] = await Promise.all([
-      getBorrowers(db),
-      getLoans(db),
-      getAllPayments(db),
-      getAccounts(db),
-      getSettings(db),
-    ]);
-    setBorrowers(borrowersData);
-    setLoans(loansData);
-    setPayments(paymentsData);
-    setAccounts(accountsData);
-    setSettings(settingsData);
-    setIsLoading(false);
-  }, [db]);
+  const isLoading = isLoadingBorrowers || isLoadingLoans || isLoadingPayments || isLoadingAccounts || isLoadingSettings;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  if (isLoading) {
+    return (
+        <div className="flex h-[80vh] w-full items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
   
   const getBorrowerById = (id: string): Borrower | undefined => {
     return borrowers.find((borrower) => borrower.id === id);
@@ -321,8 +325,6 @@ export default function CeoDashboard() {
                 borrowers={borrowers}
                 loans={loans}
                 payments={payments}
-                fetchData={fetchData}
-                isLoading={isLoading}
             />
         </div>
       </div>

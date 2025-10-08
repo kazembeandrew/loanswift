@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, useFieldArray, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
@@ -53,6 +53,8 @@ import { handleAddLoan } from '@/app/actions/loan';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDB } from '@/lib/firebase-client-provider';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 
 const collateralSchema = z.object({
   name: z.string().min(1, 'Collateral name is required'),
@@ -68,6 +70,8 @@ const borrowerFormSchema = z.object({
   guarantorPhone: z.string().min(1, 'Guarantor phone is required'),
 });
 
+type BorrowerFormData = z.infer<typeof borrowerFormSchema>;
+
 const newLoanFormSchema = z.object({
   loanAmount: z.coerce.number().positive('Loan amount must be a positive number'),
   interestRate: z.coerce.number().min(0, 'Interest rate cannot be negative'),
@@ -76,7 +80,9 @@ const newLoanFormSchema = z.object({
   collateral: z.array(collateralSchema).optional(),
 });
 
-const borrowerFormDefaultValues = {
+type NewLoanFormData = z.infer<typeof newLoanFormSchema>;
+
+const borrowerFormDefaultValues: BorrowerFormData = {
   name: '',
   phone: '',
   idNumber: '',
@@ -85,10 +91,10 @@ const borrowerFormDefaultValues = {
   guarantorPhone: '',
 };
 
-const newLoanFormDefaultValues = {
-    loanAmount: undefined,
-    interestRate: undefined,
-    repaymentPeriod: undefined,
+const newLoanFormDefaultValues: NewLoanFormData = {
+    loanAmount: 0,
+    interestRate: 0,
+    repaymentPeriod: 0,
     startDate: '',
     collateral: [],
 };
@@ -97,18 +103,15 @@ type BorrowerListProps = {
   borrowers: Borrower[];
   loans: Loan[];
   payments: (Payment & { loanId: string })[];
-  fetchData: () => Promise<void>;
-  isLoading: boolean;
 };
 
-export default function BorrowerList({ borrowers, loans, payments, fetchData, isLoading }: BorrowerListProps) {
+export default function BorrowerList({ borrowers, loans, payments }: BorrowerListProps) {
   
   const [isAddBorrowerOpen, setAddBorrowerOpen] = useState(false);
   const [isEditBorrowerOpen, setEditBorrowerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [isAddNewLoanOpen, setAddNewLoanOpen] = useState(false);
-  const [isSubmitting, startTransition] = useTransition();
 
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -118,13 +121,14 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
   const [receiptBalance, setReceiptBalance] = useState(0);
   const router = useRouter();
   const db = useDB();
+  const queryClient = useQueryClient();
 
-  const borrowerForm = useForm<z.infer<typeof borrowerFormSchema>>({
+  const borrowerForm = useForm<BorrowerFormData>({
     resolver: zodResolver(borrowerFormSchema),
     defaultValues: borrowerFormDefaultValues,
   });
 
-  const newLoanForm = useForm<z.infer<typeof newLoanFormSchema>>({
+  const newLoanForm = useForm<NewLoanFormData>({
     resolver: zodResolver(newLoanFormSchema),
     defaultValues: newLoanFormDefaultValues,
   });
@@ -133,6 +137,128 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
       control: newLoanForm.control,
       name: "collateral",
   });
+  
+  const addBorrowerMutation = useMutation({
+    mutationFn: (newBorrowerData: Omit<Borrower, 'id' | 'joinDate'>) => addBorrower(db, newBorrowerData),
+    onSuccess: (newBorrower) => {
+      queryClient.invalidateQueries({ queryKey: ['borrowers'] });
+      setAddBorrowerOpen(false);
+      borrowerForm.reset();
+      toast({
+        title: 'Borrower Added',
+        description: `${newBorrower.name} has been successfully added. Redirecting...`,
+      });
+      router.push(`/dashboard/borrowers/${newBorrower.id}`);
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive'});
+    }
+  });
+
+  const updateBorrowerMutation = useMutation({
+    mutationFn: (variables: { id: string; data: BorrowerFormData }) => updateBorrower(db, variables.id, variables.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['borrowers'] });
+      setEditBorrowerOpen(false);
+      borrowerForm.reset();
+      toast({
+        title: 'Borrower Updated',
+        description: `${variables.data.name}'s details have been successfully updated.`,
+      });
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive'});
+    }
+  });
+
+  const addLoanMutation = useMutation({
+    mutationFn: (newLoanData: { data: Omit<Loan, 'id' | 'repaymentSchedule'>, email: string }) => handleAddLoan(newLoanData.data, newLoanData.email),
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['loans'] });
+        setAddNewLoanOpen(false);
+        newLoanForm.reset();
+        toast({
+            title: 'New Loan Added',
+            description: `A new loan has been added for ${selectedBorrower?.name}.`,
+        });
+      } else {
+        throw new Error(result.message);
+      }
+    },
+    onError: (error) => {
+       toast({
+          title: 'Failed to Add Loan',
+          description: error.message,
+          variant: 'destructive',
+      });
+    }
+  });
+
+  const recordPaymentMutation = useMutation({
+    mutationFn: (paymentData: { loanId: string; amount: number; date: string; recordedByEmail: string; }) => handleRecordPayment(paymentData),
+    onSuccess: (result) => {
+      if (result.success) {
+        setReceiptBalance(result.newBalance);
+        queryClient.invalidateQueries({ queryKey: ['allPayments'] });
+        queryClient.invalidateQueries({ queryKey: ['loans'] });
+        setRecordPaymentOpen(false);
+        setReceiptGeneratorOpen(true);
+        toast({
+            title: 'Payment Recorded',
+            description: `Payment has been recorded.`,
+        });
+      } else {
+        throw new Error(result.message);
+      }
+    },
+    onError: (error) => {
+      toast({
+          title: 'Payment Failed',
+          description: error.message,
+          variant: 'destructive',
+      });
+    }
+  });
+
+
+  const handleAddBorrowerSubmit: SubmitHandler<BorrowerFormData> = (values) => {
+    if (!userProfile) return;
+    addBorrowerMutation.mutate({
+        ...values,
+        loanOfficerId: userProfile.uid,
+    });
+  };
+
+  const handleEditBorrowerSubmit: SubmitHandler<BorrowerFormData> = (values) => {
+    if (!selectedBorrower) return;
+    updateBorrowerMutation.mutate({ id: selectedBorrower.id, data: values });
+  };
+  
+  const handleAddNewLoanSubmit: SubmitHandler<NewLoanFormData> = (values) => {
+    if (!selectedBorrower || !userProfile) return;
+    const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
+        borrowerId: selectedBorrower.id,
+        principal: values.loanAmount,
+        interestRate: values.interestRate,
+        repaymentPeriod: values.repaymentPeriod,
+        startDate: values.startDate,
+        outstandingBalance: values.loanAmount * (1 + values.interestRate / 100),
+        collateral: values.collateral,
+    };
+    addLoanMutation.mutate({ data: newLoanData, email: userProfile.email });
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBorrower || !selectedLoan || !paymentDetails.amount || !userProfile) return;
+    recordPaymentMutation.mutate({
+        loanId: selectedLoan.id,
+        amount: parseFloat(paymentDetails.amount),
+        date: paymentDetails.date || new Date().toISOString().split('T')[0],
+        recordedByEmail: userProfile.email,
+    });
+  };
 
   const getLoanBalance = (loan: Loan) => {
     const totalPaid = payments
@@ -149,82 +275,10 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
     setRecordPaymentOpen(true);
   };
   
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBorrower || !selectedLoan || !paymentDetails.amount || !userProfile) return;
-
-    startTransition(async () => {
-        const result = await handleRecordPayment({
-            loanId: selectedLoan.id,
-            amount: parseFloat(paymentDetails.amount),
-            date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedByEmail: userProfile.email,
-        });
-
-        if (result.success) {
-            setReceiptBalance(result.newBalance);
-            toast({
-                title: 'Payment Recorded',
-                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
-            });
-            setRecordPaymentOpen(false);
-            setReceiptGeneratorOpen(true);
-            await fetchData();
-        } else {
-            toast({
-                title: 'Payment Failed',
-                description: result.message || 'An unexpected error occurred.',
-                variant: 'destructive',
-            });
-        }
-    });
-  };
-
   const handleEditBorrowerClick = (borrower: Borrower) => {
     setSelectedBorrower(borrower);
     borrowerForm.reset(borrower);
     setEditBorrowerOpen(true);
-  };
-
-  const handleEditBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
-    if (!selectedBorrower) return;
-
-    startTransition(async () => {
-        await updateBorrower(db, selectedBorrower.id, values);
-        
-        setEditBorrowerOpen(false);
-        borrowerForm.reset(borrowerFormDefaultValues);
-        toast({
-        title: 'Borrower Updated',
-        description: `${values.name}'s details have been successfully updated.`,
-        });
-        await fetchData();
-    });
-  };
-  
-  const handleAddBorrowerSubmit = async (values: z.infer<typeof borrowerFormSchema>) => {
-    if (!userProfile) {
-        toast({ title: 'Error', description: 'You must be logged in to add a borrower.', variant: 'destructive'});
-        return;
-    }
-    
-    startTransition(async () => {
-        const newBorrowerData: Omit<Borrower, 'id' | 'joinDate'> = {
-            ...values,
-            loanOfficerId: userProfile.uid,
-        };
-        
-        const newBorrower = await addBorrower(db, newBorrowerData);
-        
-        await fetchData();
-        setAddBorrowerOpen(false);
-        borrowerForm.reset(borrowerFormDefaultValues);
-        toast({
-            title: 'Borrower Added',
-            description: `${values.name} has been successfully added. Redirecting...`,
-        });
-        router.push(`/dashboard/borrowers/${newBorrower.id}`);
-    });
   };
 
   const handleAddNewLoanClick = (borrower: Borrower) => {
@@ -234,40 +288,6 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
         startDate: new Date().toISOString().split('T')[0]
     });
     setAddNewLoanOpen(true);
-  };
-  
-  const handleAddNewLoanSubmit = async (values: z.infer<typeof newLoanFormSchema>) => {
-    if (!selectedBorrower || !userProfile) return;
-    
-    startTransition(async () => {
-        const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
-            borrowerId: selectedBorrower.id,
-            principal: values.loanAmount,
-            interestRate: values.interestRate,
-            repaymentPeriod: values.repaymentPeriod,
-            startDate: values.startDate,
-            outstandingBalance: values.loanAmount * (1 + values.interestRate / 100),
-            collateral: values.collateral,
-        };
-        
-        const result = await handleAddLoan(newLoanData, userProfile.email);
-        
-        if (result.success) {
-            await fetchData();
-            setAddNewLoanOpen(false);
-            newLoanForm.reset(newLoanFormDefaultValues);
-            toast({
-                title: 'New Loan Added',
-                description: `A new loan has been added for ${selectedBorrower.name}.`,
-            });
-        } else {
-            toast({
-                title: 'Failed to Add Loan',
-                description: result.message,
-                variant: 'destructive',
-            });
-        }
-    });
   };
 
   const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
@@ -294,6 +314,8 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
         return 'default';
     }
   };
+
+  const isSubmitting = addBorrowerMutation.isPending || updateBorrowerMutation.isPending || addLoanMutation.isPending || recordPaymentMutation.isPending;
 
   return (
     <Card>
@@ -335,11 +357,6 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
         </Dialog>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
           <div className="rounded-lg border">
               <Table>
               <TableHeader>
@@ -409,7 +426,6 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
               </TableBody>
               </Table>
           </div>
-        )}
       </CardContent>
 
        <Dialog open={isEditBorrowerOpen} onOpenChange={(open) => { setEditBorrowerOpen(open); if(!open) borrowerForm.reset(borrowerFormDefaultValues); }}>
