@@ -89,40 +89,11 @@ type UpcomingPayment = {
 
 export default function LoanOfficerDashboard() {
   const { user, userProfile } = useAuth();
-  const db = useDB();
-  const { borrowers, loans, payments, loading } = useRealtimeData(user);
-  const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
-  const [isLoadingReports, setIsLoadingReports] = useState(true);
-
-  const myBorrowerIds = useMemo(() => borrowers.map(b => b.id), [borrowers]);
-
-  useEffect(() => {
-    async function fetchReports() {
-        if (!userProfile || myBorrowerIds.length === 0) {
-            setIsLoadingReports(false);
-            return;
-        };
-        setIsLoadingReports(true);
-        // This is a simplified fetch; for production, you might batch requests.
-        const allReports: SituationReport[] = [];
-        for (const borrowerId of myBorrowerIds) {
-            const reports = await getSituationReportsByBorrower(db, borrowerId);
-            allReports.push(...reports);
-        }
-        setSituationReports(allReports.sort((a,b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()));
-        setIsLoadingReports(false);
-    }
-    if(!loading) {
-      fetchReports();
-    }
-  }, [myBorrowerIds, userProfile, db, loading]);
-
-  const isLoading = loading || isLoadingReports;
-
-  if (isLoading) {
+  const { borrowers, loans, payments, situationReports, loading } = useRealtimeData(user);
+  
+  if (loading) {
     return <LoanOfficerDashboardSkeleton />;
   }
-
 
   const getLoanBalance = (loan: Loan) => {
     const totalPaid = payments

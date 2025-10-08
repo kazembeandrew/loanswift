@@ -44,8 +44,8 @@ function BorrowerListSkeleton() {
 }
 
 export default function BorrowersPage() {
-  const { userProfile } = useAuth();
-  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
+  const { user } = useAuth();
+  const { borrowers, loans, payments, loading } = useRealtimeData(user);
 
   return (
     <>

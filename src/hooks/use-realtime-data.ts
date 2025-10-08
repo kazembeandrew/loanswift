@@ -4,62 +4,44 @@ import { useState, useEffect, useMemo } from 'react';
 import { useDB } from '@/lib/firebase-client-provider';
 import type { User, UserProfile, Borrower, Loan, Payment, Account, JournalEntry, SituationReport } from '@/types';
 import { onSnapshot, collection, query, where, doc, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 export function useRealtimeData(user: User | null) {
+  const { userProfile } = useAuth();
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const db = useDB();
 
   useEffect(() => {
-    if (!user || !db) {
+    if (!user || !db || !userProfile) {
         setLoading(false);
         return;
     };
     
     setLoading(true);
-
-    const userUnsub = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-      const profile = { uid: doc.id, ...doc.data() } as UserProfile;
-      setUserProfile(profile);
-      // Let other listeners proceed now that profile is loaded
-    }, (error) => {
-      console.error("User Profile listener error:", error);
-      setLoading(false);
-    });
-
-    return () => { userUnsub(); };
-  }, [user, db]);
-
-  useEffect(() => {
-    if (!userProfile || !db) {
-        setLoading(false);
-        return;
-    };
-
     const isManager = userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo';
 
     // 1. Borrowers Listener
     const borrowersQuery = isManager
-      ? collection(db, 'borrowers')
-      : query(collection(db, 'borrowers'), where('loanOfficerId', '==', userProfile.uid));
+      ? query(collection(db, 'borrowers'), orderBy('joinDate', 'desc'))
+      : query(collection(db, 'borrowers'), where('loanOfficerId', '==', userProfile.uid), orderBy('joinDate', 'desc'));
 
     const borrowersUnsub = onSnapshot(borrowersQuery, (snapshot) => {
       const borrowersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
       setBorrowers(borrowersData);
-      setLoading(false);
+      setLoading(false); // Consider loading complete after first data set arrives
     }, (error) => {
         console.error("Borrowers listener error:", error);
         setLoading(false);
     });
 
-    // 2. Payments Listener (Collection Group) - Fetches all payments. Will be filtered later.
-    const paymentsUnsub = onSnapshot(collection(db, 'payments'), (snapshot) => {
+    // 2. Payments Listener (Collection Group)
+    const paymentsUnsub = onSnapshot(query(collection(db, 'payments'), orderBy('date', 'desc')), (snapshot) => {
       const paymentsData: (Payment & { loanId: string })[] = [];
       snapshot.forEach((doc) => {
         const loanDocRef = doc.ref.parent.parent;
@@ -77,8 +59,8 @@ export function useRealtimeData(user: User | null) {
     let reportsUnsub = () => {};
 
     if(isManager) {
-        accountsUnsub = onSnapshot(collection(db, 'accounts'), (snapshot) => {
-            setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)).sort((a,b) => a.name.localeCompare(b.name)));
+        accountsUnsub = onSnapshot(query(collection(db, 'accounts'), orderBy('name')), (snapshot) => {
+            setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
         }, (error) => console.error("Accounts listener error:", error));
 
         journalUnsub = onSnapshot(query(collection(db, 'journal'), orderBy('date', 'desc')), (snapshot) => {
@@ -99,7 +81,7 @@ export function useRealtimeData(user: User | null) {
       reportsUnsub();
     };
     
-  }, [db, userProfile]);
+  }, [db, user, userProfile]);
 
 
   // Derived State for Loans based on Borrowers (for loan officers)
@@ -107,33 +89,56 @@ export function useRealtimeData(user: User | null) {
     if (!db || !userProfile) return;
 
     if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
-        const unsub = onSnapshot(collection(db, 'loans'), (snapshot) => {
+        const unsub = onSnapshot(query(collection(db, 'loans'), orderBy('startDate', 'desc')), (snapshot) => {
             setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
         }, (error) => console.error("All Loans listener error:", error));
         return () => unsub();
-    } else {
+    } else { // Loan Officer
         const myBorrowerIds = borrowers.map(b => b.id);
         if (myBorrowerIds.length > 0) {
-            // Firestore 'in' query is limited to 30 items. If more, this would need batching.
             const loansQuery = query(collection(db, 'loans'), where('borrowerId', 'in', myBorrowerIds.slice(0, 30)));
             const unsub = onSnapshot(loansQuery, (snapshot) => {
                 setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
             }, (error) => console.error("Filtered Loans listener error:", error));
             return () => unsub();
         } else {
-            setLoans([]); // No borrowers, so no loans
+            setLoans([]); // No borrowers, so no loans for this officer
         }
     }
   }, [borrowers, db, userProfile]);
-
+  
+  // Memoized payments filtered by role
   const filteredPayments = useMemo(() => {
     if (!userProfile) return [];
     if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
-        return payments;
+        return payments; // Managers see all payments
     }
-    const myLoanIds = loans.map(l => l.id);
-    return payments.filter(p => myLoanIds.includes(p.loanId));
+    // Loan officers only see payments for their loans
+    const myLoanIds = new Set(loans.map(l => l.id));
+    return payments.filter(p => myLoanIds.has(p.loanId));
   }, [payments, loans, userProfile]);
+  
+  // Memoized situation reports for loan officers
+  const filteredSituationReports = useMemo(() => {
+    if (!userProfile || !db) return [];
+    if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
+        return situationReports; // Managers see all reports
+    }
+    // This is a client-side filter. It assumes all reports are fetched if the user is a manager.
+    // For loan officers, we need to fetch them specifically if not already done.
+    // For this implementation, we will assume reports are fetched for managers and we need to fetch for officers.
+    return situationReports.filter(report => borrowers.some(b => b.id === report.borrowerId));
 
-  return { borrowers, loans, payments: filteredPayments, accounts, journalEntries, situationReports, loading };
+  }, [situationReports, borrowers, userProfile, db]);
+
+  // The hook returns data scoped to the user's role
+  return { 
+      borrowers, 
+      loans, 
+      payments: filteredPayments, 
+      accounts, 
+      journalEntries, 
+      situationReports: userProfile?.role === 'loan_officer' ? filteredSituationReports : situationReports,
+      loading 
+  };
 }
