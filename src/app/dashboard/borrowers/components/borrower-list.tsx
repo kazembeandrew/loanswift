@@ -278,7 +278,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
       if (paymentsForLoan.length > 0) return 'active';
 
       return 'approved';
-  }
+  };
 
   const getLoanStatusVariant = (
     status: 'approved' | 'active' | 'closed'
@@ -295,24 +295,6 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
     }
   };
 
-  useEffect(() => {
-    if (!isAddBorrowerOpen) {
-      borrowerForm.reset(borrowerFormDefaultValues);
-    }
-  }, [isAddBorrowerOpen, borrowerForm]);
-
-  useEffect(() => {
-    if (!isEditBorrowerOpen) {
-       borrowerForm.reset(borrowerFormDefaultValues);
-    }
-  }, [isEditBorrowerOpen, borrowerForm]);
-  
-  useEffect(() => {
-    if (!isAddNewLoanOpen) {
-      newLoanForm.reset(newLoanFormDefaultValues);
-    }
-  }, [isAddNewLoanOpen, newLoanForm]);
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center">
@@ -320,7 +302,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
             <CardTitle>Borrowers</CardTitle>
             <CardDescription>Manage all borrowers in the system.</CardDescription>
         </div>
-        <Dialog open={isAddBorrowerOpen} onOpenChange={setAddBorrowerOpen}>
+        <Dialog open={isAddBorrowerOpen} onOpenChange={(open) => { setAddBorrowerOpen(open); if(!open) borrowerForm.reset(borrowerFormDefaultValues); }}>
           <DialogTrigger asChild>
             <Button className="ml-auto gap-1">
                 <PlusCircle className="h-4 w-4" /> Add Borrower
@@ -430,7 +412,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
         )}
       </CardContent>
 
-       <Dialog open={isEditBorrowerOpen} onOpenChange={setEditBorrowerOpen}>
+       <Dialog open={isEditBorrowerOpen} onOpenChange={(open) => { setEditBorrowerOpen(open); if(!open) borrowerForm.reset(borrowerFormDefaultValues); }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Borrower</DialogTitle>
@@ -491,7 +473,7 @@ export default function BorrowerList({ borrowers, loans, payments, fetchData, is
       </Dialog>
       
       {selectedBorrower && selectedLoan && (
-        <Dialog open={isAddNewLoanOpen} onOpenChange={setAddNewLoanOpen}>
+        <Dialog open={isAddNewLoanOpen} onOpenChange={(open) => { setAddNewLoanOpen(open); if(!open) newLoanForm.reset(newLoanFormDefaultValues); }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Add New Loan</DialogTitle>
