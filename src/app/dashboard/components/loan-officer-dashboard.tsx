@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/context/auth-context';
 import type { Borrower, Loan, Payment, SituationReport } from '@/types';
-import { getSituationReportsByBorrower } from '@/services/situation-report-service';
 import DashboardMetrics from './dashboard-metrics';
 import BorrowerList from '../borrowers/components/borrower-list';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +11,9 @@ import { useDB } from '@/lib/firebase-client-provider';
 import MyTasks from './my-tasks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRealtimeData } from '@/hooks/use-realtime-data';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { getSituationReportsByBorrower } from '@/services/situation-report-service';
+
 
 function LoanOfficerDashboardSkeleton() {
   return (
@@ -87,26 +88,34 @@ type UpcomingPayment = {
 };
 
 export default function LoanOfficerDashboard() {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const db = useDB();
-  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
+  const { borrowers, loans, payments, loading } = useRealtimeData(user);
   const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
 
+  const myBorrowerIds = useMemo(() => borrowers.map(b => b.id), [borrowers]);
+
   useEffect(() => {
     async function fetchReports() {
-        if (!userProfile || borrowers.length === 0) {
+        if (!userProfile || myBorrowerIds.length === 0) {
             setIsLoadingReports(false);
             return;
         };
         setIsLoadingReports(true);
-        const borrowerIds = borrowers.map(b => b.id);
-        const reports = await getSituationReportsByBorrower(db, borrowerIds[0]); // TODO: Fix for multiple borrowers
-        setSituationReports(reports);
+        // This is a simplified fetch; for production, you might batch requests.
+        const allReports: SituationReport[] = [];
+        for (const borrowerId of myBorrowerIds) {
+            const reports = await getSituationReportsByBorrower(db, borrowerId);
+            allReports.push(...reports);
+        }
+        setSituationReports(allReports.sort((a,b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()));
         setIsLoadingReports(false);
     }
-    fetchReports();
-  }, [borrowers, userProfile, db]);
+    if(!loading) {
+      fetchReports();
+    }
+  }, [myBorrowerIds, userProfile, db, loading]);
 
   const isLoading = loading || isLoadingReports;
 
@@ -220,5 +229,3 @@ export default function LoanOfficerDashboard() {
     </div>
   );
 }
-
-    

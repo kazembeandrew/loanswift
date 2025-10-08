@@ -326,7 +326,7 @@ export default function StaffPage() {
                           <Select
                             value={user.role}
                             onValueChange={(newRole: UserProfile['role']) => onRoleChange(user.uid, newRole)}
-                            disabled={isUpdating || user.uid === userProfile?.uid || userProfile?.role !== 'admin'}
+                            disabled={isUpdating || (user.uid === userProfile?.uid && userProfile?.role === 'admin') || userProfile?.role !== 'admin'}
                           >
                             <SelectTrigger className="w-40">
                                 <SelectValue />

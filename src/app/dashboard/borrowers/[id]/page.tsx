@@ -55,22 +55,29 @@ export default function BorrowerDetailPage() {
   const id = params.id as string;
   const defaultTab = searchParams.get('tab') || 'loans';
   const { user, userProfile } = useAuth();
-  const { loans, payments, loading: isRealtimeDataLoading } = useRealtimeData(userProfile);
+  const { loans, payments, loading: isRealtimeDataLoading } = useRealtimeData(user);
 
   const [borrower, setBorrower] = useState<Borrower | null>(null);
   const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
-  const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [receiptInfo, setReceiptInfo] = useState<{
+      isOpen: boolean;
+      borrower: Borrower | null;
+      loan: Loan | null;
+      paymentAmount: number;
+      paymentDate: string;
+      balance: number;
+  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', balance: 0 });
+
   const [isFileReportOpen, setFileReportOpen] = useState(false);
   const [isViewReportOpen, setViewReportOpen] = useState(false);
   const [isSubmittingPayment, startPaymentTransition] = useTransition();
 
   const [selectedReport, setSelectedReport] = useState<SituationReport | null>(null);
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [selectedLoanForPayment, setSelectedLoanForPayment] = useState<Loan | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
-  const [receiptBalance, setReceiptBalance] = useState(0);
 
   const { toast } = useToast();
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
@@ -90,7 +97,7 @@ export default function BorrowerDetailPage() {
   });
 
   const fetchData = useCallback(async () => {
-    if (!id || !userProfile) return;
+    if (!id || !user) return;
     setIsDataLoading(true);
     
     try {
@@ -106,7 +113,7 @@ export default function BorrowerDetailPage() {
         setIsDataLoading(false);
     }
 
-  }, [id, db, userProfile, toast]);
+  }, [id, db, user, toast]);
 
   useEffect(() => {
     fetchData();
@@ -144,31 +151,38 @@ export default function BorrowerDetailPage() {
   };
   
   const handleRecordPaymentClick = (loan: Loan) => {
-    setSelectedLoan(loan);
+    setSelectedLoanForPayment(loan);
     setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   }
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLoan || !paymentDetails.amount || !userProfile) return;
+    if (!selectedLoanForPayment || !paymentDetails.amount || !userProfile || !borrower) return;
 
     startPaymentTransition(async () => {
+        const paymentAmount = parseFloat(paymentDetails.amount);
         const result = await handleRecordPayment({
-            loanId: selectedLoan.id,
-            amount: parseFloat(paymentDetails.amount),
+            loanId: selectedLoanForPayment.id,
+            amount: paymentAmount,
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
             recordedByEmail: userProfile.email,
         });
 
         if (result.success) {
-            setReceiptBalance(result.newBalance);
+            setReceiptInfo({
+                isOpen: true,
+                borrower: borrower,
+                loan: selectedLoanForPayment,
+                paymentAmount: paymentAmount,
+                paymentDate: paymentDetails.date || new Date().toISOString().split('T')[0],
+                balance: result.newBalance,
+            });
             toast({
                 title: 'Payment Recorded',
-                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+                description: `Payment of MWK ${paymentAmount.toLocaleString()} for loan ${selectedLoanForPayment.id} has been recorded.`,
             });
             setRecordPaymentOpen(false);
-            setReceiptGeneratorOpen(true);
             // No need to call fetchData(), realtime listener will update.
         } else {
             toast({
@@ -233,7 +247,7 @@ export default function BorrowerDetailPage() {
 
   const getLoanStatus = (loan: Loan): 'approved' | 'active' | 'closed' => {
       const balance = getLoanBalance(loan);
-      if (balance <= 0) return 'closed';
+      if (balance <= 0.01) return 'closed';
 
       const paymentsForLoan = allPayments.filter(p => p.loanId === loan.id);
       if (paymentsForLoan.length > 0) return 'active';
@@ -254,7 +268,7 @@ export default function BorrowerDetailPage() {
         
         let status: 'paid' | 'pending' | 'overdue';
 
-        if (totalPaid >= cumulativeDue) {
+        if (totalPaid >= cumulativeDue - 0.01) { // Tolerance for float issues
             status = 'paid';
         } else if (new Date() > new Date(item.dueDate) && totalPaid < cumulativeDue) {
             status = 'overdue';
@@ -512,8 +526,8 @@ export default function BorrowerDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
-            {selectedLoan && <DialogDescription>
-              For loan {selectedLoan.id} of {borrower?.name}.
+            {selectedLoanForPayment && <DialogDescription>
+              For loan {selectedLoanForPayment.id} of {borrower?.name}.
             </DialogDescription>}
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
@@ -541,16 +555,16 @@ export default function BorrowerDetailPage() {
         </DialogContent>
       </Dialog>
       
-      {borrower && selectedLoan && (
-        <ReceiptGenerator 
-          isOpen={isReceiptGeneratorOpen}
-          setIsOpen={setReceiptGeneratorOpen}
-          borrower={borrower}
-          loan={selectedLoan}
-          paymentAmount={parseFloat(paymentDetails.amount) || 0}
-          paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
-          balance={receiptBalance}
-        />
+      {receiptInfo.isOpen && receiptInfo.borrower && receiptInfo.loan && (
+          <ReceiptGenerator 
+            isOpen={receiptInfo.isOpen}
+            setIsOpen={(isOpen) => setReceiptInfo(prev => ({ ...prev, isOpen }))}
+            borrower={receiptInfo.borrower}
+            loan={receiptInfo.loan}
+            paymentAmount={receiptInfo.paymentAmount}
+            paymentDate={receiptInfo.paymentDate}
+            balance={receiptInfo.balance}
+          />
       )}
 
       <Dialog open={isFileReportOpen} onOpenChange={setFileReportOpen}>
@@ -686,5 +700,3 @@ export default function BorrowerDetailPage() {
     </>
   );
 }
-
-    

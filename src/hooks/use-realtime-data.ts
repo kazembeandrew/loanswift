@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useDB } from '@/lib/firebase-client-provider';
 import type { User, UserProfile, Borrower, Loan, Payment, Account, JournalEntry, SituationReport } from '@/types';
-import { onSnapshot, collection, query, where } from 'firebase/firestore';
+import { onSnapshot, collection, query, where, doc, orderBy } from 'firebase/firestore';
 
 export function useRealtimeData(user: User | null) {
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
@@ -24,19 +24,23 @@ export function useRealtimeData(user: User | null) {
     
     setLoading(true);
 
-    // User Profile Listener
     const userUnsub = onSnapshot(doc(db, 'users', user.uid), (doc) => {
       const profile = { uid: doc.id, ...doc.data() } as UserProfile;
       setUserProfile(profile);
+      // Let other listeners proceed now that profile is loaded
     }, (error) => {
       console.error("User Profile listener error:", error);
+      setLoading(false);
     });
 
-    if (!userProfile) {
-        // Wait for user profile to load before setting up other listeners
+    return () => { userUnsub(); };
+  }, [user, db]);
+
+  useEffect(() => {
+    if (!userProfile || !db) {
         setLoading(false);
-        return () => { userUnsub(); };
-    }
+        return;
+    };
 
     const isManager = userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo';
 
@@ -48,44 +52,26 @@ export function useRealtimeData(user: User | null) {
     const borrowersUnsub = onSnapshot(borrowersQuery, (snapshot) => {
       const borrowersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Borrower));
       setBorrowers(borrowersData);
-      setLoading(false); // Main data loaded
+      setLoading(false);
     }, (error) => {
         console.error("Borrowers listener error:", error);
         setLoading(false);
     });
 
-    // 2. Loans Listener (dependent on borrowers for loan officers)
-    let loansUnsub = () => {};
-    if (isManager) {
-        loansUnsub = onSnapshot(collection(db, 'loans'), (snapshot) => {
-            setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
-        }, (error) => console.error("All Loans listener error:", error));
-    } else {
-        const borrowerIds = borrowers.map(b => b.id);
-        if (borrowerIds.length > 0) {
-            const loansQuery = query(collection(db, 'loans'), where('borrowerId', 'in', borrowerIds));
-            loansUnsub = onSnapshot(loansQuery, (snapshot) => {
-                setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
-            }, (error) => console.error("Filtered Loans listener error:", error));
-        } else {
-            setLoans([]); // No borrowers, so no loans
-        }
-    }
-
-    // 3. Payments Listener (Collection Group)
+    // 2. Payments Listener (Collection Group) - Fetches all payments. Will be filtered later.
     const paymentsUnsub = onSnapshot(collection(db, 'payments'), (snapshot) => {
       const paymentsData: (Payment & { loanId: string })[] = [];
       snapshot.forEach((doc) => {
-            const loanDocRef = doc.ref.parent.parent;
-            if (loanDocRef) {
-                const loanId = loanDocRef.id;
-                paymentsData.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
-            }
-        });
+        const loanDocRef = doc.ref.parent.parent;
+        if (loanDocRef) {
+            const loanId = loanDocRef.id;
+            paymentsData.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
+        }
+      });
       setPayments(paymentsData);
     }, (error) => console.error("Payments listener error:", error));
     
-    // 4. Financials Listeners (only for managers)
+    // 3. Financials & Global Reports Listeners (only for managers)
     let accountsUnsub = () => {};
     let journalUnsub = () => {};
     let reportsUnsub = () => {};
@@ -106,16 +92,39 @@ export function useRealtimeData(user: User | null) {
 
 
     return () => {
-      userUnsub();
       borrowersUnsub();
-      loansUnsub();
       paymentsUnsub();
       accountsUnsub();
       journalUnsub();
       reportsUnsub();
     };
     
-  }, [db, user, userProfile?.uid]);
+  }, [db, userProfile]);
+
+
+  // Derived State for Loans based on Borrowers (for loan officers)
+  useEffect(() => {
+    if (!db || !userProfile) return;
+
+    if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
+        const unsub = onSnapshot(collection(db, 'loans'), (snapshot) => {
+            setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
+        }, (error) => console.error("All Loans listener error:", error));
+        return () => unsub();
+    } else {
+        const myBorrowerIds = borrowers.map(b => b.id);
+        if (myBorrowerIds.length > 0) {
+            // Firestore 'in' query is limited to 30 items. If more, this would need batching.
+            const loansQuery = query(collection(db, 'loans'), where('borrowerId', 'in', myBorrowerIds.slice(0, 30)));
+            const unsub = onSnapshot(loansQuery, (snapshot) => {
+                setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
+            }, (error) => console.error("Filtered Loans listener error:", error));
+            return () => unsub();
+        } else {
+            setLoans([]); // No borrowers, so no loans
+        }
+    }
+  }, [borrowers, db, userProfile]);
 
   const filteredPayments = useMemo(() => {
     if (!userProfile) return [];
