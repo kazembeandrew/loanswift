@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,19 +32,15 @@ import ReceiptGenerator from '../borrowers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getBorrowers } from '@/services/borrower-service';
-import { getLoans } from '@/services/loan-service';
-import { getAllPayments } from '@/services/payment-service';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { useAuth } from '@/context/auth-context';
-import { useDB } from '@/lib/firebase-client-provider';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 export default function PaymentsPage() {
-  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const { userProfile } = useAuth();
+  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -55,24 +51,6 @@ export default function PaymentsPage() {
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [receiptBalance, setReceiptBalance] = useState(0);
   const { toast } = useToast();
-  const { userProfile } = useAuth();
-  const db = useDB();
-
-  const fetchData = useCallback(async () => {
-    const [borrowersData, loansData, paymentsData] = await Promise.all([
-      getBorrowers(db),
-      getLoans(db),
-      getAllPayments(db),
-    ]);
-    setBorrowers(borrowersData);
-    setLoans(loansData);
-    setPayments(paymentsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-  }, [db]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
 
   const getBorrowerById = (id: string | null) => id ? borrowers.find((c) => c.id === id) : null;
   const getLoanById = (id: string | null) => id ? loans.find((l) => l.id === id) : null;
@@ -114,7 +92,7 @@ export default function PaymentsPage() {
             });
             setRecordPaymentOpen(false);
             setReceiptGeneratorOpen(true);
-            await fetchData();
+            // No fetch needed, real-time listener will update data.
         } else {
             toast({
                 title: 'Payment Failed',
@@ -164,7 +142,12 @@ export default function PaymentsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
+                   {loading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                   ) : (
+                     <div className="space-y-4">
                        {recentPayments.length > 0 ? (
                         recentPayments.map(payment => {
                           const loan = getLoanById(payment.loanId);
@@ -194,6 +177,7 @@ export default function PaymentsPage() {
                         <p className="text-sm text-muted-foreground text-center pt-8">No recent payments.</p>
                        )}
                       </div>
+                   )}
                 </CardContent>
             </Card>
         </div>

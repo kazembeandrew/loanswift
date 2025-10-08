@@ -1,17 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Borrower, Loan, Payment } from '@/types';
-import { getBorrowers } from '@/services/borrower-service';
-import { getLoans } from '@/services/loan-service';
-import { getAllPayments } from '@/services/payment-service';
 import ReceiptGenerator from '../borrowers/components/receipt-generator';
-import { useDB } from '@/lib/firebase-client-provider';
+import { useAuth } from '@/context/auth-context';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { loanId: string })[], loans: Loan[], borrowers: Borrower[] }) => {
@@ -70,27 +68,10 @@ const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { l
 }
 
 export default function ReceiptsPage() {
-    const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
-    const [loans, setLoans] = useState<Loan[]>([]);
-    const [borrowers, setBorrowers] = useState<Borrower[]>([]);
+    const { userProfile } = useAuth();
+    const { payments, loans, borrowers, loading } = useRealtimeData(userProfile);
     const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState<Payment & {loanId: string} | null>(null);
-    const db = useDB();
-
-    const fetchData = useCallback(async () => {
-      const [paymentsData, loansData, borrowersData] = await Promise.all([
-        getAllPayments(db),
-        getLoans(db),
-        getBorrowers(db),
-      ]);
-      setPayments(paymentsData);
-      setLoans(loansData);
-      setBorrowers(borrowersData);
-    }, [db]);
-
-    useEffect(() => {
-      fetchData();
-    }, [fetchData]);
 
     const getBorrowerByLoanId = (loanId: string): Borrower | undefined => {
         const loan = loans.find(l => l.id === loanId);
@@ -124,6 +105,17 @@ export default function ReceiptsPage() {
         }, 0);
         
         return totalOwed - totalPaidUpToThisPayment;
+    }
+    
+    if (loading) {
+        return (
+            <>
+                <Header title="Receipts" />
+                <main className="flex-1 flex items-center justify-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </main>
+            </>
+        )
     }
 
 

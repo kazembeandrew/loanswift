@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import {
@@ -35,17 +35,13 @@ import type { Borrower, Loan, Payment } from '@/types';
 import ReceiptGenerator from '../borrowers/components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { getBorrowers } from '@/services/borrower-service';
-import { getLoans } from '@/services/loan-service';
-import { getAllPayments } from '@/services/payment-service';
 import { handleRecordPayment } from '@/app/actions/payment';
-import { useDB } from '@/lib/firebase-client-provider';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 export default function LoansPage() {
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [payments, setPayments] = useState<(Payment & { loanId: string })[]>([]);
+  const { userProfile } = useAuth();
+  const { loans, borrowers, payments, loading } = useRealtimeData(userProfile);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -54,24 +50,7 @@ export default function LoansPage() {
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
   const [receiptBalance, setReceiptBalance] = useState(0);
   const { toast } = useToast();
-  const { userProfile } = useAuth();
   const router = useRouter();
-  const db = useDB();
-
-  const fetchData = useCallback(async () => {
-    const [loansData, borrowersData, paymentsData] = await Promise.all([
-      getLoans(db),
-      getBorrowers(db),
-      getAllPayments(db),
-    ]);
-    setLoans(loansData);
-    setBorrowers(borrowersData);
-    setPayments(paymentsData);
-  }, [db]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   const getBorrowerById = (id: string) => borrowers.find((c) => c.id === id);
 
@@ -132,7 +111,7 @@ export default function LoansPage() {
         const result = await handleRecordPayment({
             loanId: selectedLoan.id,
             amount: parseFloat(paymentDetails.amount),
-            date: paymentDetails.date || new Date().toISOString().split('T')[0],
+            date: paymentDetails.date || new Date().toISOString().split('T[0]'),
             recordedByEmail: userProfile.email,
         });
 
@@ -144,7 +123,7 @@ export default function LoansPage() {
             });
             setRecordPaymentOpen(false);
             setReceiptGeneratorOpen(true);
-            await fetchData();
+            // No need to fetch data, real-time listener will update.
         } else {
             toast({
                 title: 'Payment Failed',
@@ -160,6 +139,17 @@ export default function LoansPage() {
   };
 
   const selectedBorrower = selectedLoan ? getBorrowerById(selectedLoan.borrowerId) : null;
+  
+  if (loading) {
+    return (
+        <>
+            <Header title="Loans" />
+            <main className="flex-1 flex items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </main>
+        </>
+    )
+  }
 
   return (
     <>
