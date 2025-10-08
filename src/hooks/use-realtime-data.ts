@@ -41,7 +41,7 @@ export function useRealtimeData(user: User | null) {
     });
 
     // 2. Payments Listener (Collection Group)
-    const paymentsUnsub = onSnapshot(query(collection(db, 'payments'), orderBy('date', 'desc')), (snapshot) => {
+    const paymentsUnsub = onSnapshot(query(collectionGroup(db, 'payments'), orderBy('date', 'desc')), (snapshot) => {
       const paymentsData: (Payment & { loanId: string })[] = [];
       snapshot.forEach((doc) => {
         const loanDocRef = doc.ref.parent.parent;

@@ -33,7 +33,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { Borrower, Loan, Payment, Account, BusinessSettings } from '@/types';
 import { format, subMonths, getMonth, getYear, differenceInDays } from 'date-fns';
 import BorrowerList from '../borrowers/components/borrower-list';
-import { getAccounts } from '@/services/account-service';
 import { getSettings } from '@/services/settings-service';
 import { useDB } from '@/lib/firebase-client-provider';
 import FinancialAnalysis from './financial-analysis';
@@ -120,28 +119,23 @@ const monthlyCollectionsChartConfig = {
 export default function CeoDashboard() {
   const db = useDB();
   const { userProfile } = useAuth();
-  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const { borrowers, loans, payments, accounts, loading } = useRealtimeData(userProfile);
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
-  const [isLoadingFinancials, setIsLoadingFinancials] = useState(true);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   useEffect(() => {
-    async function fetchFinancials() {
+    async function fetchSettings() {
         if (!userProfile) return;
-        setIsLoadingFinancials(true);
-        const [accountsData, settingsData] = await Promise.all([
-            getAccounts(db),
-            getSettings(db),
-        ]);
-        setAccounts(accountsData);
+        setIsLoadingSettings(true);
+        const settingsData = await getSettings(db);
         setSettings(settingsData);
-        setIsLoadingFinancials(false);
+        setIsLoadingSettings(false);
     }
-    fetchFinancials();
+    fetchSettings();
   }, [db, userProfile]);
 
   
-  const isLoading = loading || isLoadingFinancials;
+  const isLoading = loading || isLoadingSettings;
 
   if (isLoading) {
     return <CeoDashboardSkeleton />;

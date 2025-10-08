@@ -12,7 +12,6 @@ import MyTasks from './my-tasks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRealtimeData } from '@/hooks/use-realtime-data';
 import { useState, useEffect, useMemo } from 'react';
-import { getSituationReportsByBorrower } from '@/services/situation-report-service';
 
 
 function LoanOfficerDashboardSkeleton() {
