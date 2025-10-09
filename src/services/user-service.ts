@@ -22,7 +22,6 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-      console.log(`✅ User document found for: ${user.uid}`);
       const profile = userSnap.data() as UserProfile;
       profile.uid = userSnap.id;
       return profile;
@@ -35,16 +34,16 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
       // Auto-approve the initial admin user from .env
       const isAdminEmail = user.email === 'info.ntchito@gmail.com';
       const initialStatus = isAdminEmail ? 'approved' : 'pending';
+      const initialRole = isAdminEmail ? 'admin' : 'loan_officer';
 
       const newUserDoc: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
         uid: user.uid,
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
-        role: isAdminEmail ? 'admin' : 'loan_officer',
+        role: initialRole,
         status: initialStatus,
       };
 
-      console.log(`🔄 Creating user document for: ${user.uid} with status: ${initialStatus} (attempt ${retryCount + 1})`);
       await setDoc(userRef, {
           ...newUserDoc,
           createdAt: serverTimestamp(),
@@ -54,7 +53,6 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
       // CRITICAL: Fetch the document back to get server-generated timestamps
       const newUserSnap = await getDoc(userRef);
       if (newUserSnap.exists()) {
-          console.log(`✅ Created and fetched user document for: ${user.uid}`);
           const profile = newUserSnap.data() as UserProfile;
           profile.uid = newUserSnap.id;
           return profile;
@@ -64,11 +62,8 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
       }
     }
   } catch (error: any) {
-    console.error(`❌ Error in ensureUserDocument (attempt ${retryCount + 1}):`, error);
-    
     // Retry logic for permission errors (common during auth propagation)
     if (error.code === 'permission-denied' && retryCount < 3) {
-      console.log(`🔄 Retrying user document creation in 2 seconds...`);
       await new Promise(resolve => setTimeout(resolve, 2000));
       return ensureUserDocument(db, user, retryCount + 1);
     }

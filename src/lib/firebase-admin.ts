@@ -11,12 +11,33 @@ const firebaseAdminConfig = {
   }),
 };
 
-// Initialize only if not already initialized
+let adminApp: admin.app.App;
+let adminDbInstance: admin.firestore.Firestore;
+
+function initializeAdminApp() {
+    if (admin.apps.length > 0) {
+        adminApp = admin.apps[0]!;
+        adminDbInstance = getFirestore(adminApp);
+        return;
+    }
+
+    // Ensure all credentials are provided before initializing
+    if (
+        firebaseAdminConfig.credential.projectId &&
+        (firebaseAdminConfig.credential as admin.ServiceAccount).clientEmail &&
+        (firebaseAdminConfig.credential as admin.ServiceAccount).privateKey
+    ) {
+        adminApp = admin.initializeApp(firebaseAdminConfig);
+        adminDbInstance = getFirestore(adminApp);
+    } else {
+        console.warn("Firebase Admin credentials are not fully provided. Admin SDK not initialized.");
+    }
+}
+
+initializeAdminApp();
+
 export function getAdminApp() {
-  if (admin.apps.length === 0) {
-    return admin.initializeApp(firebaseAdminConfig);
-  }
-  return admin.apps[0];
+  return adminApp;
 };
 
-export const adminDb = getFirestore(getAdminApp());
+export { adminDbInstance as adminDb };

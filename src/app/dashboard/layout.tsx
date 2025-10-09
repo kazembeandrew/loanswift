@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 
-const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutes
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, userProfile, loading, signOut } = useAuth();

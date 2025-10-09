@@ -48,13 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         setUser(user);
         try {
-          console.log(`🔄 Ensuring user document for: ${user.uid}`);
           const userDoc = await ensureUserDocument(db, user);
           
           if (mounted) {
             if (userDoc) {
               setUserProfile(userDoc);
-              console.log(`✅ User profile loaded: ${userDoc.role}, ${userDoc.status}`);
               
               // Handle user status
               if (userDoc.status === 'approved') {
@@ -67,12 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
               }
             } else {
-              console.error('❌ Failed to ensure user document');
               // Don't sign out - let user see the error
             }
           }
         } catch (error) {
-          console.error('❌ Auth state change error:', error);
           if (mounted) {
             setUserProfile(null);
             // Show user-friendly error
