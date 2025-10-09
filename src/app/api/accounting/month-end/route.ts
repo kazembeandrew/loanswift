@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -113,7 +114,7 @@ async function approveMonthEndClose(approvedByUid: string, approvedByEmail: stri
 
   const result = await adminDb.runTransaction(async (transaction) => {
     const closureDoc = await transaction.get(closureRef);
-    if (!closureDoc.exists() || closureDoc.data()?.status !== 'pending_approval') {
+    if (!closureDoc.exists || closureDoc.data()?.status !== 'pending_approval') {
       throw { message: 'No pending month-end close found for this period to approve.', status: 404 };
     }
     const updatedClosureData: Partial<MonthEndClosure> = {
@@ -136,7 +137,7 @@ async function processApprovedMonthEndClose(processedByUid: string, processedByE
 
   const finalClosureState = await adminDb.runTransaction(async (transaction) => {
     const closureDoc = await transaction.get(closureRef);
-    if (!closureDoc.exists() || closureDoc.data()?.status !== 'approved') {
+    if (!closureDoc.exists || closureDoc.data()?.status !== 'approved') {
       throw { message: 'This month-end close has not been approved by the CEO yet.', status: 409 };
     }
     const accountsSnapshot = await transaction.get(adminDb.collection('accounts'));
