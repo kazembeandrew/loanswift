@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -39,8 +40,8 @@ import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 export default function PaymentsPage() {
-  const { userProfile } = useAuth();
-  const { borrowers, loans, payments, loading } = useRealtimeData(userProfile);
+  const { user } = useAuth();
+  const { borrowers, loans, payments, loading } = useRealtimeData(user);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -67,7 +68,7 @@ export default function PaymentsPage() {
     e.preventDefault();
     const selectedLoan = getLoanById(selectedLoanId);
 
-    if (!selectedLoan || !paymentDetails.amount || !userProfile) {
+    if (!selectedLoan || !paymentDetails.amount || !user) {
       toast({
         title: 'Error',
         description: 'Please select a borrower, loan and enter an amount.',
@@ -81,7 +82,7 @@ export default function PaymentsPage() {
             loanId: selectedLoan.id,
             amount: parseFloat(paymentDetails.amount),
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedByEmail: userProfile.email,
+            recordedByEmail: user.email!,
         });
 
         if (result.success) {

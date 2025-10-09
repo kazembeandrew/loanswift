@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -68,8 +69,8 @@ const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { l
 }
 
 export default function ReceiptsPage() {
-    const { userProfile } = useAuth();
-    const { payments, loans, borrowers, loading } = useRealtimeData(userProfile);
+    const { user } = useAuth();
+    const { payments, loans, borrowers, loading } = useRealtimeData(user);
     const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState<Payment & {loanId: string} | null>(null);
 

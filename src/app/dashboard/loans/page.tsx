@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -40,8 +41,8 @@ import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 export default function LoansPage() {
-  const { userProfile } = useAuth();
-  const { loans, borrowers, payments, loading } = useRealtimeData(userProfile);
+  const { user } = useAuth();
+  const { loans, borrowers, payments, loading } = useRealtimeData(user);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
@@ -105,14 +106,14 @@ export default function LoansPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLoan || !paymentDetails.amount || !userProfile) return;
+    if (!selectedLoan || !paymentDetails.amount || !user) return;
 
     startPaymentTransition(async () => {
         const result = await handleRecordPayment({
             loanId: selectedLoan.id,
             amount: parseFloat(paymentDetails.amount),
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedByEmail: userProfile.email,
+            recordedByEmail: user.email!,
         });
 
         if (result.success) {
