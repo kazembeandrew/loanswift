@@ -73,12 +73,20 @@ export default function PaymentsPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedLoan = getLoanById(selectedLoanId);
-
-    if (!selectedLoan || !paymentDetails.amount || !user) {
+    if (!paymentDetails.amount || !user) {
       toast({
         title: 'Error',
         description: 'Please select a borrower, loan and enter an amount.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    const selectedLoan = getLoanById(selectedLoanId);
+    if (!selectedLoan) {
+       toast({
+        title: 'Error',
+        description: 'Please select a valid loan.',
         variant: 'destructive',
       });
       return;
@@ -281,5 +289,3 @@ export default function PaymentsPage() {
     </>
   );
 }
-
-    

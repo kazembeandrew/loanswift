@@ -209,13 +209,23 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBorrower || !paymentState.loan || !paymentState.amount || !userProfile) return;
+    if (!selectedBorrower || !paymentState.amount || !userProfile) return;
+
+    if (!paymentState.loan) {
+        toast({
+            title: 'Error',
+            description: 'No loan selected for payment.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     startTransition(async () => {
         const paymentAmount = parseFloat(paymentState.amount);
         const paymentDate = paymentState.date || new Date().toISOString().split('T')[0];
         try {
             const result = await handleRecordPayment({
-                loanId: paymentState.loan.id,
+                loanId: paymentState.loan!.id,
                 amount: paymentAmount,
                 date: paymentDate,
                 recordedByEmail: userProfile.email,

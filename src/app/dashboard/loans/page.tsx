@@ -114,7 +114,16 @@ export default function LoansPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLoan || !paymentDetails.amount || !user) return;
+    if (!paymentDetails.amount || !user) return;
+
+    if (!selectedLoan) {
+        toast({
+            title: 'Error',
+            description: 'No loan selected for payment.',
+            variant: 'destructive',
+        });
+        return;
+    }
 
     startPaymentTransition(async () => {
         const paymentAmount = parseFloat(paymentDetails.amount);
@@ -284,5 +293,3 @@ export default function LoansPage() {
     </>
   );
 }
-
-    
