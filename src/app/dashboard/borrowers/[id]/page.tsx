@@ -134,13 +134,22 @@ export default function BorrowerDetailPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paymentState.loan || !paymentState.amount || !userProfile || !borrower) return;
+    if (!paymentState.amount || !userProfile || !borrower) return;
+
+    if (!paymentState.loan) {
+        toast({
+            title: 'Error',
+            description: 'No loan selected for payment.',
+            variant: 'destructive',
+        });
+        return;
+    }
 
     startPaymentTransition(async () => {
         const paymentAmount = parseFloat(paymentState.amount);
         const paymentDate = paymentState.date || new Date().toISOString().split('T')[0];
         const result = await handleRecordPayment({
-            loanId: paymentState.loan ? paymentState.loan.id : '', // Provide fallback
+            loanId: paymentState.loan!.id,
             amount: paymentAmount,
             date: paymentDate,
             recordedByEmail: userProfile.email,
@@ -157,7 +166,7 @@ export default function BorrowerDetailPage() {
             });
             toast({
                 title: 'Payment Recorded',
-                description: `Payment of MWK ${paymentAmount.toLocaleString()} for loan ${paymentState.loan.id} has been recorded.`,
+                description: `Payment of MWK ${paymentAmount.toLocaleString()} for loan ${paymentState.loan!.id} has been recorded.`,
             });
             setRecordPaymentOpen(false);
         } else {
@@ -537,7 +546,7 @@ export default function BorrowerDetailPage() {
             loan={receiptInfo.loan}
             paymentAmount={receiptInfo.paymentAmount}
             paymentDate={receiptInfo.paymentDate}
-            balance={receiptInfo.newBalance}
+            newBalance={receiptInfo.newBalance}
           />
       )}
 
