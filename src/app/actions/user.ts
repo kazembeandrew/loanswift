@@ -1,3 +1,4 @@
+
 'use server';
 
 import { addAuditLog } from '@/services/audit-log-service';
@@ -14,7 +15,7 @@ export async function handleCreateUser(email: string, password: string, role: Us
     return { success: false, error: 'Firebase Admin not configured on the server.' };
   }
   const adminAuth = admin.auth(adminApp);
-  const db = getFirestore(getFirebase());
+  const { db } = getFirebase();
   
   try {
     const userRecord = await adminAuth.createUser({
@@ -59,7 +60,7 @@ export async function handleUpdateUserRole(uid: string, role: UserProfile['role'
       throw new Error("Cannot update user role. Firebase Admin is not initialized.");
     }
     const adminAuth = admin.auth(adminApp);
-    const db = getFirestore(getFirebase());
+    const { db } = getFirebase();
     
     // Get user email for logging before updating
     const userToUpdate = await adminAuth.getUser(uid);
