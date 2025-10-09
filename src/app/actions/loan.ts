@@ -1,7 +1,8 @@
+
 'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
-import type { Loan, RepaymentScheduleItem } from '@/types';
+import type { Loan, RepaymentScheduleItem, Account } from '@/types';
 import { addMonths } from 'date-fns';
 import { addAuditLog } from '@/services/audit-log-service';
 
@@ -48,7 +49,7 @@ export async function handleAddLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedu
     
     // Automated Journal Entry for Loan Disbursement
     const accountsSnapshot = await adminDb.collection('accounts').get();
-    const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const allAccounts = accountsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
 
     const loanPortfolioAccount = allAccounts.find(a => a.name === 'Loan Portfolio');
     const cashAccount = allAccounts.find(a => a.name === 'Cash on Hand');
@@ -81,7 +82,6 @@ export async function handleAddLoan(loanData: Omit<Loan, 'id' | 'repaymentSchedu
     return { success: true, message: 'Loan added successfully', loanId: docRef.id };
 
   } catch (error: any) {
-    console.error("Error in handleAddLoan:", error);
     return { success: false, message: error.message || 'An unknown error occurred while adding the loan.' };
   }
 }
