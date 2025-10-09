@@ -1,10 +1,9 @@
-
 'use client';
 import { useAuth } from '@/context/auth-context';
 import { Header } from '@/components/header';
 import CeoDashboard from './components/ceo-dashboard';
 import LoanOfficerDashboard from './components/loan-officer-dashboard';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function HrDashboard() {
