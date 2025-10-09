@@ -3,98 +3,104 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    function isAuth() {
-        return request.auth != null;
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOneOfRoles(roles) {
+      return isSignedIn() && request.auth.token.role in roles;
     }
     
-    function isOwner(uid) {
-        return isAuth() && request.auth.uid == uid;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Admins can do anything
+    match /{document=**} {
+      allow read, write: if isOneOfRoles(['admin']);
     }
     
-    function hasRole(allowedRoles) {
-        return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in allowedRoles;
+    // settings: read by all, written by admins/ceo
+    match /settings/business_config {
+        allow read: if isSignedIn();
+        allow write: if isOneOfRoles(['admin', 'ceo']);
     }
-    
-    // All Staff can read their own profile. Admins/HR can read all.
-    // Users can create their own document on signup.
-    // Users can update their own document. Admins/HR can update any.
+
+    // users:
+    // - create: any signed-in user can create their own doc
+    // - read: any signed-in user
+    // - update: user can update their own doc, or hr/admin can update any
     match /users/{userId} {
-      allow read: if isOwner(userId) || hasRole(['admin', 'hr']);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || hasRole(['admin', 'hr']);
-      allow delete: if hasRole(['admin', 'hr']);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow read: if isSignedIn();
+      allow update: if isSignedIn() && (isOwner(userId) || isOneOfRoles(['admin', 'hr']));
     }
 
-    // Loan officers can create borrowers.
-    // They can only read/update borrowers assigned to them.
-    // C-level/Admins can read/update all borrowers.
+    // borrowers:
+    // - read/write: admins/cfo/ceo
+    // - read/write: loan_officer for their own assigned borrowers
     match /borrowers/{borrowerId} {
-        allow create: if hasRole(['admin', 'loan_officer', 'ceo', 'cfo']);
-        allow read, update: if hasRole(['admin', 'ceo', 'cfo']) || (isAuth() && resource.data.loanOfficerId == request.auth.uid);
-        allow delete: if hasRole(['admin']);
-    }
-
-    // Creating loans is done via a server-side action, so no client 'create' is needed.
-    // Reading/updating loans is tied to the borrower's loan officer.
-    // C-level/Admins can read/update all loans.
-    match /loans/{loanId} {
-        allow read, update: if hasRole(['admin', 'ceo', 'cfo']) || (isAuth() && get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid);
-        allow delete: if hasRole(['admin']);
-    }
-
-    // Recording/reading payments is tied to the loan's borrower's loan officer.
-    match /loans/{loanId}/payments/{paymentId} {
-        allow read, create: if hasRole(['admin', 'ceo', 'cfo']) || (isAuth() && get(/databases/$(database)/documents/borrowers/$(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId)).data.loanOfficerId == request.auth.uid);
-        allow update, delete: if hasRole(['admin']);
+      allow read, write: if isOneOfRoles(['admin', 'cfo', 'ceo']) 
+                        || (isOneOfRoles(['loan_officer']) && resource.data.loanOfficerId == request.auth.uid);
     }
     
-    // Conversations can only be read/written by participants.
-    match /conversations/{conversationId} {
-        allow read, update: if isAuth() && request.auth.uid in resource.data.participants;
-        allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
-    }
-    
-    // Messages can only be created by conversation participants.
-    // Reading messages is implicitly handled by the readable conversation rule.
-    match /conversations/{conversationId}/messages/{messageId} {
-        allow create: if isAuth() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[0] == request.auth.uid || get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[1] == request.auth.uid;
-        allow read, update, delete: if hasRole(['admin']); // Admins can moderate
-    }
-    
-    // Situation Reports can be created by any staff.
-    // They can be read by the person who reported it or by managers.
-    // They can only be updated by managers.
+    // situationReports:
+    // - read: admins/cfo/ceo can read all
+    // - read: loan_officers can read reports they filed
+    // - create: signed in users can create
+    // - update: admins/cfo/ceo can update (e.g. status)
     match /situationReports/{reportId} {
-        allow create: if hasRole(['admin', 'loan_officer', 'ceo', 'cfo', 'hr']);
-        allow read: if isAuth() && (resource.data.reportedBy == request.auth.uid || hasRole(['admin', 'ceo', 'cfo']));
-        allow update: if hasRole(['admin', 'ceo', 'cfo']);
-        allow delete: if hasRole(['admin']);
+        allow read: if isOneOfRoles(['admin', 'cfo', 'ceo'])
+                    || (isOneOfRoles(['loan_officer']) && resource.data.reportedBy == request.auth.uid);
+        allow create: if isSignedIn();
+        allow update: if isOneOfRoles(['admin', 'cfo', 'ceo']);
+    }
+
+    // loans:
+    // - read: admins/cfo/ceo can read all
+    // - read: loan_officer can read loans of their borrowers
+    // - write: admins/cfo/ceo
+    match /loans/{loanId} {
+      allow read: if isOneOfRoles(['admin', 'cfo', 'ceo']) 
+                  || (isOneOfRoles(['loan_officer']) && get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid);
+      allow write: if isOneOfRoles(['admin', 'cfo', 'ceo']);
+    }
+
+    // payments subcollection:
+    // - read: if user can read the parent loan
+    // - write: admins/cfo/ceo
+    match /loans/{loanId}/payments/{paymentId} {
+        allow read: if exists(/databases/$(database)/documents/loans/$(loanId)) && get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId in get(/databases/$(database)/documents/borrowers).docs.keys();
+        allow write: if isOneOfRoles(['admin', 'cfo', 'ceo']);
     }
     
-    // Admins and CEOs can read/write settings
-    match /settings/{docId} {
-        allow read, write: if hasRole(['admin', 'ceo']);
-    }
-    
-    // Audit logs are write-only from the backend, and read-only for admins.
-    match /audit_logs/{logId} {
-        allow read: if hasRole(['admin']);
-        allow write: if false; // No client-side writes
-    }
-    
-    // Month-end closures are managed by C-Level roles
-    match /monthEndClosures/{closureId} {
-        allow read, write: if hasRole(['admin', 'ceo', 'cfo']);
-    }
-    
-    // Financial accounts can only be read/written by C-level roles
+    // accounts & journal: only for c-level/admin
     match /accounts/{accountId} {
-        allow read, write: if hasRole(['admin', 'ceo', 'cfo']);
+      allow read, write: if isOneOfRoles(['admin', 'cfo', 'ceo']);
+    }
+    match /journal/{entryId} {
+      allow read, write: if isOneOfRoles(['admin', 'cfo', 'ceo']);
+    }
+    match /monthEndClosures/{closureId} {
+      allow read, write: if isOneOfRoles(['admin', 'cfo', 'ceo']);
+    }
+
+    // audit_logs: write-only for authenticated users (server actions), read-only for admins
+    match /audit_logs/{logId} {
+        allow read: if isOneOfRoles(['admin']);
+        allow create: if isSignedIn();
+        allow update, delete: if false;
     }
     
-    // Journal entries can only be read/written by C-level roles
-    match /journal/{entryId} {
-        allow read, write: if hasRole(['admin', 'ceo', 'cfo']);
+    // conversations & messages
+    match /conversations/{conversationId} {
+      allow read, update: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
     }
   }
 }
