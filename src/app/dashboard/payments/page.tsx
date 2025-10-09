@@ -44,13 +44,20 @@ export default function PaymentsPage() {
   const { borrowers, loans, payments, loading } = useRealtimeData(user);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
-  const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
+  const [receiptInfo, setReceiptInfo] = useState<{
+      isOpen: boolean;
+      borrower: Borrower | null;
+      loan: Loan | null;
+      paymentAmount: number;
+      paymentDate: string;
+      newBalance: number;
+  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', newBalance: 0 });
+
   const [isSubmittingPayment, startPaymentTransition] = useTransition();
 
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<string | null>(null);
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
-  const [receiptBalance, setReceiptBalance] = useState(0);
   const { toast } = useToast();
 
   const getBorrowerById = (id: string | null) => id ? borrowers.find((c) => c.id === id) : null;
@@ -78,22 +85,31 @@ export default function PaymentsPage() {
     }
 
     startPaymentTransition(async () => {
+        const paymentAmount = parseFloat(paymentDetails.amount);
         const result = await handleRecordPayment({
             loanId: selectedLoan.id,
-            amount: parseFloat(paymentDetails.amount),
+            amount: paymentAmount,
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
             recordedByEmail: user.email!,
         });
 
         if (result.success) {
-            setReceiptBalance(result.newBalance);
+            const borrower = getBorrowerById(selectedLoan.borrowerId);
+            if (borrower) {
+                 setReceiptInfo({
+                    isOpen: true,
+                    borrower,
+                    loan: selectedLoan,
+                    paymentAmount,
+                    paymentDate: paymentDetails.date || new Date().toISOString().split('T')[0],
+                    newBalance: result.newBalance,
+                });
+            }
             toast({
                 title: 'Payment Recorded',
-                description: `Payment of MWK ${parseFloat(paymentDetails.amount).toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
+                description: `Payment of MWK ${paymentAmount.toLocaleString()} for loan ${selectedLoan.id} has been recorded.`,
             });
             setRecordPaymentOpen(false);
-            setReceiptGeneratorOpen(true);
-            // No fetch needed, real-time listener will update data.
         } else {
             toast({
                 title: 'Payment Failed',
@@ -110,9 +126,6 @@ export default function PaymentsPage() {
     setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   }
-
-  const selectedBorrowerForDialog = getBorrowerById(selectedBorrowerId);
-  const selectedLoanForDialog = getLoanById(selectedLoanId);
   
   const recentPayments = payments.slice(0, 7);
 
@@ -254,15 +267,15 @@ export default function PaymentsPage() {
         </DialogContent>
       </Dialog>
       
-      {selectedBorrowerForDialog && selectedLoanForDialog && (
+      {receiptInfo.isOpen && receiptInfo.borrower && receiptInfo.loan && (
         <ReceiptGenerator 
-          isOpen={isReceiptGeneratorOpen}
-          setIsOpen={setReceiptGeneratorOpen}
-          borrower={selectedBorrowerForDialog}
-          loan={selectedLoanForDialog}
-          paymentAmount={parseFloat(paymentDetails.amount) || 0}
-          paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
-          balance={receiptBalance}
+          isOpen={receiptInfo.isOpen}
+          setIsOpen={(isOpen) => setReceiptInfo(prev => ({...prev, isOpen}))}
+          borrower={receiptInfo.borrower}
+          loan={receiptInfo.loan}
+          paymentAmount={receiptInfo.paymentAmount}
+          paymentDate={receiptInfo.paymentDate}
+          balance={receiptInfo.newBalance}
         />
       )}
     </>

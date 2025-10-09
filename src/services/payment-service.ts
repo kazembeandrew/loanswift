@@ -25,29 +25,3 @@ export async function getPaymentsByLoanId(db: Firestore, loanId: string): Promis
         throw serverError;
     }
 }
-
-
-export async function getAllPayments(db: Firestore): Promise<(Payment & {loanId: string})[]> {
-    const paymentsQuery = query(collectionGroup(db, 'payments'), orderBy('date', 'desc'), limit(200));
-    try {
-        const querySnapshot = await getDocs(paymentsQuery);
-        const payments: (Payment & { loanId: string })[] = [];
-        querySnapshot.forEach((doc) => {
-            const loanDocRef = doc.ref.parent.parent;
-            if (loanDocRef) {
-                const loanId = loanDocRef.id;
-                payments.push({ loanId, id: doc.id, ...doc.data() } as Payment & { loanId: string });
-            }
-        });
-        return payments;
-    } catch (serverError: any) {
-        if (serverError.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: 'collectionGroup<payments>',
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        }
-        throw serverError;
-    }
-}

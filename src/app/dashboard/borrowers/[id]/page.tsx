@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, CircleDollarSign, Loader2, ShieldCheck, Scale, CalendarDays, Flag } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useCallback, useTransition, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import type { Borrower, Loan, Payment, RepaymentScheduleItem, SituationReport } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,13 +24,12 @@ import { Label } from '@/components/ui/label';
 import ReceiptGenerator from '../components/receipt-generator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { getBorrowerById } from '@/services/borrower-service';
 import { handleRecordPayment } from '@/app/actions/payment';
 import { getBorrowerAvatar } from '@/lib/placeholder-images';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { getSituationReportsByBorrower, addSituationReport, updateSituationReportStatus } from '@/services/situation-report-service';
+import { addSituationReport, updateSituationReportStatus } from '@/services/situation-report-service';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -55,11 +54,13 @@ export default function BorrowerDetailPage() {
   const id = params.id as string;
   const defaultTab = searchParams.get('tab') || 'loans';
   const { user, userProfile } = useAuth();
-  const { loans, payments, loading: isRealtimeDataLoading } = useRealtimeData(user);
+  const { borrowers, loans, payments, situationReports, loading } = useRealtimeData(user);
 
-  const [borrower, setBorrower] = useState<Borrower | null>(null);
-  const [situationReports, setSituationReports] = useState<SituationReport[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const borrower = useMemo(() => borrowers.find(b => b.id === id), [borrowers, id]);
+  const borrowerLoans = useMemo(() => loans.filter(loan => loan.borrowerId === id), [loans, id]);
+  const borrowerSituationReports = useMemo(() => situationReports.filter(report => report.borrowerId === id), [situationReports, id]);
+  const borrowerLoanIds = useMemo(() => new Set(borrowerLoans.map(l => l.id)), [borrowerLoans]);
+  const allPaymentsForBorrower = useMemo(() => payments.filter(p => borrowerLoanIds.has(p.loanId)), [payments, borrowerLoanIds]);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [receiptInfo, setReceiptInfo] = useState<{
@@ -68,12 +69,13 @@ export default function BorrowerDetailPage() {
       loan: Loan | null;
       paymentAmount: number;
       paymentDate: string;
-      balance: number;
-  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', balance: 0 });
+      newBalance: number;
+  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', newBalance: 0 });
 
   const [isFileReportOpen, setFileReportOpen] = useState(false);
   const [isViewReportOpen, setViewReportOpen] = useState(false);
   const [isSubmittingPayment, startPaymentTransition] = useTransition();
+  const [isSubmittingReport, startReportTransition] = useTransition();
 
   const [selectedReport, setSelectedReport] = useState<SituationReport | null>(null);
   const [paymentState, setPaymentState] = useState<{
@@ -86,10 +88,6 @@ export default function BorrowerDetailPage() {
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
   const db = useDB();
 
-  const borrowerLoans = loans.filter(loan => loan.borrowerId === id);
-  const allPayments = payments.filter(payment => borrowerLoans.some(loan => loan.id === payment.loanId));
-
-
   const reportForm = useForm<z.infer<typeof situationReportFormSchema>>({
     resolver: zodResolver(situationReportFormSchema),
     defaultValues: {
@@ -99,31 +97,15 @@ export default function BorrowerDetailPage() {
     },
   });
 
-  const fetchData = useCallback(async () => {
-    if (!id || !user) return;
-    setIsDataLoading(true);
-    
-    try {
-        const [borrowerData, reportsData] = await Promise.all([
-            getBorrowerById(db, id),
-            getSituationReportsByBorrower(db, id),
-        ]);
-        setBorrower(borrowerData);
-        setSituationReports(reportsData);
-    } catch (error) {
-        toast({ title: "Error", description: "Failed to fetch borrower details.", variant: 'destructive'});
-    } finally {
-        setIsDataLoading(false);
-    }
+  const getLoanBalance = useCallback((loan: Loan) => {
+    const totalPaid = allPaymentsForBorrower
+      .filter(p => p.loanId === loan.id)
+      .reduce((sum, p) => sum + p.amount, 0);
+    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+    return totalOwed - totalPaid;
+  }, [allPaymentsForBorrower]);
 
-  }, [id, db, user, toast]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-
-  if (isDataLoading || isRealtimeDataLoading) {
+  if (loading) {
     return (
       <>
         <Header title="Loading Borrower..." />
@@ -144,14 +126,6 @@ export default function BorrowerDetailPage() {
       </>
     )
   }
-
-  const getLoanBalance = (loan: Loan) => {
-    const totalPaid = allPayments
-      .filter(p => p.loanId === loan.id)
-      .reduce((sum, p) => sum + p.amount, 0);
-    const totalOwed = loan.principal * (1 + loan.interestRate / 100);
-    return totalOwed - totalPaid;
-  };
   
   const handleRecordPaymentClick = (loan: Loan) => {
     setPaymentState({ loan, amount: '', date: new Date().toISOString().split('T')[0] });
@@ -179,7 +153,7 @@ export default function BorrowerDetailPage() {
                 loan: paymentState.loan,
                 paymentAmount: paymentAmount,
                 paymentDate: paymentDate,
-                balance: result.newBalance,
+                newBalance: result.newBalance,
             });
             toast({
                 title: 'Payment Recorded',
@@ -198,26 +172,28 @@ export default function BorrowerDetailPage() {
 
   const handleFileReportSubmit = async (values: z.infer<typeof situationReportFormSchema>) => {
     if (!user || !borrower) return;
-    try {
-      await addSituationReport(db, {
-        ...values,
-        borrowerId: borrower.id,
-        reportedBy: user.uid,
-      });
-      toast({
-        title: "Report Filed",
-        description: "The situation report has been successfully filed.",
-      });
-      setFileReportOpen(false);
-      reportForm.reset();
-      await fetchData(); // Re-fetch reports
-    } catch (error: any) {
-      toast({
-        title: "Failed to File Report",
-        description: error.message || "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    }
+    startReportTransition(async () => {
+        try {
+        await addSituationReport(db, {
+            ...values,
+            borrowerId: borrower.id,
+            reportedBy: user.uid,
+        });
+        toast({
+            title: "Report Filed",
+            description: "The situation report has been successfully filed.",
+        });
+        setFileReportOpen(false);
+        reportForm.reset();
+        // No need to re-fetch, realtime hook will update
+        } catch (error: any) {
+        toast({
+            title: "Failed to File Report",
+            description: error.message || "An unexpected error occurred.",
+            variant: "destructive",
+        });
+        }
+    });
   };
 
   const handleViewReport = (report: SituationReport) => {
@@ -237,7 +213,6 @@ export default function BorrowerDetailPage() {
     try {
       await updateSituationReportStatus(db, reportId, status);
       toast({ title: 'Status Updated', description: `Report status changed to ${status}.` });
-      await fetchData(); // Re-fetch reports
       if (selectedReport?.id === reportId) {
         setSelectedReport(prev => prev ? { ...prev, status } : null);
       }
@@ -251,7 +226,7 @@ export default function BorrowerDetailPage() {
       const balance = getLoanBalance(loan);
       if (balance <= 0.01) return 'closed';
 
-      const paymentsForLoan = allPayments.filter(p => p.loanId === loan.id);
+      const paymentsForLoan = allPaymentsForBorrower.filter(p => p.loanId === loan.id);
       if (paymentsForLoan.length > 0) return 'active';
 
       return 'approved';
@@ -260,8 +235,7 @@ export default function BorrowerDetailPage() {
   const getRepaymentScheduleWithStatus = (loan: Loan): (RepaymentScheduleItem & { status: 'paid' | 'pending' | 'overdue' })[] => {
     if (!loan.repaymentSchedule) return [];
       
-    const paymentsForLoan = allPayments.filter(p => p.loanId === loan.id);
-    const totalPaid = paymentsForLoan.reduce((sum, p) => sum + p.amount, 0);
+    const totalPaid = allPaymentsForBorrower.filter(p => p.loanId === loan.id).reduce((sum, p) => sum + p.amount, 0);
 
     let cumulativeDue = 0;
 
@@ -327,9 +301,7 @@ export default function BorrowerDetailPage() {
   const avatarFallback = borrower.name.split(' ').map(n => n[0]).join('');
 
   const totalAmountLoaned = borrowerLoans.reduce((sum, loan) => sum + loan.principal, 0);
-  const totalAmountRepaid = allPayments
-    .filter(p => borrowerLoans.some(l => l.id === p.loanId))
-    .reduce((sum, p) => sum + p.amount, 0);
+  const totalAmountRepaid = allPaymentsForBorrower.reduce((sum, p) => sum + p.amount, 0);
 
 
   return (
@@ -383,7 +355,7 @@ export default function BorrowerDetailPage() {
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList>
             <TabsTrigger value="loans">Loan History</TabsTrigger>
-            <TabsTrigger value="reports">Situation Reports ({situationReports.length})</TabsTrigger>
+            <TabsTrigger value="reports">Situation Reports ({borrowerSituationReports.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="loans">
             <Card>
@@ -412,7 +384,7 @@ export default function BorrowerDetailPage() {
                                           <p className="font-semibold">{loan.id}</p>
                                           <p className="text-sm">Principal: MWK {loan.principal.toLocaleString()}</p>
                                           <p className={`text-sm font-medium ${balance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                                            Balance: MWK {balance.toLocaleString()}
+                                            Balance: MWK {balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                           </p>
                                         </div>
                                         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -470,7 +442,7 @@ export default function BorrowerDetailPage() {
                   <CardDescription>A log of all qualitative reports filed for this borrower.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {situationReports.length > 0 ? (
+                  {borrowerSituationReports.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -482,7 +454,7 @@ export default function BorrowerDetailPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {situationReports.map(report => (
+                        {borrowerSituationReports.map(report => (
                           <TableRow key={report.id}>
                             <TableCell>{format(new Date(report.reportDate), 'PPP')}</TableCell>
                             <TableCell><Badge variant="secondary">{report.situationType}</Badge></TableCell>
@@ -565,7 +537,7 @@ export default function BorrowerDetailPage() {
             loan={receiptInfo.loan}
             paymentAmount={receiptInfo.paymentAmount}
             paymentDate={receiptInfo.paymentDate}
-            balance={receiptInfo.balance}
+            balance={receiptInfo.newBalance}
           />
       )}
 
@@ -585,7 +557,7 @@ export default function BorrowerDetailPage() {
                 render={({ field }) => (
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Situation Type</Label>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmittingReport}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select a type" />
                       </SelectTrigger>
@@ -607,7 +579,7 @@ export default function BorrowerDetailPage() {
                 render={({ field }) => (
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Related Loan (Optional)</Label>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmittingReport}>
                       <SelectTrigger className="col-span-3">
                         <SelectValue placeholder="Select a related loan" />
                       </SelectTrigger>
@@ -626,7 +598,7 @@ export default function BorrowerDetailPage() {
                 render={({ field }) => (
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="summary" className="text-right">Summary</Label>
-                    <Input id="summary" className="col-span-3" {...field} />
+                    <Input id="summary" className="col-span-3" {...field} disabled={isSubmittingReport} />
                   </div>
                 )}
               />
@@ -636,7 +608,7 @@ export default function BorrowerDetailPage() {
                 render={({ field }) => (
                   <div className="grid grid-cols-4 items-start gap-4">
                     <Label htmlFor="details" className="text-right pt-2">Details</Label>
-                    <Textarea id="details" className="col-span-3" {...field} />
+                    <Textarea id="details" className="col-span-3" {...field} disabled={isSubmittingReport} />
                   </div>
                 )}
               />
@@ -646,13 +618,16 @@ export default function BorrowerDetailPage() {
                 render={({ field }) => (
                   <div className="grid grid-cols-4 items-start gap-4">
                     <Label htmlFor="resolutionPlan" className="text-right pt-2">Resolution Plan</Label>
-                    <Textarea id="resolutionPlan" className="col-span-3" {...field} />
+                    <Textarea id="resolutionPlan" className="col-span-3" {...field} disabled={isSubmittingReport} />
                   </div>
                 )}
               />
             </div>
             <DialogFooter>
-              <Button type="submit">File Report</Button>
+              <Button type="submit" disabled={isSubmittingReport}>
+                 {isSubmittingReport && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                File Report
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

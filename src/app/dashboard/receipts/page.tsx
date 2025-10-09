@@ -71,8 +71,14 @@ const ExportButton = ({ payments, loans, borrowers }: { payments: (Payment & { l
 export default function ReceiptsPage() {
     const { user } = useAuth();
     const { payments, loans, borrowers, loading } = useRealtimeData(user);
-    const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
-    const [selectedPayment, setSelectedPayment] = useState<Payment & {loanId: string} | null>(null);
+    const [receiptInfo, setReceiptInfo] = useState<{
+      isOpen: boolean;
+      borrower: Borrower | null;
+      loan: Loan | null;
+      paymentAmount: number;
+      paymentDate: string;
+      newBalance: number;
+  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', newBalance: 0 });
 
     const getBorrowerByLoanId = (loanId: string): Borrower | undefined => {
         const loan = loans.find(l => l.id === loanId);
@@ -81,32 +87,26 @@ export default function ReceiptsPage() {
     };
 
     const handleViewReceipt = (payment: Payment & {loanId: string}) => {
-        setSelectedPayment(payment);
-        setReceiptGeneratorOpen(true);
-    };
+        const loan = loans.find(l => l.id === payment.loanId);
+        const borrower = loan ? borrowers.find(b => b.id === loan.borrowerId) : null;
+        
+        if (loan && borrower) {
+            // Simplified balance for viewing an old receipt.
+            const totalOwed = loan.principal * (1 + loan.interestRate / 100);
+            const totalPaidUpToPayment = payments
+                .filter(p => p.loanId === loan.id && new Date(p.date) <= new Date(payment.date))
+                .reduce((sum, p) => sum + p.amount, 0);
 
-    const selectedLoan = selectedPayment ? loans.find(l => l.id === selectedPayment.loanId) : null;
-    const selectedBorrower = selectedLoan ? borrowers.find(b => b.id === selectedLoan.borrowerId) : null;
-    
-    // This is a simplified balance calculation for receipt viewing purposes.
-    // It might not be perfectly accurate if payments aren't ordered, but it's good for a preview.
-    const getBalanceForReceipt = (payment: (Payment & {loanId: string}) | null): number => {
-        if (!payment || !selectedLoan) return 0;
-        const totalOwed = selectedLoan.principal * (1 + selectedLoan.interestRate / 100);
-        const paymentsForLoan = payments
-            .filter(p => p.loanId === payment.loanId && new Date(p.date) <= new Date(payment.date))
-            .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        const totalPaidUpToThisPayment = paymentsForLoan.reduce((sum, p) => {
-            // Only sum up payments up to and including the selected one in the sorted list
-            if (paymentsForLoan.findIndex(pay => pay.id === p.id) <= paymentsForLoan.findIndex(pay => pay.id === payment.id)) {
-                return sum + p.amount;
-            }
-            return sum;
-        }, 0);
-        
-        return totalOwed - totalPaidUpToThisPayment;
-    }
+            setReceiptInfo({
+                isOpen: true,
+                borrower,
+                loan,
+                paymentAmount: payment.amount,
+                paymentDate: payment.date,
+                newBalance: totalOwed - totalPaidUpToPayment,
+            });
+        }
+    };
     
     if (loading) {
         return (
@@ -182,15 +182,15 @@ export default function ReceiptsPage() {
         </div>
       </main>
 
-       {selectedBorrower && selectedLoan && selectedPayment && (
+       {receiptInfo.isOpen && receiptInfo.borrower && receiptInfo.loan && (
         <ReceiptGenerator 
-          isOpen={isReceiptGeneratorOpen}
-          setIsOpen={setReceiptGeneratorOpen}
-          borrower={selectedBorrower}
-          loan={selectedLoan}
-          paymentAmount={selectedPayment.amount}
-          paymentDate={selectedPayment.date}
-          balance={getBalanceForReceipt(selectedPayment)}
+          isOpen={receiptInfo.isOpen}
+          setIsOpen={(isOpen) => setReceiptInfo(prev => ({...prev, isOpen}))}
+          borrower={receiptInfo.borrower}
+          loan={receiptInfo.loan}
+          paymentAmount={receiptInfo.paymentAmount}
+          paymentDate={receiptInfo.paymentDate}
+          balance={receiptInfo.newBalance}
         />
       )}
     </>
