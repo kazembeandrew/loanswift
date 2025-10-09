@@ -1,5 +1,55 @@
-
 rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for roles
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Get user role from Firestore document
+    function getUserRole() {
+      if (!isSignedIn()) { 
+        return null; 
+      }
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data.role;
+    }
+
+    function isRole(role) {
+      return isSignedIn() && getUserRole() == role;
+    }
+
+    function isAdmin() {
+      return isRole('admin');
+    }
+    
+    function isCLevel() {
+      return isRole('ceo') || isRole('cfo') || isAdmin();
+    }
+
+    function isHr() {
+      return isRole('hr');
+    }
+    
+    function isLoanOfficer() {
+        return isRole('loan_officer');
+    }
+
+    // Is the user requesting access their own document?
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Can the requesting user (loan officer) access the specified borrower document?Understood. I will update the `firestore.rules` file with the exact content you've provided. This ensures the database security rules are correctly configured according to your specification.
+
+Here is the update.
+<changes>
+  <description>Update the `firestore.rules` file with the provided comprehensive ruleset to enforce correct role-based access control and resolve permission issues during user creation.</description>
+  <change>
+    <file>firestore.rules</file>
+    <content><![CDATA[rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
