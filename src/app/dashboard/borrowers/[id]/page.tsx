@@ -137,6 +137,7 @@ export default function BorrowerDetailPage() {
     if (!paymentState.loan || !paymentState.amount || !userProfile || !borrower) return;
 
     startPaymentTransition(async () => {
+        if (!paymentState.loan || !userProfile) return; // Re-check inside transition
         const paymentAmount = parseFloat(paymentState.amount);
         const paymentDate = paymentState.date || new Date().toISOString().split('T')[0];
         const result = await handleRecordPayment({
