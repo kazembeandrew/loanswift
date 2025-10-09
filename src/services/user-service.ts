@@ -14,7 +14,8 @@ import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
 
-export const ensureUserDocument = async (db: Firestore, user: User): Promise<UserProfile | null> => {
+// Enhanced ensureUserDocument with retry logic
+export const ensureUserDocument = async (db: Firestore, user: User, retryCount = 0): Promise<UserProfile | null> => {
   const userRef = doc(db, 'users', user.uid);
   
   try {
@@ -27,7 +28,11 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
       profile.uid = userSnap.id;
       return profile;
     } else {
-      // ✅ Create user document with pending status
+      // Wait a bit for auth to fully propagate
+      if (retryCount === 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       const userProfile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> & { createdAt: any; updatedAt: any } = {
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
@@ -37,7 +42,7 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
         updatedAt: serverTimestamp()
       };
 
-      console.log(`🔄 Creating user document for: ${user.uid}`);
+      console.log(`🔄 Creating user document for: ${user.uid} (attempt ${retryCount + 1})`);
       await setDoc(userRef, userProfile);
       console.log(`✅ Created user document for: ${user.uid}`);
       // Return a client-safe version with string timestamps
@@ -49,7 +54,14 @@ export const ensureUserDocument = async (db: Firestore, user: User): Promise<Use
       } as UserProfile;
     }
   } catch (error: any) {
-    console.error(`❌ Error in ensureUserDocument for ${user.uid}:`, error);
+    console.error(`❌ Error in ensureUserDocument (attempt ${retryCount + 1}):`, error);
+    
+    // Retry logic for permission errors (common during auth propagation)
+    if (error.code === 'permission-denied' && retryCount < 3) {
+      console.log(`🔄 Retrying user document creation in 2 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return ensureUserDocument(db, user, retryCount + 1);
+    }
     
     if (error.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
