@@ -1,3 +1,4 @@
+
 // This script is used to seed the initial admin user for the application.
 // It should be run from the terminal using `npm run seed:admin`
 
@@ -6,7 +7,7 @@ const admin = require('firebase-admin');
 
 // --- Configuration ---
 // The user to be created is now loaded from your .env file
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_EMAIL = 'info.ntchito@gmail.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 // --- End Configuration ---
 
