@@ -1,136 +1,100 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    // UTILITY: Function to check if a user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    function isAuth() {
+        return request.auth != null;
     }
     
-    // UTILITY: Function to get the user's role from their custom claims
-    function getRole() {
-      return request.auth.token.role;
+    function isOwner(uid) {
+        return isAuth() && request.auth.uid == uid;
     }
     
-    // UTILITY: Function to check if a user has one of the allowed roles
-    function hasOneOfRoles(allowedRoles) {
-      return isAuthenticated() && getRole() in allowedRoles;
+    function hasRole(allowedRoles) {
+        return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in allowedRoles;
     }
-
-    // UTILITY: Get user data from the 'users' collection
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-
-    //================================================================================
-    // Users Collection
-    // - Admins/HR can manage all users.
-    // - Users can read and update their own profiles.
-    //================================================================================
+    
+    // All Staff can read their own profile. Admins/HR can read all.
+    // Users can create their own document on signup.
+    // Users can update their own document. Admins/HR can update any.
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || hasOneOfRoles(['admin', 'hr']));
-      allow list: if hasOneOfRoles(['admin', 'hr']);
-      allow create: if hasOneOfRoles(['admin', 'hr']);
-      allow update: if isAuthenticated() && 
-                      (request.auth.uid == userId || hasOneOfRoles(['admin', 'hr']));
-      // No one can delete a user record directly, must be done via backend function
-      allow delete: if hasOneOfRoles(['admin']);
+      allow read: if isOwner(userId) || hasRole(['admin', 'hr']);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || hasRole(['admin', 'hr']);
+      allow delete: if hasRole(['admin', 'hr']);
     }
 
-    //================================================================================
-    // Borrowers Collection
-    // - Admins/CFO/CEO can read all borrowers.
-    // - Loan officers can only read/update borrowers assigned to them.
-    // - Loan officers can create new borrowers.
-    //================================================================================
+    // Loan officers can create borrowers.
+    // They can only read/update borrowers assigned to them.
+    // C-level/Admins can read/update all borrowers.
     match /borrowers/{borrowerId} {
-      allow read: if hasOneOfRoles(['admin', 'ceo', 'cfo']) || 
-                     (hasOneOfRoles(['loan_officer']) && resource.data.loanOfficerId == request.auth.uid);
-      allow list: if hasOneOfRoles(['admin', 'ceo', 'cfo', 'loan_officer']);
-      allow create: if hasOneOfRoles(['loan_officer', 'admin']) && request.resource.data.loanOfficerId == request.auth.uid;
-      allow update: if hasOneOfRoles(['admin']) || 
-                       (hasOneOfRoles(['loan_officer']) && resource.data.loanOfficerId == request.auth.uid);
-      // Deletion should be restricted
-      allow delete: if hasOneOfRoles(['admin']);
+        allow create: if hasRole(['admin', 'loan_officer', 'ceo', 'cfo']);
+        allow read, update: if hasRole(['admin', 'ceo', 'cfo']) || (isAuth() && resource.data.loanOfficerId == request.auth.uid);
+        allow delete: if hasRole(['admin']);
     }
 
-    //================================================================================
-    // Loans Collection & Payments Subcollection
-    // - Admins/CFO/CEO can read all loans.
-    // - Loan officers can read loans of their assigned borrowers.
-    // - Loan officers/Admins can create loans.
-    //================================================================================
+    // Creating loans is done via a server-side action, so no client 'create' is needed.
+    // Reading/updating loans is tied to the borrower's loan officer.
+    // C-level/Admins can read/update all loans.
     match /loans/{loanId} {
-      allow read: if hasOneOfRoles(['admin', 'ceo', 'cfo']) ||
-                     (hasOneOfRoles(['loan_officer']) && get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid);
-      allow list: if hasOneOfRoles(['admin', 'ceo', 'cfo', 'loan_officer']);
-      allow create: if hasOneOfRoles(['admin', 'loan_officer']);
-      allow update: if hasOneOfRoles(['admin']);
-      
-      // Payments Subcollection
-      match /payments/{paymentId} {
-        allow read, list: if hasOneOfRoles(['admin', 'ceo', 'cfo']) ||
-                           (hasOneOfRoles(['loan_officer']) && get(/databases/$(database)/documents/borrowers/$(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId)).data.loanOfficerId == request.auth.uid);
-        allow create: if hasOneOfRoles(['admin', 'loan_officer', 'ceo', 'cfo']);
-        allow update, delete: if hasOneOfRoles(['admin']);
-      }
+        allow read, update: if hasRole(['admin', 'ceo', 'cfo']) || (isAuth() && get(/databases/$(database)/documents/borrowers/$(resource.data.borrowerId)).data.loanOfficerId == request.auth.uid);
+        allow delete: if hasRole(['admin']);
+    }
+
+    // Recording/reading payments is tied to the loan's borrower's loan officer.
+    match /loans/{loanId}/payments/{paymentId} {
+        allow read, create: if hasRole(['admin', 'ceo', 'cfo']) || (isAuth() && get(/databases/$(database)/documents/borrowers/$(get(/databases/$(database)/documents/loans/$(loanId)).data.borrowerId)).data.loanOfficerId == request.auth.uid);
+        allow update, delete: if hasRole(['admin']);
     }
     
-    //================================================================================
-    // Situation Reports Collection
-    // - Managers can read all reports.
-    // - Loan officers can create reports and read reports they have filed.
-    //================================================================================
-    match /situationReports/{reportId} {
-        allow read, list: if hasOneOfRoles(['admin', 'ceo', 'cfo']) || 
-                            (isAuthenticated() && resource.data.reportedBy == request.auth.uid);
-        allow create: if isAuthenticated(); // Any logged-in user can file a report
-        allow update: if hasOneOfRoles(['admin', 'ceo', 'cfo']); // Only managers can update status
-        allow delete: if hasOneOfRoles(['admin']);
-    }
-
-    //================================================================================
-    // Accounting Collections (Accounts, Journal, MonthEnd)
-    // - Restricted to C-level roles (CFO, CEO, Admin).
-    //================================================================================
-    match /accounts/{accountId} {
-      allow read, list, create, update: if hasOneOfRoles(['admin', 'ceo', 'cfo']);
-      allow delete: if hasOneOfRoles(['admin']);
-    }
-    
-    match /journal/{entryId} {
-      allow read, list, create, update: if hasOneOfRoles(['admin', 'ceo', 'cfo']);
-      allow delete: if hasOneOfRoles(['admin']);
-    }
-
-    match /monthEndClosures/{periodId} {
-       allow read, list, create, update: if hasOneOfRoles(['admin', 'ceo', 'cfo']);
-       allow delete: if hasOneOfRoles(['admin']);
-    }
-
-    //================================================================================
-    // Other Collections (Settings, Audit Logs, Chat)
-    //================================================================================
-    match /settings/{docId} {
-        allow read: if isAuthenticated();
-        allow write: if hasOneOfRoles(['admin', 'ceo']);
-    }
-
-    match /audit_logs/{logId} {
-        allow read: if hasOneOfRoles(['admin']);
-        allow write: if false; // Only backend can write
-    }
-
+    // Conversations can only be read/written by participants.
     match /conversations/{conversationId} {
-      allow read, list, create, update: if isAuthenticated() && request.auth.uid in resource.data.participants;
-      
-      match /messages/{messageId} {
-         allow read, list: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-         allow create: if isAuthenticated() && request.auth.uid == request.resource.data.senderId;
-         allow update, delete: if false; // Messages are immutable
-      }
+        allow read, update: if isAuth() && request.auth.uid in resource.data.participants;
+        allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
+    }
+    
+    // Messages can only be created by conversation participants.
+    // Reading messages is implicitly handled by the readable conversation rule.
+    match /conversations/{conversationId}/messages/{messageId} {
+        allow create: if isAuth() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[0] == request.auth.uid || get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants[1] == request.auth.uid;
+        allow read, update, delete: if hasRole(['admin']); // Admins can moderate
+    }
+    
+    // Situation Reports can be created by any staff.
+    // They can be read by the person who reported it or by managers.
+    // They can only be updated by managers.
+    match /situationReports/{reportId} {
+        allow create: if hasRole(['admin', 'loan_officer', 'ceo', 'cfo', 'hr']);
+        allow read: if isAuth() && (resource.data.reportedBy == request.auth.uid || hasRole(['admin', 'ceo', 'cfo']));
+        allow update: if hasRole(['admin', 'ceo', 'cfo']);
+        allow delete: if hasRole(['admin']);
+    }
+    
+    // Admins and CEOs can read/write settings
+    match /settings/{docId} {
+        allow read, write: if hasRole(['admin', 'ceo']);
+    }
+    
+    // Audit logs are write-only from the backend, and read-only for admins.
+    match /audit_logs/{logId} {
+        allow read: if hasRole(['admin']);
+        allow write: if false; // No client-side writes
+    }
+    
+    // Month-end closures are managed by C-Level roles
+    match /monthEndClosures/{closureId} {
+        allow read, write: if hasRole(['admin', 'ceo', 'cfo']);
+    }
+    
+    // Financial accounts can only be read/written by C-level roles
+    match /accounts/{accountId} {
+        allow read, write: if hasRole(['admin', 'ceo', 'cfo']);
+    }
+    
+    // Journal entries can only be read/written by C-level roles
+    match /journal/{entryId} {
+        allow read, write: if hasRole(['admin', 'ceo', 'cfo']);
     }
   }
 }
