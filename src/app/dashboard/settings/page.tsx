@@ -30,11 +30,11 @@ import { getSettings, updateSettings } from '@/services/settings-service';
 import type { BusinessSettings } from '@/types';
 import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
 import { useDB } from '@/lib/firebase-client-provider';
+import GracefulFallback from '@/components/graceful-fallback';
 
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, startSavingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
   const { toast } = useToast();
@@ -45,15 +45,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function fetchSettings() {
-      setIsLoading(true);
       const settingsData = await getSettings(db);
       setSettings(settingsData);
-      setIsLoading(false);
     }
     if (canAccessSettings) {
       fetchSettings();
-    } else {
-        setIsLoading(false);
     }
   }, [canAccessSettings, db]);
 
@@ -128,149 +124,137 @@ export default function SettingsPage() {
     });
   };
 
-
-  if (isLoading) {
-    return (
-      <>
-        <Header title="Settings" />
-        <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </main>
-      </>
-    );
-  }
-
-  if (!canAccessSettings) {
-    return (
-        <>
-            <Header title="Settings" />
-            <main className="flex flex-1 items-center justify-center p-4 md:p-8">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                       <div className="flex justify-center">
-                         <ShieldAlert className="h-12 w-12 text-destructive" />
-                       </div>
-                        <CardTitle className="mt-4">Access Denied</CardTitle>
-                        <CardDescription>
-                            You do not have permission to view this page. Please contact an administrator.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </main>
-        </>
-    );
-  }
+  const AccessDenied = () => (
+    <main className="flex flex-1 items-center justify-center p-4 md:p-8">
+        <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+                <div className="flex justify-center">
+                <ShieldAlert className="h-12 w-12 text-destructive" />
+                </div>
+                <CardTitle className="mt-4">Access Denied</CardTitle>
+                <CardDescription>
+                    You do not have permission to view this page. Please contact an administrator.
+                </CardDescription>
+            </CardHeader>
+        </Card>
+    </main>
+  );
 
   return (
     <>
       <Header title="Settings" />
-      <main className="flex-1 space-y-4 p-4 md:p-8">
-        <form onSubmit={handleSaveChanges} className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Information</CardTitle>
-              <CardDescription>
-                Manage your company details that appear on receipts and other documents.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="businessName">Business Name</Label>
-                <Input
-                  id="businessName"
-                  value={settings?.businessName || ''}
-                  onChange={handleInputChange}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="businessAddress">Address</Label>
-                <Input
-                  id="businessAddress"
-                  value={settings?.businessAddress || ''}
-                  onChange={handleInputChange}
-                  disabled={isSaving}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="businessPhone">Phone Number</Label>
-                <Input
-                  id="businessPhone"
-                  value={settings?.businessPhone || ''}
-                  onChange={handleInputChange}
-                  disabled={isSaving}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-                <CardTitle>Financial Settings</CardTitle>
+      <GracefulFallback
+        isAllowed={canAccessSettings}
+        fallback={<AccessDenied />}
+      >
+        <main className="flex-1 space-y-4 p-4 md:p-8">
+            <form onSubmit={handleSaveChanges} className="grid gap-6">
+            <Card>
+                <CardHeader>
+                <CardTitle>Business Information</CardTitle>
                 <CardDescription>
-                    Manage financial configurations for your business.
+                    Manage your company details that appear on receipts and other documents.
                 </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+                </CardHeader>
+                <CardContent className="space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor="reserveAmount">Reserve Amount (MWK)</Label>
+                    <Label htmlFor="businessName">Business Name</Label>
                     <Input
-                        id="reserveAmount"
-                        type="number"
-                        value={settings?.reserveAmount || 0}
-                        onChange={handleInputChange}
-                        disabled={isSaving}
+                    id="businessName"
+                    value={settings?.businessName || ''}
+                    onChange={handleInputChange}
+                    disabled={isSaving}
                     />
-                    <p className="text-xs text-muted-foreground">
-                        This amount will be excluded from "Available for Lending" as a safety buffer.
-                    </p>
                 </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                    <Label htmlFor="businessAddress">Address</Label>
+                    <Input
+                    id="businessAddress"
+                    value={settings?.businessAddress || ''}
+                    onChange={handleInputChange}
+                    disabled={isSaving}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="businessPhone">Phone Number</Label>
+                    <Input
+                    id="businessPhone"
+                    value={settings?.businessPhone || ''}
+                    onChange={handleInputChange}
+                    disabled={isSaving}
+                    />
+                </div>
+                </CardContent>
+            </Card>
 
-          <Button type="submit" disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
-          </Button>
-        </form>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Financial Settings</CardTitle>
+                    <CardDescription>
+                        Manage financial configurations for your business.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="reserveAmount">Reserve Amount (MWK)</Label>
+                        <Input
+                            id="reserveAmount"
+                            type="number"
+                            value={settings?.reserveAmount || 0}
+                            onChange={handleInputChange}
+                            disabled={isSaving}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            This amount will be excluded from "Available for Lending" as a safety buffer.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
 
-       {userProfile?.role === 'admin' && (
-          <Card className="border-destructive">
-              <CardHeader>
-                  <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                  <CardDescription>These actions are irreversible and restricted to administrators.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                  <div>
-                      <h3 className="font-semibold">Delete All Application Data</h3>
-                      <p className="text-sm text-muted-foreground">Permanently delete all borrowers, loans, payments, and other data.</p>
-                  </div>
-                  <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                          <Button variant="destructive" disabled={isDeleting}>
-                              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                              Delete All Data
-                          </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete all data from your application, including all borrowers, loans, payments, financial records, and messages.
-                              </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={confirmDeleteAllData} className="bg-destructive hover:bg-destructive/90">
-                                  Confirm Deletion
-                              </AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                  </AlertDialog>
-              </CardContent>
-          </Card>
-        )}
-      </main>
+            <Button type="submit" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+            </Button>
+            </form>
+
+        {userProfile?.role === 'admin' && (
+            <Card className="border-destructive">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                    <CardDescription>These actions are irreversible and restricted to administrators.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold">Delete All Application Data</h3>
+                        <p className="text-sm text-muted-foreground">Permanently delete all borrowers, loans, payments, and other data.</p>
+                    </div>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" disabled={isDeleting}>
+                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete All Data
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete all data from your application, including all borrowers, loans, payments, financial records, and messages.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={confirmDeleteAllData} className="bg-destructive hover:bg-destructive/90">
+                                    Confirm Deletion
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardContent>
+            </Card>
+            )}
+        </main>
+      </GracefulFallback>
     </>
   );
 }

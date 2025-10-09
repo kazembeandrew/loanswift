@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useTransition } from 'react';
@@ -41,6 +42,7 @@ import { Label } from '@/components/ui/label';
 import { useDB } from '@/lib/firebase-client-provider';
 import { Badge } from '@/components/ui/badge';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import GracefulFallback from '@/components/graceful-fallback';
 
 
 function UserApprovalList({ users, onUpdate }: { users: UserProfile[], onUpdate: () => void }) {
@@ -50,6 +52,12 @@ function UserApprovalList({ users, onUpdate }: { users: UserProfile[], onUpdate:
   const { toast } = useToast();
 
   const pendingUsers = users.filter(u => u.status === 'pending');
+
+  if (pendingUsers.length === 0) {
+    return null;
+  }
+  
+  const canApprove = userProfile?.role === 'admin' || userProfile?.role === 'hr';
 
   const handleApproval = (userId: string, newStatus: 'approved' | 'rejected') => {
     if (!userProfile) return;
@@ -77,60 +85,57 @@ function UserApprovalList({ users, onUpdate }: { users: UserProfile[], onUpdate:
     });
   };
 
-  if (pendingUsers.length === 0) {
-    return null;
-  }
-
   return (
-     <Card>
-      <CardHeader>
-        <CardTitle>User Approval Queue</CardTitle>
-        <CardDescription>
-          {pendingUsers.length} user(s) waiting for approval.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-          <div className="space-y-4">
-            {pendingUsers.map(user => (
-              <div key={user.uid} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{user.displayName || user.email}</p>
-                    <Badge variant="secondary">{user.role}</Badge>
-                    <Badge variant="outline">Pending</Badge>
+    <GracefulFallback isAllowed={canApprove}>
+         <Card>
+          <CardHeader>
+            <CardTitle>User Approval Queue</CardTitle>
+            <CardDescription>
+              {pendingUsers.length} user(s) waiting for approval.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+              <div className="space-y-4">
+                {pendingUsers.map(user => (
+                  <div key={user.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{user.displayName || user.email}</p>
+                        <Badge variant="secondary">{user.role}</Badge>
+                        <Badge variant="outline">Pending</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => handleApproval(user.uid, 'approved')}
+                        variant="default"
+                        size="sm"
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />} Approve
+                      </Button>
+                      <Button 
+                        onClick={() => handleApproval(user.uid, 'rejected')}
+                        variant="destructive"
+                        size="sm"
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserX className="mr-2 h-4 w-4"/>} Reject
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => handleApproval(user.uid, 'approved')}
-                    variant="default"
-                    size="sm"
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />} Approve
-                  </Button>
-                  <Button 
-                    onClick={() => handleApproval(user.uid, 'rejected')}
-                    variant="destructive"
-                    size="sm"
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserX className="mr-2 h-4 w-4"/>} Reject
-                  </Button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+    </GracefulFallback>
   );
 }
 
 
 export default function StaffPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, startUpdatingTransition] = useTransition();
   const [isCreating, startCreatingTransition] = useTransition();
   const [isAddUserOpen, setAddUserOpen] = useState(false);
@@ -139,8 +144,9 @@ export default function StaffPage() {
   const { user, userProfile } = useAuth();
   const db = useDB();
 
+  const canAccessPage = userProfile?.role === 'admin' || userProfile?.role === 'hr';
+
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
     try {
       const data = await getAllUsers(db);
       setUsers(data);
@@ -150,18 +156,14 @@ export default function StaffPage() {
         description: 'Could not load the list of users.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   }, [toast, db]);
 
   useEffect(() => {
-    if (userProfile?.role === 'admin' || userProfile?.role === 'hr') {
+    if (canAccessPage) {
       fetchData();
-    } else {
-      setIsLoading(false);
     }
-  }, [fetchData, userProfile]);
+  }, [fetchData, canAccessPage]);
   
   const onRoleChange = (uid: string, newRole: UserProfile['role']) => {
     if (!userProfile) return;
@@ -204,154 +206,141 @@ export default function StaffPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-        <>
-            <Header title="User Management" />
-            <main className="flex flex-1 items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </main>
-        </>
-    );
-  }
-
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'hr')) {
-    return (
-        <>
-            <Header title="User Management" />
-            <main className="flex flex-1 items-center justify-center p-4 md:p-8">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                       <div className="flex justify-center">
-                         <ShieldAlert className="h-12 w-12 text-destructive" />
-                       </div>
-                        <CardTitle className="mt-4">Access Denied</CardTitle>
-                        <CardDescription>
-                            You do not have permission to view this page. Please contact an administrator.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </main>
-        </>
-    );
-  }
+  const AccessDenied = () => (
+     <main className="flex flex-1 items-center justify-center p-4 md:p-8">
+        <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+                <div className="flex justify-center">
+                <ShieldAlert className="h-12 w-12 text-destructive" />
+                </div>
+                <CardTitle className="mt-4">Access Denied</CardTitle>
+                <CardDescription>
+                    You do not have permission to view this page. Please contact an administrator.
+                </CardDescription>
+            </CardHeader>
+        </Card>
+    </main>
+  );
 
   const approvedUsers = users.filter(u => u.status === 'approved');
-
 
   return (
     <>
       <Header title="User Management" />
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        {(userProfile.role === 'admin' || userProfile.role === 'hr') && <UserApprovalList users={users} onUpdate={fetchData} />}
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center">
-            <div className="grid gap-2">
-                <CardTitle>User Accounts</CardTitle>
-                <CardDescription>
-                Manage user roles and add new staff members.
-                </CardDescription>
-            </div>
-             <Dialog open={isAddUserOpen} onOpenChange={setAddUserOpen}>
-                <DialogTrigger asChild>
-                     <Button className="ml-auto gap-1">
-                        <PlusCircle className="h-4 w-4" />
-                        Add User
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add New User</DialogTitle>
-                        <DialogDescription>
-                            Create a new user account and assign them a role. The user will need to be approved before they can log in.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddUserSubmit}>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="email" className="text-right">Email</Label>
-                                <Input id="email" type="email" className="col-span-3" value={newUser.email} onChange={(e) => setNewUser(u => ({ ...u, email: e.target.value }))} disabled={isCreating} />
+      <GracefulFallback
+        isAllowed={canAccessPage}
+        fallback={<AccessDenied />}
+      >
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <UserApprovalList users={users} onUpdate={fetchData} />
+            <Card>
+            <CardHeader className="flex flex-row items-center">
+                <div className="grid gap-2">
+                    <CardTitle>User Accounts</CardTitle>
+                    <CardDescription>
+                    Manage user roles and add new staff members.
+                    </CardDescription>
+                </div>
+                <Dialog open={isAddUserOpen} onOpenChange={setAddUserOpen}>
+                    <DialogTrigger asChild>
+                        <Button className="ml-auto gap-1">
+                            <PlusCircle className="h-4 w-4" />
+                            Add User
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add New User</DialogTitle>
+                            <DialogDescription>
+                                Create a new user account and assign them a role. The user will need to be approved before they can log in.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleAddUserSubmit}>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="email" className="text-right">Email</Label>
+                                    <Input id="email" type="email" className="col-span-3" value={newUser.email} onChange={(e) => setNewUser(u => ({ ...u, email: e.target.value }))} disabled={isCreating} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="password" className="text-right">Password</Label>
+                                    <Input id="password" type="password" className="col-span-3" value={newUser.password} onChange={(e) => setNewUser(u => ({ ...u, password: e.target.value }))} disabled={isCreating} />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="role" className="text-right">Role</Label>
+                                    <Select value={newUser.role} onValueChange={(value: UserProfile['role']) => setNewUser(u => ({ ...u, role: value}))} disabled={isCreating}>
+                                        <SelectTrigger className="col-span-3">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="loan_officer">Loan Officer</SelectItem>
+                                            <SelectItem value="hr">HR</SelectItem>
+                                            <SelectItem value="cfo">CFO</SelectItem>
+                                            <SelectItem value="ceo">CEO</SelectItem>
+                                            {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="password" className="text-right">Password</Label>
-                                <Input id="password" type="password" className="col-span-3" value={newUser.password} onChange={(e) => setNewUser(u => ({ ...u, password: e.target.value }))} disabled={isCreating} />
-                            </div>
-                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="role" className="text-right">Role</Label>
-                                <Select value={newUser.role} onValueChange={(value: UserProfile['role']) => setNewUser(u => ({ ...u, role: value}))} disabled={isCreating}>
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="loan_officer">Loan Officer</SelectItem>
-                                        <SelectItem value="hr">HR</SelectItem>
-                                        <SelectItem value="cfo">CFO</SelectItem>
-                                        <SelectItem value="ceo">CEO</SelectItem>
-                                        {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit" disabled={isCreating}>
-                                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Create User
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {approvedUsers.map((userItem) => (
-                      <TableRow key={userItem.uid}>
-                        <TableCell>
-                           <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                    <AvatarImage src={getBorrowerAvatar(userItem.uid)} alt="User Avatar" />
-                                    <AvatarFallback>{userItem.email.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium">{userItem.displayName || userItem.email.split('@')[0]}</span>
-                            </div>
-                        </TableCell>
-                        <TableCell>{userItem.email}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={userItem.role}
-                            onValueChange={(newRole: UserProfile['role']) => onRoleChange(userItem.uid, newRole)}
-                            disabled={isUpdating || (userItem.uid === user?.uid && userProfile?.role === 'admin') || (userProfile?.role !== 'admin' && userProfile?.role !== 'hr')}
-                          >
-                            <SelectTrigger className="w-40">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="loan_officer">Loan Officer</SelectItem>
-                                <SelectItem value="hr">HR</SelectItem>
-                                <SelectItem value="cfo">CFO</SelectItem>
-                                <SelectItem value="ceo">CEO</SelectItem>
-                                {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-          </CardContent>
-        </Card>
-      </main>
+                            <DialogFooter>
+                                <Button type="submit" disabled={isCreating}>
+                                    {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Create User
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            </CardHeader>
+            <CardContent>
+                <div className="rounded-lg border">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {approvedUsers.map((userItem) => (
+                        <TableRow key={userItem.uid}>
+                            <TableCell>
+                            <div className="flex items-center gap-3">
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarImage src={getBorrowerAvatar(userItem.uid)} alt="User Avatar" />
+                                        <AvatarFallback>{userItem.email.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{userItem.displayName || userItem.email.split('@')[0]}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell>{userItem.email}</TableCell>
+                            <TableCell>
+                            <Select
+                                value={userItem.role}
+                                onValueChange={(newRole: UserProfile['role']) => onRoleChange(userItem.uid, newRole)}
+                                disabled={isUpdating || (userItem.uid === user?.uid && userProfile?.role === 'admin') || (userProfile?.role !== 'admin' && userProfile?.role !== 'hr')}
+                            >
+                                <SelectTrigger className="w-40">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="loan_officer">Loan Officer</SelectItem>
+                                    <SelectItem value="hr">HR</SelectItem>
+                                    <SelectItem value="cfo">CFO</SelectItem>
+                                    <SelectItem value="ceo">CEO</SelectItem>
+                                    {userProfile?.role === 'admin' && <SelectItem value="admin">Admin</SelectItem>}
+                                </SelectContent>
+                            </Select>
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+            </Card>
+        </main>
+      </GracefulFallback>
     </>
   );
 }

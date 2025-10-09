@@ -29,6 +29,7 @@ import type { MonthEndClosure } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import GracefulFallback from '@/components/graceful-fallback';
 
 export default function AccountingPage() {
   const [isProcessing, startTransition] = useTransition();
@@ -40,7 +41,6 @@ export default function AccountingPage() {
 
   const isCfoOrAdmin = userProfile?.role === 'cfo' || userProfile?.role === 'admin';
   const isCeoOrAdmin = userProfile?.role === 'ceo' || userProfile?.role === 'admin';
-  const canViewPage = isCfoOrAdmin || isCeoOrAdmin;
 
   const periodId = format(new Date(), 'yyyy-MM');
 
@@ -66,12 +66,12 @@ export default function AccountingPage() {
   }, [periodId, user]);
 
   useEffect(() => {
-    if (userProfile && canViewPage) {
+    if (userProfile && (isCfoOrAdmin || isCeoOrAdmin)) {
         fetchClosureStatus();
     } else {
         setIsLoading(false);
     }
-  }, [userProfile, canViewPage, fetchClosureStatus]);
+  }, [userProfile, isCfoOrAdmin, isCeoOrAdmin, fetchClosureStatus]);
 
   const performAction = (action: 'initiate' | 'approve' | 'process') => {
     startTransition(async () => {
@@ -216,75 +216,64 @@ export default function AccountingPage() {
     );
   }
 
-  if (isLoading) {
-    return (
-        <>
-            <Header title="Accounting Procedures" />
-            <main className="flex-1 flex items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            </main>
-        </>
-    );
-  }
-
-  if (!canViewPage) {
-     return (
-        <>
-            <Header title="Accounting Procedures" />
-            <main className="flex-1 flex items-center justify-center p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                       <div className="flex justify-center">
-                         <ShieldAlert className="h-12 w-12 text-destructive" />
-                       </div>
-                        <CardTitle className="mt-4">Access Denied</CardTitle>
-                        <CardDescription>
-                            You do not have permission to view this page. This feature is for managerial roles only.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </main>
-        </>
-    );
-  }
+  const AccessDenied = () => (
+    <main className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+                <div className="flex justify-center">
+                <ShieldAlert className="h-12 w-12 text-destructive" />
+                </div>
+                <CardTitle className="mt-4">Access Denied</CardTitle>
+                <CardDescription>
+                    You do not have permission to view this page. This feature is for managerial roles only.
+                </CardDescription>
+            </CardHeader>
+        </Card>
+    </main>
+  );
 
   return (
     <>
       <Header title="Accounting Procedures" />
-      <main className="flex-1 space-y-4 p-4 md:p-8">
-        <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-            <CardHeader>
-                <CardTitle>Month-End Close for {periodId}</CardTitle>
-                <CardDescription>
-                A two-step process for closing the books, requiring CFO initiation and CEO approval.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                        <h3 className="font-semibold">Current Status</h3>
-                        {renderStatusBadge()}
+      <GracefulFallback
+        isAllowed={isCfoOrAdmin || isCeoOrAdmin}
+        fallback={<AccessDenied />}
+      >
+        <main className="flex-1 space-y-4 p-4 md:p-8">
+            <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                <CardHeader>
+                    <CardTitle>Month-End Close for {periodId}</CardTitle>
+                    <CardDescription>
+                    A two-step process for closing the books, requiring CFO initiation and CEO approval.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                            <h3 className="font-semibold">Current Status</h3>
+                            {renderStatusBadge()}
+                        </div>
+                        <div className="flex items-center">
+                            {isProcessing ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : renderActionButtons()}
+                        </div>
                     </div>
-                    <div className="flex items-center">
-                        {isProcessing ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : renderActionButtons()}
+                    
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                        <p><strong>Workflow:</strong></p>
+                        <ol className="list-decimal list-inside space-y-1">
+                            <li>The CFO initiates the month-end close for the current period.</li>
+                            <li>The CEO receives a notification and must approve the closure request on this page.</li>
+                            <li>Once approved, the CFO can finalize and process the closure, which posts the accounting entries.</li>
+                        </ol>
                     </div>
-                </div>
-                
-                <div className="space-y-2 text-sm text-muted-foreground">
-                    <p><strong>Workflow:</strong></p>
-                    <ol className="list-decimal list-inside space-y-1">
-                        <li>The CFO initiates the month-end close for the current period.</li>
-                        <li>The CEO receives a notification and must approve the closure request on this page.</li>
-                        <li>Once approved, the CFO can finalize and process the closure, which posts the accounting entries.</li>
-                    </ol>
-                </div>
-            </CardContent>
-            </Card>
+                </CardContent>
+                </Card>
 
-            {renderClosureDetails()}
-        </div>
-      </main>
+                {renderClosureDetails()}
+            </div>
+        </main>
+      </GracefulFallback>
     </>
   );
 }
