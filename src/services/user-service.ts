@@ -24,34 +24,38 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
     if (userSnap.exists()) {
       console.log(`✅ User document found for: ${user.uid}`);
       const profile = userSnap.data() as UserProfile;
-      // Ensure the client-side object has the UID
+      // Ensure the client-side object has the UID from the doc
       profile.uid = userSnap.id;
       return profile;
     } else {
-      // Wait a bit for auth to fully propagate
+      // Wait a bit for auth to fully propagate, especially on first attempt
       if (retryCount === 0) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      const userProfile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> & { createdAt: any; updatedAt: any } = {
+      const newUserDoc = {
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
         role: 'loan_officer',
-        status: 'pending',
+        status: 'pending' as const,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
 
       console.log(`🔄 Creating user document for: ${user.uid} (attempt ${retryCount + 1})`);
-      await setDoc(userRef, userProfile);
-      console.log(`✅ Created user document for: ${user.uid}`);
-      // Return a client-safe version with string timestamps
-      return {
-        ...userProfile,
-        uid: user.uid,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      } as UserProfile;
+      await setDoc(userRef, newUserDoc);
+      
+      // CRITICAL: Fetch the document back to get server-generated timestamps
+      const newUserSnap = await getDoc(userRef);
+      if (newUserSnap.exists()) {
+          console.log(`✅ Created and fetched user document for: ${user.uid}`);
+          const profile = newUserSnap.data() as UserProfile;
+          profile.uid = newUserSnap.id;
+          return profile;
+      } else {
+          // This should be a very rare case
+          throw new Error("Failed to retrieve user document immediately after creation.");
+      }
     }
   } catch (error: any) {
     console.error(`❌ Error in ensureUserDocument (attempt ${retryCount + 1}):`, error);
@@ -71,6 +75,7 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
         errorEmitter.emit('permission-error', permissionError);
     }
     
+    // Re-throw other errors
     throw error;
   }
 };
