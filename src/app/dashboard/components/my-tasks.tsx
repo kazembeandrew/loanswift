@@ -42,6 +42,8 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
             if (totalPaid >= totalOwed) return; // Loan is fully paid
 
             let cumulativeDue = 0;
+            if (!loan.repaymentSchedule) return;
+
             for (const installment of loan.repaymentSchedule) {
                 cumulativeDue += installment.amountDue;
                 if (totalPaid < cumulativeDue) {
@@ -65,11 +67,8 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
         });
 
         // Task Type 2: Open Situation Reports
-        const reportsToDisplay = isManager 
-            ? situationReports 
-            : situationReports.filter(report => borrowers.some(b => b.id === report.borrowerId));
-
-        reportsToDisplay
+        // `situationReports` from props is already filtered by role in `useRealtimeData`
+        situationReports
             .filter(report => report.status === 'Open')
             .forEach(report => {
                 const borrower = borrowers.find(b => b.id === report.borrowerId);

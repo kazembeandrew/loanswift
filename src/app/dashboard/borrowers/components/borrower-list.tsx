@@ -63,7 +63,7 @@ const newLoanFormSchema = LoanSchema.pick({
     repaymentPeriod: true,
     startDate: true,
     collateral: true,
-}).rename({principal: 'loanAmount'});
+});
 
 type BorrowerFormData = z.infer<typeof borrowerFormSchema>;
 type NewLoanFormData = z.infer<typeof newLoanFormSchema>;
@@ -79,7 +79,7 @@ const borrowerFormDefaultValues: BorrowerFormData = {
 };
 
 const newLoanFormDefaultValues: NewLoanFormData = {
-    loanAmount: 0,
+    principal: 0,
     interestRate: 0,
     repaymentPeriod: 0,
     startDate: '',
@@ -179,11 +179,11 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
         try {
             const newLoanData: Omit<Loan, 'id' | 'repaymentSchedule'> = {
                 borrowerId: selectedBorrower.id,
-                principal: values.loanAmount,
+                principal: values.principal,
                 interestRate: values.interestRate,
                 repaymentPeriod: values.repaymentPeriod,
                 startDate: values.startDate,
-                outstandingBalance: values.loanAmount * (1 + values.interestRate / 100),
+                outstandingBalance: values.principal * (1 + values.interestRate / 100),
                 collateral: values.collateral,
             };
             const result = await handleAddLoan(newLoanData, userProfile.email);
@@ -531,7 +531,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
                 </DialogHeader>
                 <Form {...newLoanForm}>
                     <form onSubmit={newLoanForm.handleSubmit(handleAddNewLoanSubmit)} className="grid gap-4 py-4">
-                        <FormField control={newLoanForm.control} name="loanAmount" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={newLoanForm.control} name="principal" render={({ field }) => (<FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={newLoanForm.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest (%)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={newLoanForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>Start Date</FormLabel><FormControl><Input type="date" {...field} value={field.value || ''} disabled={isSubmitting}/></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={newLoanForm.control} name="repaymentPeriod" render={({ field }) => (<FormItem><FormLabel>Repayment Period (Months)</FormLabel><FormControl><Input type="number" {...field} value={field.value || ''} disabled={isSubmitting} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />

@@ -41,7 +41,11 @@ export function useRealtimeData(user: User | null) {
     });
 
     // 2. Payments Listener (Collection Group)
-    const paymentsUnsub = onSnapshot(query(collectionGroup(db, 'payments'), orderBy('date', 'desc')), (snapshot) => {
+    const paymentsQuery = isManager
+      ? query(collectionGroup(db, 'payments'), orderBy('date', 'desc'))
+      : query(collectionGroup(db, 'payments')); // No initial filter for L.O, will filter client side
+
+    const paymentsUnsub = onSnapshot(paymentsQuery, (snapshot) => {
       const paymentsData: (Payment & { loanId: string })[] = [];
       snapshot.forEach((doc) => {
         const loanDocRef = doc.ref.parent.parent;
@@ -56,8 +60,7 @@ export function useRealtimeData(user: User | null) {
     // 3. Financials & Global Reports Listeners (only for managers)
     let accountsUnsub = () => {};
     let journalUnsub = () => {};
-    let reportsUnsub = () => {};
-
+    
     if(isManager) {
         accountsUnsub = onSnapshot(query(collection(db, 'accounts'), orderBy('name')), (snapshot) => {
             setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
@@ -66,11 +69,12 @@ export function useRealtimeData(user: User | null) {
         journalUnsub = onSnapshot(query(collection(db, 'journal'), orderBy('date', 'desc')), (snapshot) => {
             setJournalEntries(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as JournalEntry)));
         }, (error) => console.error("Journal listener error:", error));
-
-        reportsUnsub = onSnapshot(query(collection(db, 'situationReports'), orderBy('reportDate', 'desc')), (snapshot) => {
-            setSituationReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SituationReport)));
-        }, (error) => console.error("Situation Reports listener error:", error));
     }
+    
+    // 4. Situation Reports Listener (All Staff)
+    const reportsUnsub = onSnapshot(query(collection(db, 'situationReports'), orderBy('reportDate', 'desc')), (snapshot) => {
+        setSituationReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SituationReport)));
+    }, (error) => console.error("Situation Reports listener error:", error));
 
 
     return () => {
@@ -88,24 +92,27 @@ export function useRealtimeData(user: User | null) {
   useEffect(() => {
     if (!db || !userProfile) return;
 
+    // Managers get all loans
     if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
         const unsub = onSnapshot(query(collection(db, 'loans'), orderBy('startDate', 'desc')), (snapshot) => {
             setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
         }, (error) => console.error("All Loans listener error:", error));
         return () => unsub();
-    } else { // Loan Officer
-        const myBorrowerIds = borrowers.map(b => b.id);
-        if (myBorrowerIds.length > 0) {
-            // Firestore 'in' queries are limited to 30 elements. Chunk if necessary.
-            const loansQuery = query(collection(db, 'loans'), where('borrowerId', 'in', myBorrowerIds.slice(0, 30)));
-            const unsub = onSnapshot(loansQuery, (snapshot) => {
-                setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
-            }, (error) => console.error("Filtered Loans listener error:", error));
-            return () => unsub();
-        } else {
-            setLoans([]); // No borrowers, so no loans for this officer
-        }
     }
+    
+    // Loan Officers get loans based on their borrowers
+    const myBorrowerIds = borrowers.map(b => b.id);
+    if (myBorrowerIds.length > 0) {
+        // Firestore 'in' queries are limited to 30 elements. Chunk if necessary.
+        const loansQuery = query(collection(db, 'loans'), where('borrowerId', 'in', myBorrowerIds.slice(0, 30)));
+        const unsub = onSnapshot(loansQuery, (snapshot) => {
+            setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
+        }, (error) => console.error("Filtered Loans listener error:", error));
+        return () => unsub();
+    } else {
+        setLoans([]); // No borrowers, so no loans for this officer
+    }
+    
   }, [borrowers, db, userProfile]);
   
   // Memoized payments filtered by role
@@ -119,17 +126,17 @@ export function useRealtimeData(user: User | null) {
     return payments.filter(p => myLoanIds.has(p.loanId));
   }, [payments, loans, userProfile]);
   
-  // Memoized situation reports for loan officers
+  // Memoized situation reports filtered by role
   const filteredSituationReports = useMemo(() => {
-    if (!userProfile || !db) return [];
-    if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
+    if (!userProfile) return [];
+     if (userProfile.role === 'admin' || userProfile.role === 'ceo' || userProfile.role === 'cfo') {
         return situationReports; // Managers see all reports
     }
-    // This is a client-side filter based on the borrowers assigned to the loan officer.
+    // Loan officers only see reports for their assigned borrowers
     const myBorrowerIds = new Set(borrowers.map(b => b.id));
     return situationReports.filter(report => myBorrowerIds.has(report.borrowerId));
 
-  }, [situationReports, borrowers, userProfile, db]);
+  }, [situationReports, borrowers, userProfile]);
 
   // The hook returns data scoped to the user's role
   return { 
@@ -138,7 +145,7 @@ export function useRealtimeData(user: User | null) {
       payments: filteredPayments, 
       accounts, 
       journalEntries, 
-      situationReports: userProfile?.role === 'loan_officer' ? filteredSituationReports : situationReports,
+      situationReports: filteredSituationReports,
       loading 
   };
 }
