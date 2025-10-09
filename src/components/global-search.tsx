@@ -9,10 +9,11 @@ import {
 import { Input } from '@/components/ui/input';
 import type { Borrower, Loan } from '@/types';
 import { FileText, User, Search } from 'lucide-react';
-import { getBorrowers } from '@/services/borrower-service';
-import { getLoans } from '@/services/loan-service';
 import { useDB } from '@/lib/firebase-client-provider';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useRealtimeData } from '@/hooks/use-realtime-data';
+import { useAuth } from '@/context/auth-context';
+
 
 type SearchResult = {
   type: 'borrower' | 'loan';
@@ -30,28 +31,13 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [borrowers, setBorrowers] = useState<Borrower[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const { user } = useAuth();
+  const { borrowers, loans, loading } = useRealtimeData(user);
   const router = useRouter();
-  const db = useDB();
-
-  const fetchData = useCallback(async () => {
-    const [borrowersData, loansData] = await Promise.all([
-      getBorrowers(db),
-      getLoans(db),
-    ]);
-    setBorrowers(borrowersData);
-    setLoans(loansData);
-  }, [db]);
+  
 
   useEffect(() => {
-    if (isOpen) {
-      fetchData();
-    }
-  }, [isOpen, fetchData]);
-
-  useEffect(() => {
-    if (debouncedQuery.length > 1) {
+    if (debouncedQuery.length > 1 && !loading) {
       const lowerCaseQuery = debouncedQuery.toLowerCase();
 
       const borrowerResults: SearchResult[] = borrowers
@@ -75,7 +61,7 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
                 type: 'loan',
                 title: `Loan ${l.id}`,
                 description: `For ${borrower?.name || 'Unknown Borrower'}`,
-                href: `/dashboard/borrowers/${l.borrowerId}`,
+                href: `/dashboard/borrowers/${l.borrowerId}?tab=loans`,
             };
         });
 
@@ -83,7 +69,7 @@ export function GlobalSearch({ isOpen, setIsOpen }: GlobalSearchProps) {
     } else {
       setResults([]);
     }
-  }, [debouncedQuery, borrowers, loans]);
+  }, [debouncedQuery, borrowers, loans, loading]);
   
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
