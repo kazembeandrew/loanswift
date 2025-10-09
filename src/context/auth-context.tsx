@@ -6,6 +6,7 @@ import { getUserProfile, ensureUserDocument, type UserProfile } from '@/services
 import { useFirebaseAuth, useDB } from '@/lib/firebase-client-provider';
 import { Loader2 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -34,43 +35,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const db = useDB();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!auth || !db) return;
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        try {
-          const profile = await ensureUserDocument(db, currentUser);
-          setUserProfile(profile);
+    let mounted = true;
 
-          if (profile?.status === 'approved') {
-            if (pathname === '/login' || pathname === '/pending-approval') {
-              router.push('/dashboard');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!mounted) return;
+
+      if (user) {
+        setUser(user);
+        try {
+          console.log(`🔄 Ensuring user document for: ${user.uid}`);
+          const userDoc = await ensureUserDocument(db, user);
+          
+          if (mounted) {
+            if (userDoc) {
+              setUserProfile(userDoc);
+              console.log(`✅ User profile loaded: ${userDoc.role}, ${userDoc.status}`);
+              
+              // Handle user status
+              if (userDoc.status === 'approved') {
+                if (pathname === '/login' || pathname === '/pending-approval') {
+                  router.push('/dashboard');
+                }
+              } else if (userDoc.status === 'pending') {
+                if (pathname !== '/pending-approval') {
+                  router.push('/pending-approval');
+                }
+              }
+            } else {
+              console.error('❌ Failed to ensure user document');
+              // Don't sign out - let user see the error
             }
-          } else if (profile?.status === 'pending') {
-            if (pathname !== '/pending-approval') {
-              router.push('/pending-approval');
-            }
-          } else if (profile?.status === 'rejected') {
-            await signOutUser(auth);
           }
         } catch (error) {
-          console.error("Error processing user state:", error);
-          await signOutUser(auth);
-        } finally {
-          setLoading(false);
+          console.error('❌ Auth state change error:', error);
+          if (mounted) {
+            setUserProfile(null);
+            // Show user-friendly error
+            toast({
+              title: 'Authentication Error',
+              description: 'Unable to initialize user session. Please try again.',
+              variant: 'destructive',
+            });
+          }
         }
       } else {
         setUser(null);
         setUserProfile(null);
+      }
+      
+      if (mounted) {
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
-  }, [auth, db, pathname, router]);
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [auth, db, pathname, router, toast]);
 
   const signIn = async (email: string, password: string) => {
     if (!auth) throw new Error('Auth not initialized');
