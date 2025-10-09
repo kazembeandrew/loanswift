@@ -14,7 +14,7 @@ import { errorEmitter } from '@/lib/error-emitter';
 import { FirestorePermissionError } from '@/lib/errors';
 
 
-// Enhanced ensureUserDocument with retry logic
+// Enhanced ensureUserDocument with retry logic and admin auto-approval
 export const ensureUserDocument = async (db: Firestore, user: User, retryCount = 0): Promise<UserProfile | null> => {
   const userRef = doc(db, 'users', user.uid);
   
@@ -24,7 +24,6 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
     if (userSnap.exists()) {
       console.log(`✅ User document found for: ${user.uid}`);
       const profile = userSnap.data() as UserProfile;
-      // Ensure the client-side object has the UID from the doc
       profile.uid = userSnap.id;
       return profile;
     } else {
@@ -33,17 +32,24 @@ export const ensureUserDocument = async (db: Firestore, user: User, retryCount =
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      const newUserDoc = {
+      // Auto-approve the initial admin user from .env
+      const isAdminEmail = user.email === 'info.ntchito@gmail.com';
+      const initialStatus = isAdminEmail ? 'approved' : 'pending';
+
+      const newUserDoc: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
+        uid: user.uid,
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
-        role: 'loan_officer',
-        status: 'pending' as const,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        role: isAdminEmail ? 'admin' : 'loan_officer',
+        status: initialStatus,
       };
 
-      console.log(`🔄 Creating user document for: ${user.uid} (attempt ${retryCount + 1})`);
-      await setDoc(userRef, newUserDoc);
+      console.log(`🔄 Creating user document for: ${user.uid} with status: ${initialStatus} (attempt ${retryCount + 1})`);
+      await setDoc(userRef, {
+          ...newUserDoc,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+      });
       
       // CRITICAL: Fetch the document back to get server-generated timestamps
       const newUserSnap = await getDoc(userRef);
