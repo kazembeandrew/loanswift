@@ -1,9 +1,11 @@
+
 import { 
   doc, 
   setDoc, 
   getDoc, 
   getDocs, 
   collection, 
+  serverTimestamp,
   type Firestore 
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
@@ -14,37 +16,50 @@ import { FirestorePermissionError } from '@/lib/errors';
 
 export const ensureUserDocument = async (db: Firestore, user: User): Promise<UserProfile | null> => {
   const userRef = doc(db, 'users', user.uid);
+  
   try {
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-      // If the document exists, return its data.
-      return { uid: userSnap.id, ...userSnap.data() } as UserProfile;
+      console.log(`✅ User document found for: ${user.uid}`);
+      const profile = userSnap.data() as UserProfile;
+      // Ensure the client-side object has the UID
+      profile.uid = userSnap.id;
+      return profile;
     } else {
-      // Create the user document if it doesn't exist
-      const userProfileData: UserProfile = {
-        uid: user.uid,
+      // ✅ Create user document with pending status
+      const userProfile: Omit<UserProfile, 'uid' | 'createdAt' | 'updatedAt'> & { createdAt: any; updatedAt: any } = {
         email: user.email!,
         displayName: user.displayName || user.email!.split('@')[0],
-        role: 'loan_officer', // Default role for new users
-        status: 'pending', // NEW: User needs approval
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        role: 'loan_officer',
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
 
-      await setDoc(userRef, userProfileData);
-      return userProfileData;
+      console.log(`🔄 Creating user document for: ${user.uid}`);
+      await setDoc(userRef, userProfile);
+      console.log(`✅ Created user document for: ${user.uid}`);
+      // Return a client-safe version with string timestamps
+      return {
+        ...userProfile,
+        uid: user.uid,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as UserProfile;
     }
-  } catch (serverError: any) {
-     if (serverError.code === 'permission-denied') {
-      const permissionError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'write',
-      });
-      errorEmitter.emit('permission-error', permissionError);
+  } catch (error: any) {
+    console.error(`❌ Error in ensureUserDocument for ${user.uid}:`, error);
+    
+    if (error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'write',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
-    console.error(`Failed to ensure user document for ${user.uid}:`, serverError);
-    return null;
+    
+    throw error;
   }
 };
 
