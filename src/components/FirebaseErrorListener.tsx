@@ -32,7 +32,7 @@ export function FirebaseErrorListener() {
       // Enhanced error handling based on specific context
       let title = 'Permission Denied';
       let description = "You don't have permission to perform this action.";
-      let action: 'redirect' | 'signout' | 'none' = 'none';
+      let action: 'redirect' | 'signout' | 'none' | null = 'none';
 
       // Handle specific error scenarios
       if (!user) {
