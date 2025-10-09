@@ -76,9 +76,12 @@ export default function BorrowerDetailPage() {
   const [isSubmittingPayment, startPaymentTransition] = useTransition();
 
   const [selectedReport, setSelectedReport] = useState<SituationReport | null>(null);
-  const [selectedLoanForPayment, setSelectedLoanForPayment] = useState<Loan | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
-
+  const [paymentState, setPaymentState] = useState<{
+    loan: Loan | null,
+    amount: string,
+    date: string,
+  }>({ loan: null, amount: '', date: '' });
+  
   const { toast } = useToast();
   const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
   const db = useDB();
@@ -151,21 +154,21 @@ export default function BorrowerDetailPage() {
   };
   
   const handleRecordPaymentClick = (loan: Loan) => {
-    setSelectedLoanForPayment(loan);
-    setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
+    setPaymentState({ loan, amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   }
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLoanForPayment || !paymentDetails.amount || !userProfile || !borrower) return;
+    if (!paymentState.loan || !paymentState.amount || !userProfile || !borrower) return;
 
     startPaymentTransition(async () => {
-        const paymentAmount = parseFloat(paymentDetails.amount);
+        const paymentAmount = parseFloat(paymentState.amount);
+        const paymentDate = paymentState.date || new Date().toISOString().split('T')[0];
         const result = await handleRecordPayment({
-            loanId: selectedLoanForPayment.id,
+            loanId: paymentState.loan.id,
             amount: paymentAmount,
-            date: paymentDetails.date || new Date().toISOString().split('T')[0],
+            date: paymentDate,
             recordedByEmail: userProfile.email,
         });
 
@@ -173,17 +176,16 @@ export default function BorrowerDetailPage() {
             setReceiptInfo({
                 isOpen: true,
                 borrower: borrower,
-                loan: selectedLoanForPayment,
+                loan: paymentState.loan,
                 paymentAmount: paymentAmount,
-                paymentDate: paymentDetails.date || new Date().toISOString().split('T')[0],
+                paymentDate: paymentDate,
                 balance: result.newBalance,
             });
             toast({
                 title: 'Payment Recorded',
-                description: `Payment of MWK ${paymentAmount.toLocaleString()} for loan ${selectedLoanForPayment.id} has been recorded.`,
+                description: `Payment of MWK ${paymentAmount.toLocaleString()} for loan ${paymentState.loan.id} has been recorded.`,
             });
             setRecordPaymentOpen(false);
-            // No need to call fetchData(), realtime listener will update.
         } else {
             toast({
                 title: 'Payment Failed',
@@ -526,8 +528,8 @@ export default function BorrowerDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
-            {selectedLoanForPayment && <DialogDescription>
-              For loan {selectedLoanForPayment.id} of {borrower?.name}.
+            {paymentState.loan && <DialogDescription>
+              For loan {paymentState.loan.id} of {borrower?.name}.
             </DialogDescription>}
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
@@ -536,13 +538,13 @@ export default function BorrowerDetailPage() {
                 <Label htmlFor="amount" className="text-right">
                   Amount
                 </Label>
-                <Input id="amount" type="number" className="col-span-3" value={paymentDetails.amount} onChange={(e) => setPaymentDetails(d => ({...d, amount: e.target.value}))}/>
+                <Input id="amount" type="number" className="col-span-3" value={paymentState.amount} onChange={(e) => setPaymentState(d => ({...d, amount: e.target.value}))}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="date" className="text-right">
                   Date
                 </Label>
-                <Input id="date" type="date" className="col-span-3" value={paymentDetails.date} onChange={(e) => setPaymentDetails(d => ({...d, date: e.target.value}))}/>
+                <Input id="date" type="date" className="col-span-3" value={paymentState.date} onChange={(e) => setPaymentState(d => ({...d, date: e.target.value}))}/>
               </div>
             </div>
             <DialogFooter>

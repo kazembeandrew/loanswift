@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, Flag, CheckCircle, ListTodo } from 'lucide-react';
 import type { Borrower, Loan, Payment, SituationReport } from '@/types';
 import { isAfter, format, differenceInDays } from 'date-fns';
+import { useAuth } from '@/context/auth-context';
 
 type Task = {
     type: 'overdue' | 'report' | 'follow-up';
@@ -24,9 +25,12 @@ type MyTasksProps = {
 };
 
 export default function MyTasks({ borrowers, loans, payments, situationReports }: MyTasksProps) {
+    const { userProfile } = useAuth();
+    
     const tasks = useMemo<Task[]>(() => {
         const allTasks: Task[] = [];
         const now = new Date();
+        const isManager = userProfile?.role === 'admin' || userProfile?.role === 'ceo' || userProfile?.role === 'cfo';
 
         // Task Type 1: Overdue Loans
         loans.forEach(loan => {
@@ -61,7 +65,11 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
         });
 
         // Task Type 2: Open Situation Reports
-        situationReports
+        const reportsToDisplay = isManager 
+            ? situationReports 
+            : situationReports.filter(report => borrowers.some(b => b.id === report.borrowerId));
+
+        reportsToDisplay
             .filter(report => report.status === 'Open')
             .forEach(report => {
                 const borrower = borrowers.find(b => b.id === report.borrowerId);
@@ -98,7 +106,7 @@ export default function MyTasks({ borrowers, loans, payments, situationReports }
 
 
         return allTasks;
-    }, [borrowers, loans, payments, situationReports]);
+    }, [borrowers, loans, payments, situationReports, userProfile]);
 
     return (
         <Card>

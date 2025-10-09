@@ -97,16 +97,28 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
   const [isAddBorrowerOpen, setAddBorrowerOpen] = useState(false);
   const [isEditBorrowerOpen, setEditBorrowerOpen] = useState(false);
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
-  const [isReceiptGeneratorOpen, setReceiptGeneratorOpen] = useState(false);
   const [isAddNewLoanOpen, setAddNewLoanOpen] = useState(false);
   const [isSubmitting, startTransition] = useTransition();
 
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState({ amount: '', date: '' });
+  
+  const [receiptInfo, setReceiptInfo] = useState<{
+      isOpen: boolean;
+      borrower: Borrower | null;
+      loan: Loan | null;
+      paymentAmount: number;
+      paymentDate: string;
+      balance: number;
+  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', balance: 0 });
+
+  const [paymentState, setPaymentState] = useState<{
+    loan: Loan | null,
+    amount: string,
+    date: string,
+  }>({ loan: null, amount: '', date: '' });
+
   const { toast } = useToast();
   const { userProfile } = useAuth();
-  const [receiptBalance, setReceiptBalance] = useState(0);
   const router = useRouter();
   const db = useDB();
 
@@ -197,19 +209,27 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBorrower || !selectedLoan || !paymentDetails.amount || !userProfile) return;
+    if (!selectedBorrower || !paymentState.loan || !paymentState.amount || !userProfile) return;
     startTransition(async () => {
+        const paymentAmount = parseFloat(paymentState.amount);
+        const paymentDate = paymentState.date || new Date().toISOString().split('T')[0];
         try {
             const result = await handleRecordPayment({
-                loanId: selectedLoan.id,
-                amount: parseFloat(paymentDetails.amount),
-                date: paymentDetails.date || new Date().toISOString().split('T')[0],
+                loanId: paymentState.loan.id,
+                amount: paymentAmount,
+                date: paymentDate,
                 recordedByEmail: userProfile.email,
             });
             if (result.success) {
-                setReceiptBalance(result.newBalance);
+                setReceiptInfo({
+                    isOpen: true,
+                    borrower: selectedBorrower,
+                    loan: paymentState.loan,
+                    paymentAmount,
+                    paymentDate,
+                    balance: result.newBalance
+                });
                 setRecordPaymentOpen(false);
-                setReceiptGeneratorOpen(true);
                 toast({
                     title: 'Payment Recorded',
                     description: `Payment has been recorded.`,
@@ -237,8 +257,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
 
   const handleRecordPaymentClick = (borrower: Borrower, loan: Loan) => {
     setSelectedBorrower(borrower);
-    setSelectedLoan(loan);
-    setPaymentDetails({ amount: '', date: new Date().toISOString().split('T')[0] });
+    setPaymentState({ loan, amount: '', date: new Date().toISOString().split('T')[0] });
     setRecordPaymentOpen(true);
   };
   
@@ -473,7 +492,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
-              For loan {selectedLoan?.id} of {selectedBorrower?.name}.
+              For loan {paymentState.loan?.id} of {selectedBorrower?.name}.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePaymentSubmit}>
@@ -482,13 +501,13 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
                 <Label htmlFor="amount" className="text-right">
                   Amount
                 </Label>
-                <Input id="amount" type="number" className="col-span-3" value={paymentDetails.amount} onChange={(e) => setPaymentDetails(d => ({...d, amount: e.target.value}))}/>
+                <Input id="amount" type="number" className="col-span-3" value={paymentState.amount} onChange={(e) => setPaymentState(d => ({...d, amount: e.target.value}))}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="date" className="text-right">
                   Date
                 </Label>
-                <Input id="date" type="date" className="col-span-3" value={paymentDetails.date} onChange={(e) => setPaymentDetails(d => ({...d, date: e.target.value}))}/>
+                <Input id="date" type="date" className="col-span-3" value={paymentState.date} onChange={(e) => setPaymentState(d => ({...d, date: e.target.value}))}/>
               </div>
             </div>
             <DialogFooter>
@@ -501,7 +520,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
         </DialogContent>
       </Dialog>
       
-      {selectedBorrower && selectedLoan && (
+      {selectedBorrower && (
         <Dialog open={isAddNewLoanOpen} onOpenChange={(open) => { setAddNewLoanOpen(open); if(!open) newLoanForm.reset(newLoanFormDefaultValues); }}>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -539,15 +558,15 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
         </Dialog>
       )}
 
-      {selectedBorrower && selectedLoan && (
+      {receiptInfo.isOpen && receiptInfo.borrower && receiptInfo.loan && (
         <ReceiptGenerator 
-          isOpen={isReceiptGeneratorOpen}
-          setIsOpen={setReceiptGeneratorOpen}
-          borrower={selectedBorrower}
-          loan={selectedLoan}
-          paymentAmount={parseFloat(paymentDetails.amount) || 0}
-          paymentDate={paymentDetails.date || new Date().toISOString().split('T')[0]}
-          balance={receiptBalance}
+          isOpen={receiptInfo.isOpen}
+          setIsOpen={(isOpen) => setReceiptInfo(prev => ({...prev, isOpen}))}
+          borrower={receiptInfo.borrower}
+          loan={receiptInfo.loan}
+          paymentAmount={receiptInfo.paymentAmount}
+          paymentDate={receiptInfo.paymentDate}
+          balance={receiptInfo.balance}
         />
       )}
     </Card>
