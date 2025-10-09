@@ -40,7 +40,7 @@ import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 export default function PaymentsPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { borrowers, loans, payments, loading } = useRealtimeData(user);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
@@ -73,23 +73,19 @@ export default function PaymentsPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paymentDetails.amount || !user) {
-      toast({
-        title: 'Error',
-        description: 'Please select a borrower, loan and enter an amount.',
-        variant: 'destructive',
-      });
+    if (!user || !userProfile) {
+      toast({ title: 'Not Authenticated', description: 'Please login to record a payment.', variant: 'destructive'});
+      return;
+    }
+    if (!paymentDetails.amount) {
+      toast({ title: 'Error', description: 'Please select a borrower, loan and enter an amount.', variant: 'destructive' });
       return;
     }
     
     const selectedLoan = getLoanById(selectedLoanId);
     if (!selectedLoan) {
-       toast({
-        title: 'Error',
-        description: 'Please select a valid loan.',
-        variant: 'destructive',
-      });
-      return;
+       toast({ title: 'Error', description: 'Please select a valid loan.', variant: 'destructive' });
+       return;
     }
 
     startPaymentTransition(async () => {
@@ -98,7 +94,7 @@ export default function PaymentsPage() {
             loanId: selectedLoan.id,
             amount: paymentAmount,
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedByEmail: user.email!,
+            recordedByEmail: userProfile.email,
         });
 
         if (result.success) {
@@ -283,7 +279,7 @@ export default function PaymentsPage() {
           loan={receiptInfo.loan}
           paymentAmount={receiptInfo.paymentAmount}
           paymentDate={receiptInfo.paymentDate}
-          balance={receiptInfo.newBalance}
+          newBalance={receiptInfo.newBalance}
         />
       )}
     </>

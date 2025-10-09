@@ -190,7 +190,7 @@ export default function ReceiptsPage() {
           loan={receiptInfo.loan}
           paymentAmount={receiptInfo.paymentAmount}
           paymentDate={receiptInfo.paymentDate}
-          balance={receiptInfo.newBalance}
+          newBalance={receiptInfo.newBalance}
         />
       )}
     </>

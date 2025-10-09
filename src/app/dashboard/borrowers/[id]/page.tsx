@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useParams, useSearchParams } from 'next/navigation';
@@ -172,32 +171,19 @@ export default function BorrowerDetailPage() {
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
-    if (!isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to record payments',
-        variant: 'destructive',
-      });
+    if (!isAuthenticated || !userProfile) {
+      toast({ title: 'Authentication Required', description: 'Please log in to record payments', variant: 'destructive' });
       return;
     }
 
-    if (!paymentState.amount || !paymentState.loan || !borrower) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please select a loan and enter payment amount',
-        variant: 'destructive',
-      });
+    if (!paymentState.loan || !borrower) {
+      toast({ title: 'Missing Information', description: 'Please select a loan and enter payment amount', variant: 'destructive' });
       return;
     }
 
     const paymentAmount = parseFloat(paymentState.amount);
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
-      toast({
-        title: 'Invalid Amount',
-        description: 'Please enter a valid payment amount',
-        variant: 'destructive',
-      });
+      toast({ title: 'Invalid Amount', description: 'Please enter a valid payment amount', variant: 'destructive' });
       return;
     }
 
@@ -205,10 +191,10 @@ export default function BorrowerDetailPage() {
       try {
         const paymentDate = paymentState.date || new Date().toISOString().split('T')[0];
         const result = await handleRecordPayment({
-          loanId: paymentState.loan!.id, // We validated above
+          loanId: paymentState.loan!.id, // We validated paymentState.loan above
           amount: paymentAmount,
           date: paymentDate,
-          recordedByEmail: userProfile!.email, // We validated authentication
+          recordedByEmail: userProfile.email,
         });
 
         if (result.success) {
@@ -242,7 +228,7 @@ export default function BorrowerDetailPage() {
   };
 
   const handleFileReportSubmit = async (values: z.infer<typeof situationReportFormSchema>) => {
-    if (!isAuthenticated || !borrower) {
+    if (!isAuthenticated || !borrower || !user) {
       toast({
         title: 'Authentication Required',
         description: 'Please log in to file reports',
@@ -256,7 +242,7 @@ export default function BorrowerDetailPage() {
         await addSituationReport(db, {
           ...values,
           borrowerId: borrower.id,
-          reportedBy: user!.uid,
+          reportedBy: user.uid,
         });
         
         toast({

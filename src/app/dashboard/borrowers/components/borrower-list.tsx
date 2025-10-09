@@ -108,8 +108,8 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
       loan: Loan | null;
       paymentAmount: number;
       paymentDate: string;
-      balance: number;
-  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', balance: 0 });
+      newBalance: number;
+  }>({ isOpen: false, borrower: null, loan: null, paymentAmount: 0, paymentDate: '', newBalance: 0 });
 
   const [paymentState, setPaymentState] = useState<{
     loan: Loan | null,
@@ -209,14 +209,16 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBorrower || !paymentState.amount || !userProfile) return;
-
+    if (!userProfile) {
+        toast({ title: 'Not Authenticated', description: 'Please login to record a payment.', variant: 'destructive'});
+        return;
+    }
     if (!paymentState.loan) {
-        toast({
-            title: 'Error',
-            description: 'No loan selected for payment.',
-            variant: 'destructive',
-        });
+        toast({ title: 'Error', description: 'No loan selected for payment.', variant: 'destructive' });
+        return;
+    }
+    if (!selectedBorrower || !paymentState.amount) {
+        toast({ title: 'Missing Information', description: 'Please ensure all payment details are filled.', variant: 'destructive'});
         return;
     }
 
@@ -237,7 +239,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
                     loan: paymentState.loan,
                     paymentAmount,
                     paymentDate,
-                    balance: result.newBalance
+                    newBalance: result.newBalance
                 });
                 setRecordPaymentOpen(false);
                 toast({
@@ -576,7 +578,7 @@ export default function BorrowerList({ borrowers, loans, payments }: BorrowerLis
           loan={receiptInfo.loan}
           paymentAmount={receiptInfo.paymentAmount}
           paymentDate={receiptInfo.paymentDate}
-          balance={receiptInfo.balance}
+          newBalance={receiptInfo.newBalance}
         />
       )}
     </Card>

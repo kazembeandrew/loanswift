@@ -26,7 +26,7 @@ type ReceiptGeneratorProps = {
   loan: Loan;
   paymentAmount: number;
   paymentDate: string;
-  balance?: number;
+  newBalance?: number;
 };
 
 export default function ReceiptGenerator({
@@ -36,7 +36,7 @@ export default function ReceiptGenerator({
   loan,
   paymentAmount,
   paymentDate,
-  balance = 0,
+  newBalance = 0,
 }: ReceiptGeneratorProps) {
   const [receiptText, setReceiptText] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export default function ReceiptGenerator({
         receiptId: newReceiptId,
         businessName: settings.businessName,
         businessAddress: settings.businessAddress,
-        balance,
+        balance: newBalance,
       };
       const result = await handleGenerateReceipt(input);
       setReceiptText(result.receiptText);
@@ -87,7 +87,7 @@ export default function ReceiptGenerator({
     } finally {
       setIsGeneratingText(false);
     }
-  }, [borrower, loan, paymentAmount, paymentDate, settings, toast, balance, userProfile]);
+  }, [borrower, loan, paymentAmount, paymentDate, settings, toast, newBalance, userProfile]);
 
   useEffect(() => {
     if (isOpen && settings && userProfile && !receiptText && !isGeneratingText) {

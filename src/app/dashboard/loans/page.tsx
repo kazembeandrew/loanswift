@@ -41,7 +41,7 @@ import { useRealtimeData } from '@/hooks/use-realtime-data';
 
 
 export default function LoansPage() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { loans, borrowers, payments, loading } = useRealtimeData(user);
   
   const [isRecordPaymentOpen, setRecordPaymentOpen] = useState(false);
@@ -114,14 +114,16 @@ export default function LoansPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paymentDetails.amount || !user) return;
-
+    if (!user || !userProfile) {
+        toast({ title: 'Not Authenticated', description: 'Please login to record a payment.', variant: 'destructive'});
+        return;
+    }
     if (!selectedLoan) {
-        toast({
-            title: 'Error',
-            description: 'No loan selected for payment.',
-            variant: 'destructive',
-        });
+        toast({ title: 'Error', description: 'No loan selected for payment.', variant: 'destructive' });
+        return;
+    }
+    if (!paymentDetails.amount) {
+        toast({ title: 'Missing Information', description: 'Please enter a payment amount.', variant: 'destructive'});
         return;
     }
 
@@ -131,7 +133,7 @@ export default function LoansPage() {
             loanId: selectedLoan.id,
             amount: paymentAmount,
             date: paymentDetails.date || new Date().toISOString().split('T')[0],
-            recordedByEmail: user.email!,
+            recordedByEmail: userProfile.email,
         });
 
         if (result.success) {
@@ -286,7 +288,7 @@ export default function LoansPage() {
           loan={receiptInfo.loan}
           paymentAmount={receiptInfo.paymentAmount}
           paymentDate={receiptInfo.paymentDate}
-          balance={receiptInfo.newBalance}
+          newBalance={receiptInfo.newBalance}
         />
       )}
 
